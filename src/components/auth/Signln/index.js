@@ -239,9 +239,34 @@ class SignIn extends Component {
                 </TouchableOpacity>
               </View>
 
+              {/*// In your SignIn index.js, replace the current usage with:*/}
+
               <LanguagePickerFix
                   langSwitch={Lang.langSwitch}
-                  style={{ marginTop: 30 }}
+                  onLanguageChange={(index) => {
+                    console.log('Language changed to:', index);
+                    // Add any additional SignIn-specific logic here if needed
+                  }}
+                  isCircular={false}          // Keep rectangular for SignIn
+                  showFlag={true}             // Show flag emoji
+                  showText={true}             // Show language text
+                  buttonStyle={{
+                    backgroundColor: '#e0f7fa',
+                    borderColor: '#00c3cc',
+                    paddingHorizontal: 15,
+                    paddingVertical: 10,
+                    minWidth: 120,          // Ensure button has good width
+                  }}
+                  textStyle={{
+                    color: '#00c3cc',
+                    fontSize: 16,
+                    fontWeight: 'bold',
+                  }}
+                  style={{
+                    marginTop: 30,
+                    alignSelf: 'center',    // Center the component
+                  }}
+                  modalTitle="Select Language"  // Custom modal title if needed
               />
             </ScrollView>
           </LinearGradient>

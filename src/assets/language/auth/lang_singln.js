@@ -23,9 +23,9 @@ const alertErrorBody2 = {
   japanese: 'ユーザー名とパスワードを入力してください',
 };
 const langSwitch = {
-  eng: '🇬🇧 English',
-  thai: '🇹🇭 ภาษาไทย ',
-  japanese: '🇯🇵 日本語',
+  eng: 'English',
+  thai: 'ภาษาไทย ',
+  japanese: '日本語',
 }
 
 export default {

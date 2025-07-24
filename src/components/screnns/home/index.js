@@ -29,6 +29,8 @@ import {connect} from 'react-redux';
 
 import HeaderFix from '../../common/HeaderFix';
 import messaging from '@react-native-firebase/messaging';
+import LanguagePickerFix from '../../common/LanguagePickerFix';
+import Lang from '../../../assets/language/screen/lang_home';
 
 import LangAlert from '../../../assets/language/alert/lang_alert';
 import {getLocalizedText} from '../../../assets/language/langUtils';
@@ -387,6 +389,39 @@ class index extends Component {
           />
 
           {this.popup()}
+
+
+          <View
+              style={{
+                position: 'absolute',
+                left: screenWidth * 0.2,      // Mirror the logout button position
+                top: screenWidth * 0.55,      // Same top position as logout
+                borderWidth: 1.2,
+                borderColor: '#fff',
+                padding: 2,
+                borderRadius: screenWidth / 2, // Same border radius as logout
+                width: 34,                     // Same size as logout (30 + 2*2 padding)
+                height: 34,
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 9999,
+              }}
+              pointerEvents="box-none"
+          >
+            <LanguagePickerFix
+                langSwitch={Lang.langSwitch}
+                onLanguageChange={(index) => {
+                  console.log('Language changed to:', index);
+                }}
+                isCircular={true}
+                showFlag={true}
+                showText={false}
+                style={{
+                  position: 'absolute',
+                }}
+            />
+          </View>
+
           <ScrollView
               style={{flex: 1}}
               contentContainerStyle={{
@@ -395,6 +430,8 @@ class index extends Component {
               }}>
 
             <View style={[styles.oval, { height: safeHeight * 0.35 }]}>
+
+
               <TouchableOpacity
                   style={[
                     {

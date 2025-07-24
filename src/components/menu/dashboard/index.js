@@ -86,6 +86,7 @@ class index extends Component {
       dataShow: false,
       dashboardSummaryText: '',
       currentPageIndex: 0,
+      currentDateTime: ''
     };
     this.onPreLoad();
   }
@@ -309,6 +310,7 @@ class index extends Component {
         // Call dashboard APIs
         this.handleFetchDashboardData();
         this.fetchDashboardSummary();
+        this.fetchDashboardReport();
 
         console.log('📤 Sending /record for user:', id_customer);
 
@@ -397,43 +399,65 @@ class index extends Component {
       console.error(error);
       this.setState({ isLoading: false, dataShow: true });
     }
-    // console.log('this.props.user.id_customer', this.props.user.id_customer);
-    // fetch(`${API}member/get_user_details`, {
-    //   method: 'POST',
-    //   headers: {'Content-Type': 'application/json'},
-    //   body: {id: this.props.user.id_customer},
-    // })
-    //   // .then(res => {
-    //   //   console.log('============API Response============');
-    //   //   return console.log(res), res.json();
-    //   // })
-    //   .then(res => {
-    //     console.log(res, 'responseFromAPU');
-    //     if (res.status == 200) {
-    //       let user_details = res.user_details;
-    //       let xPos = JSON.parse(user_details.cop_x);
-    //       let yPos = JSON.parse(user_details.cop_y);
-    //       let actualArray = [];
-
-    //       xPos.map((data, index) => {
-    //         actualArray.push({x_key: xPos[index], y_key: yPos[index]});
-    //       });
-
-    //       this.setState({
-    //         healthData: user_details,
-    //         positionValue: actualArray,
-    //         isLoading: false,
-    //       });
-    //     } else {
-    //       this.setState({dataShow: true, isLoading: false});
-    //     }
-    //   })
-    //   .catch(err => {
-    //     console.log(err);
-    //     this.setState({isLoading: false, dataShow: true});
-    //     // Toast.show('Something went wrong. Please Try again!!!');
-    //   });
   };
+
+    fetchDashboardReport = async () => {
+        const { id_customer, security_token } = this.props.user;
+        const { token } = this.props;
+        const lang_mode = this.props.lang || 0;
+
+        console.log('🕐 Fetching Dashboard Report for date-time...');
+
+        if (!id_customer || !security_token || !token) {
+            console.warn('🚨 Missing required data for dashboard report');
+            return;
+        }
+
+        this.setState({ timeLoading: true });
+
+        try {
+            const response = await fetch('https://www.surasole.com/api/dashboard/dashboard-report', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    security_token,
+                    user_id: id_customer,
+                    lang_mode,
+                }),
+            });
+
+            const res = await response.json();
+            console.log('🕐 Dashboard Report Response:', res);
+
+            // Extract date and time from created_at field
+            if (res.data_dashboard && res.data_dashboard.created_at) {
+                const createdAt = res.data_dashboard.created_at;
+
+                // Choose your preferred format:
+                const formattedDateTime = moment(createdAt).format('DD/MM/YYYY HH:mm:ss');
+                // Alternative formats:
+                // const formattedDateTime = moment(createdAt).format('MMM DD, YYYY • HH:mm:ss');
+                // const formattedDateTime = moment(createdAt).format('MMMM Do YYYY, h:mm:ss A');
+
+                console.log('🕐 Extracted date-time from created_at:', formattedDateTime);
+                this.setState({ currentDateTime: formattedDateTime });
+                this.setState({ dashboardData: res.data_dashboard });
+
+            } else {
+                console.warn('🚨 No created_at field found in data_dashboard');
+                this.setState({ currentDateTime: moment().format('DD/MM/YYYY HH:mm:ss') });
+            }
+
+        } catch (error) {
+            console.error('❌ Error fetching dashboard report:', error);
+            this.setState({ currentDateTime: moment().format('DD/MM/YYYY HH:mm:ss') });
+        } finally {
+            this.setState({ timeLoading: false });
+        }
+    };
 
     fetchDashboardSummary = async () => {
         const { id_customer, security_token } = this.props.user;
@@ -658,7 +682,169 @@ class index extends Component {
                 {/* ──────────── PAGE 1 ──────────── */}
                 <ScrollView contentContainerStyle={{ paddingBottom: 50 }}>
                   <View style={{ flex: 1, paddingTop: 8 }}>
+                      <Text style={{ fontSize: 16, textAlign: 'right', marginRight: 10, color:'#005C51', fontWeight: 'bold' }}>
+                          {this.state.currentDateTime || moment().format('DD/MM/YYYY HH:mm:ss')}
+                      </Text>
 
+                      {dataType === 2 && (
+                          <View
+                              style={{
+                                  flexDirection: 'row',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  marginHorizontal: 10,
+                                  marginTop: 8,
+                                  marginBottom: 12,
+                              }}>
+
+                              {/* ──────────────── Card A : Fall-Risk Prediction ──────────────── */}
+                              <LinearGradient
+                                  colors={['#005C51', '#0CFFD3']}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 0 }}
+                                  style={{
+                                      padding: 1,
+                                      borderRadius: 10,
+                                      width: '55%',
+                                      height: 222,
+                                  }}>
+                                  <View
+                                      style={{
+                                          flex: 1,
+                                          backgroundColor: '#FFF',
+                                          borderRadius: 10,
+                                          paddingVertical: 12,
+                                          paddingHorizontal: 10,
+                                          justifyContent: 'center',
+                                          alignItems: 'center',
+                                      }}>
+                                      <Text style={{ fontSize: 18, color: '#00A2A2', textAlign: 'center' }}>
+                                          Fall Risk Prediction
+                                      </Text>
+
+                                      <LinearGradient
+                                          colors={fallRingColors}
+                                          start={{ x: 0, y: 0 }}
+                                          end={{ x: 1, y: 0 }}
+                                          style={{
+                                              padding: 1,
+                                              marginTop: 10,
+                                              width: 130,
+                                              height: 130,
+                                              borderRadius: 65,
+                                              justifyContent: 'center',
+                                              alignItems: 'center',
+                                          }}>
+                                          <View
+                                              style={{
+                                                  backgroundColor: '#FFF',
+                                                  width: 110,
+                                                  height: 110,
+                                                  borderRadius: 55,
+                                                  justifyContent: 'center',
+                                                  alignItems: 'center',
+                                                  paddingHorizontal: 8, // Add padding to prevent text overflow
+                                              }}>
+                                              <Text
+                                                  style={{
+                                                      fontSize: fallRisk === 2 ? 24 : 32,
+                                                      fontWeight: 'bold',
+                                                      textAlign: 'center',
+                                                      color:
+                                                          (fallRisk === 1 && '#5EC104') ||
+                                                          (fallRisk === 2 && '#D1D501') ||
+                                                          (fallRisk === 3 && '#FD9801'),
+                                                  }}>
+                                                  {(fallRisk === 1 && 'Low') ||
+                                                      (fallRisk === 2 && 'Medium') ||
+                                                      (fallRisk === 3 && 'High')}
+                                              </Text>
+                                          </View>
+                                      </LinearGradient>
+                                  </View>
+                              </LinearGradient>
+
+                              {/* ──────────────── Card B : Cadence · Steps · Speed ──────────────── */}
+                              <LinearGradient
+                                  colors={['#005C51', '#0CFFD3']}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 0 }}
+                                  style={{
+                                      padding: 1,
+                                      borderRadius: 10,
+                                      width: '40%',
+                                      height: 222,
+                                  }}>
+                                  <View
+                                      style={{
+                                          flex: 1,
+                                          backgroundColor: '#FFF',
+                                          borderRadius: 10,
+                                          paddingVertical: 12,
+                                          paddingHorizontal: 10,
+                                          justifyContent: 'center',
+                                          alignItems: 'center',
+                                      }}>
+
+                                      {/* Cadence */}
+                                      <Text style={{ fontSize: 16, color: '#00A2A2', fontWeight: 'bold' }}>
+                                          {this.state.healthData.cadence ?? '--'}
+                                      </Text>
+                                      <Text style={{ fontSize: 14, color: '#00A2A2', textAlign: 'center' }}>
+                                          Cadence{'\n'}(steps/min)
+                                      </Text>
+
+                                      <View
+                                          style={{
+                                              width: '90%',
+                                              height: 2,
+                                              marginVertical: 5,
+                                              borderRadius: 1,
+                                              overflow: 'hidden',
+                                          }}>
+                                          <LinearGradient
+                                              colors={['#005C51', '#0CFFD3']}
+                                              start={{ x: 0, y: 0 }}
+                                              end={{ x: 1, y: 0 }}
+                                              style={{ flex: 1 }}
+                                          />
+                                      </View>
+
+                                      {/* Step count */}
+                                      <Text style={{ fontSize: 16, color: '#00A2A2', fontWeight: 'bold' }}>
+                                          {this.state.healthData.step_count ?? '--'}
+                                      </Text>
+                                      <Text style={{ fontSize: 14, color: '#00A2A2', textAlign: 'center' }}>
+                                          Step count{'\n'}(steps)
+                                      </Text>
+
+                                      <View
+                                          style={{
+                                              width: '90%',
+                                              height: 2,
+                                              marginVertical: 5,
+                                              borderRadius: 1,
+                                              overflow: 'hidden',
+                                          }}>
+                                          <LinearGradient
+                                              colors={['#005C51', '#0CFFD3']}
+                                              start={{ x: 0, y: 0 }}
+                                              end={{ x: 1, y: 0 }}
+                                              style={{ flex: 1 }}
+                                          />
+                                      </View>
+
+                                      {/* Gait speed */}
+                                      <Text style={{ fontSize: 16, color: '#00A2A2', fontWeight: 'bold' }}>
+                                          {this.state.healthData.gait_speed ?? '--'}
+                                      </Text>
+                                      <Text style={{ fontSize: 14, color: '#00A2A2', textAlign: 'center' }}>
+                                          Gait Speed{'\n'}(m/s)
+                                      </Text>
+                                  </View>
+                              </LinearGradient>
+                          </View>
+                      )}
 
 
 
@@ -1322,155 +1508,6 @@ class index extends Component {
                       <View style={{ flex: 1 }}>
                           {dataType === 2 ? (
                           <>
-                              {/* ---------- ① FALL-RISK + CADENCE/STEP/SPEED ROW ---------- */}
-                      <View
-                          style={{
-                              flexDirection: 'row',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              marginHorizontal: 10,
-                              marginTop: 8,
-                              marginBottom: 12,
-                          }}>
-
-                          {/* ──────────────── Card A : Fall-Risk Prediction ──────────────── */}
-                          <LinearGradient
-                              colors={['#005C51', '#0CFFD3']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 0 }}
-                              style={{
-                                  padding: 1,
-                                  borderRadius: 10,
-                                  width: '55%',
-                                  height: 222,
-                              }}>
-                              <View
-                                  style={{
-                                      flex: 1,
-                                      backgroundColor: '#FFF',
-                                      borderRadius: 10,
-                                      paddingVertical: 12,
-                                      paddingHorizontal: 10,
-                                      justifyContent: 'center',
-                                      alignItems: 'center',
-                                  }}>
-                                  <Text style={{ fontSize: 18, color: '#00A2A2', textAlign: 'center' }}>
-                                      Fall Risk Prediction
-                                  </Text>
-
-                                  <LinearGradient
-                                      colors={fallRingColors}
-                                      start={{ x: 0, y: 0 }}
-                                      end={{ x: 1, y: 0 }}
-                                      style={{
-                                          padding: 1,
-                                          marginTop: 10,
-                                          width: 130,
-                                          height: 130,
-                                          borderRadius: 65,
-                                          justifyContent: 'center',
-                                          alignItems: 'center',
-                                      }}>
-                                      <View
-                                          style={{
-                                              backgroundColor: '#FFF',
-                                              width: 110,
-                                              height: 110,
-                                              borderRadius: 55,
-                                              justifyContent: 'center',
-                                              alignItems: 'center',
-                                          }}>
-                                          <Text
-                                              style={{
-                                                  fontSize: 32,
-                                                  fontWeight: 'bold',
-                                                  color:
-                                                      (fallRisk === 1 && '#5EC104') ||
-                                                      (fallRisk === 2 && '#D1D501') ||
-                                                      (fallRisk === 3 && '#FD9801'),
-                                              }}>
-                                              {(fallRisk === 1 && 'Low') ||
-                                                  (fallRisk === 2 && 'Medium') ||
-                                                  (fallRisk === 3 && 'High')}
-                                          </Text>
-                                      </View>
-                                  </LinearGradient>
-                              </View>
-                          </LinearGradient>
-
-                          {/* ──────────────── Card B : Cadence · Steps · Speed ──────────────── */}
-                          <LinearGradient
-                              colors={['#005C51', '#0CFFD3']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 0 }}
-                              style={{
-                                  padding: 1,
-                                  borderRadius: 10,
-                                  width: '40%',
-                                  height: 222,
-                              }}>
-                              <View
-                                  style={{
-                                      flex: 1,
-                                      backgroundColor: '#FFF',
-                                      borderRadius: 10,
-                                      paddingVertical: 12,
-                                      paddingHorizontal: 10,
-                                      justifyContent: 'center',
-                                      alignItems: 'center',
-                                  }}>
-
-                                  {/* Cadence */}
-                                  <Text style={{ fontSize: 16, color: '#00A2A2', fontWeight: 'bold' }}>
-                                      {this.state.healthData.cadence ?? '--'}
-                                  </Text>
-                                  <Text style={{ fontSize: 14, color: '#00A2A2', textAlign: 'center' }}>
-                                      Cadence{'\n'}(steps/min)
-                                  </Text>
-
-                                  <LinearGradient
-                                      colors={['#005C51', '#0CFFD3']}
-                                      start={{ x: 0, y: 0 }}
-                                      end={{ x: 1, y: 0 }}
-                                      style={{
-                                          padding: 2,
-                                          width: '90%',
-                                          marginVertical: 5,
-                                          borderRadius: 10,
-                                      }}
-                                  />
-
-                                  {/* Step count */}
-                                  <Text style={{ fontSize: 16, color: '#00A2A2', fontWeight: 'bold' }}>
-                                      {this.state.healthData.step_count ?? '--'}
-                                  </Text>
-                                  <Text style={{ fontSize: 14, color: '#00A2A2', textAlign: 'center' }}>
-                                      Step count{'\n'}(steps)
-                                  </Text>
-
-                                  <LinearGradient
-                                      colors={['#005C51', '#0CFFD3']}
-                                      start={{ x: 0, y: 0 }}
-                                      end={{ x: 1, y: 0 }}
-                                      style={{
-                                          padding: 2,
-                                          width: '90%',
-                                          marginVertical: 5,
-                                          borderRadius: 10,
-                                      }}
-                                  />
-
-                                  {/* Gait speed */}
-                                  <Text style={{ fontSize: 16, color: '#00A2A2', fontWeight: 'bold' }}>
-                                      {this.state.healthData.gait_speed ?? '--'}
-                                  </Text>
-                                  <Text style={{ fontSize: 14, color: '#00A2A2', textAlign: 'center' }}>
-                                      Gait Speed{'\n'}(m/s)
-                                  </Text>
-                              </View>
-                          </LinearGradient>
-                      </View>
-
                         {/* ─────────── PRESSURE + STANCE-TIME PERCENTAGE CARD ─────────── */}
                         <LinearGradient
                           colors={['#005C51', '#0CFFD3']}
@@ -1480,7 +1517,7 @@ class index extends Component {
                               padding: 1,
                               borderRadius: 12,
                               marginHorizontal: 10,
-                              marginTop: 0,           // ← adds breathing room under Peak-Pressure card
+                              marginTop: 12,
                           }}
                         >
                           <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 12 }}>

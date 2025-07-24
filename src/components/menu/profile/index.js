@@ -427,13 +427,6 @@ class index extends Component {
               onSelectLang={this.actionLang}
           />
         </View>
-
-        <LanguagePickerFix
-            langSwitch={Lang.langSwitch}
-            onLanguageChange={(index) => console.log('Language changed to:', index)}
-            buttonStyle={{ backgroundColor: '#f0f0f0' }}
-            style={{ marginBottom: 20 }}
-        />
       </ScrollView>
     );
   }
