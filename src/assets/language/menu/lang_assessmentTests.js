@@ -102,7 +102,16 @@ const walkStraight = {
     japanese: '10メートルまっすぐ歩く',
 };
 
-
+const bluetoothAlert = {
+    eng: 'Please Check Your Bluetooth Connect',
+    thai: 'กรุณาตรวจสอบการเชื่อมต่อบลูทูธ',
+    japanese: 'Bluetooth接続を確認してください'
+}
+const warning = {
+    eng: 'Warning !',
+    thai: 'คำเตือน !',
+    japanese: '警告 !'
+}
 export default {
     fallRiskScreening,
     standOpenEyes,
@@ -133,5 +142,7 @@ export default {
     testComplete,
     walking,
     walkStraight,
+    warning,
+    bluetoothAlert
 
 }
