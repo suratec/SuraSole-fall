@@ -569,6 +569,16 @@ class index extends React.PureComponent {
 
   render() {
     this.canVibration(this.state.shouldVibrate, this.state.switch);
+
+    // Get screen dimensions
+    const { width: screenWidth, height: screenHeight } = Dimensions.get('screen');
+    const isLandscape = screenWidth > screenHeight;
+
+    // Calculate SVG container height dynamically
+    const svgHeight = isLandscape
+        ? screenHeight * 0.5  // Smaller height in landscape
+        : screenWidth * 0.90 + 50;  // Original height in portrait
+
     return (
         <View style={{ flex: 1, backgroundColor: 'white' }}>
           <HeaderFix
@@ -580,51 +590,33 @@ class index extends React.PureComponent {
           />
 
           <ScrollView
-              contentContainerStyle={{ flexGrow: 1 }}
+              contentContainerStyle={{
+                flexGrow: 1,
+                justifyContent: 'center',
+                paddingHorizontal: 15,
+                paddingVertical: 10,
+              }}
               showsVerticalScrollIndicator={false}
           >
-            {/* Spacer to push content down */}
-            <View style={{flex: 1}} />
-
-            {/* Main content container - minimal styling to avoid SVG issues */}
-            <View style={{flex: 2, paddingHorizontal: 15}}>
-              <Text style={{fontSize: 16, color: '#666', marginBottom: 15}}>kPa .</Text>
-              <View>
-                <SvgContourBasic
-                    leftsensor={this.state.leftData}
-                    rightsensor={this.state.rightData}
-                />
-              </View>
+            {/* Dynamic height container for SVG */}
+            <View style={{
+              height: svgHeight,
+              // alignSelf: 'center',
+              justifyContent: 'center',
+            }}>
+              <SvgContourBasic
+                  leftsensor={this.state.leftData}
+                  rightsensor={this.state.rightData}
+              />
             </View>
 
-            {/* Spacer to center the content */}
-            <View style={{flex: 1}} />
-
-            {/* Bottom button container */}
-            <View
-                style={{
-                  paddingHorizontal: 15,
-                  paddingBottom: 30,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}>
-              <Col>
-                <ButtonFix
-                    action={true}
-                    rounded={true}
-                    title={getLocalizedText(this.props.lang, Lang_pressuremap.recordButton)}
-                    onPress={() => this.actionRecording()}
-                />
-              </Col>
-              <Grid style={{ padding: 15 }}>
-                {/* <Col>
+            <View style={{ padding: 15, alignItems: 'center' }}>
               <ButtonFix
-                rounded={true}
-                title={'Dashboard'}
-                onPress={() => this.actionDashboard()}
+                  action={true}
+                  rounded={true}
+                  title={getLocalizedText(this.props.lang, Lang_pressuremap.recordButton)}
+                  onPress={() => this.actionRecording()}
               />
-            </Col> */}
-              </Grid>
             </View>
           </ScrollView>
         </View>

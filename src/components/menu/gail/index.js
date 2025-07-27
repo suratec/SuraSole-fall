@@ -462,35 +462,41 @@ class index extends Component {
 
   render() {
     return (
-      <ScrollView>
-        <HeaderFix
-          icon_left={'left'}
-          onpress_left={() => {
-            this.props.navigation.goBack();
-          }}
-          title={this.props.navigation.getParam('name', '')}
-        />
-        <Chart lsensor={this.state.lsensor} rsensor={this.state.rsensor} />
-
-        <Grid
-          style={{padding: 15, justifyContent: 'center', alignItems: 'center'}}>
-          {/* <Col> */}
-          <ButtonFix
-            action={true}
-            rounded={true}
-            title={this.state.textAction}
-            onPress={() => this.actionRecording()}
+        <View style={{ flex: 1 }}>
+          <HeaderFix
+              icon_left={'left'}
+              onpress_left={() => {
+                this.props.navigation.goBack();
+              }}
+              title={this.props.navigation.getParam('name', '')}
           />
-          {/* </Col> */}
-          {/* <Col>
-            <ButtonFix
-              rounded={true}
-              title={'Dashboard'}
-              onPress={() => this.actionDashboard()}
-            />
-          </Col> */}
-        </Grid>
-      </ScrollView>
+
+          <ScrollView
+              contentContainerStyle={{
+                flexGrow: 1,
+                justifyContent: 'space-around', // Distributes space evenly
+                paddingVertical: 20,
+              }}
+              showsVerticalScrollIndicator={false}
+          >
+            {/* Chart gets more space in the center */}
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+              <Chart lsensor={this.state.lsensor} rsensor={this.state.rsensor} />
+            </View>
+
+            {/* Button at the bottom but still within the centered area */}
+            <Grid
+                style={{padding: 15, justifyContent: 'center', alignItems: 'center'}}
+            >
+              <ButtonFix
+                  action={true}
+                  rounded={true}
+                  title={this.state.textAction}
+                  onPress={() => this.actionRecording()}
+              />
+            </Grid>
+          </ScrollView>
+        </View>
     );
   }
 }
