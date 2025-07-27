@@ -54,7 +54,6 @@ class index extends Component {
     img_path: '',
     onModal: false,
     loading: false,
-    id_facebook: '',
   };
 
   getImageURI = (img_path) => {
@@ -76,42 +75,22 @@ class index extends Component {
   };
 
   actionUpdate = () => {
-    let body = '';
     this.setState({loading: true});
-    if (this.state.id_facebook != '') {
-      body = {
-        id: this.state.id,
-        id_facebook: this.state.id_facebook,
-        fname: this.state.fname,
-        lname: this.state.lname,
-        email: this.state.email,
-        age: this.state.age,
-        type: this.props.user.role,
-        gender: this.state.sex,
-        weight: this.state.weigth,
-        telephone: this.state.tel,
-        height: this.state.heigth,
-        congenital_disease_flg: '1', // set ไว้รู้จะใส่อะไร
-        congenital_disease: 'ความดัน', // set ไว้รู้จะใส่อะไร
-        emergency_contract: '150 ถ.ศรีธานี', // set ไว้รู้จะใส่อะไร
-      };
-    } else {
-      body = {
-        id: this.state.id,
-        fname: this.state.fname,
-        lname: this.state.lname,
-        age: this.state.age,
-        email: this.state.email,
-        type: this.props.user.role,
-        gender: this.state.sex,
-        weight: this.state.weigth,
-        telephone: this.state.tel,
-        height: this.state.heigth,
-        congenital_disease_flg: '1', // set ไว้รู้จะใส่อะไร
-        congenital_disease: 'ความดัน', // set ไว้รู้จะใส่อะไร
-        emergency_contract: '150 ถ.ศรีธานี', // set ไว้รู้จะใส่อะไร
-      };
-    }
+    const body = {
+      id: this.state.id,
+      fname: this.state.fname,
+      lname: this.state.lname,
+      age: this.state.age,
+      email: this.state.email,
+      type: this.props.user.role,
+      gender: this.state.sex,
+      weight: this.state.weigth,
+      telephone: this.state.tel,
+      height: this.state.heigth,
+      congenital_disease_flg: '1', // set ไว้รู้จะใส่อะไร
+      congenital_disease: 'ความดัน', // set ไว้รู้จะใส่อะไร
+      emergency_contract: '150 ถ.ศรีธานี', // set ไว้รู้จะใส่อะไร
+    };
 
     fetch(`${API}/updata-profile`, {
       method: 'POST',
@@ -121,32 +100,32 @@ class index extends Component {
       },
       body: JSON.stringify(body),
     })
-      .then(res => res.json())
-      .then(res => {
-        this.setState({loading: false});
-        console.log(res);
+        .then(res => res.json())
+        .then(res => {
+          this.setState({loading: false});
+          console.log(res);
 
-        if (res.message == 'บันทึกไม่สำเร็จ') {
-          AlertFix.alertBasic(
-              getLocalizedText(this.props.lang, Lang.alertErrorTitle),
-              getLocalizedText(this.props.lang, Lang.cannotEditAlert),
-          );
-        } else {
-          AlertFix.alertBasic(
-              getLocalizedText(this.props.lang, Lang.alertSuccessTitle),
-              getLocalizedText(this.props.lang, Lang.successTitleContentAlert),
-          );
-          let actualUser = res.customer_info;
-          actualUser.role = this.props.user.role;
-          this.props.addUser({user: actualUser, token: this.props.token});
+          if (res.message == 'บันทึกไม่สำเร็จ') {
+            AlertFix.alertBasic(
+                getLocalizedText(this.props.lang, Lang.alertErrorTitle),
+                getLocalizedText(this.props.lang, Lang.cannotEditAlert),
+            );
+          } else {
+            AlertFix.alertBasic(
+                getLocalizedText(this.props.lang, Lang.alertSuccessTitle),
+                getLocalizedText(this.props.lang, Lang.successTitleContentAlert),
+            );
+            let actualUser = res.customer_info;
+            actualUser.role = this.props.user.role;
+            this.props.addUser({user: actualUser, token: this.props.token});
 
-          this.props.navigation.goBack();
-        }
-      })
-      .catch(error => {
-        this.setState({loading: false});
-        console.log(error);
-      });
+            this.props.navigation.goBack();
+          }
+        })
+        .catch(error => {
+          this.setState({loading: false});
+          console.log(error);
+        });
   };
 
   componentDidMount = async () => {
@@ -154,9 +133,9 @@ class index extends Component {
     console.log(user, 'userfff');
     this.setState({
       id:
-        this.props.user.role == 'mod_employee'
-          ? user.id_employee
-          : user.id_customer,
+          this.props.user.role == 'mod_employee'
+              ? user.id_employee
+              : user.id_customer,
       fname: user.fname.toString(),
       lname: user.lname.toString(),
       email: user.email,
@@ -165,7 +144,6 @@ class index extends Component {
       weigth: user.weight == null ? '0' : user.weight.toString(),
       age: user.age == null ? '0' : user.age.toString(),
       tel: user.telephone == null ? '0' : user.telephone.toString(),
-      id_facebook: user.id_facebook == null ? '' : user.id_facebook.toString(),
     });
 
     let img = this.props.user.image;
@@ -309,125 +287,125 @@ class index extends Component {
     console.log('state.img_path:', this.state.img_path);
 
     return (
-      <ScrollView style={{flex: 1}}>
-        <HeaderFix
-          icon_left={'left'}
-          onpress_left={() => {
-            this.props.navigation.goBack();
-          }}
-          title={getLocalizedText(this.props.lang, Lang.editProfile)}
-          // icon_rigth={'ellipsis-v'}
-          // iconType={'FontAwesome5'}
-          // onpress_rigth={() => {
-          //   this.setState({onModal: true});
-          // }}
-        />
+        <ScrollView style={{flex: 1}}>
+          <HeaderFix
+              icon_left={'left'}
+              onpress_left={() => {
+                this.props.navigation.goBack();
+              }}
+              title={getLocalizedText(this.props.lang, Lang.editProfile)}
+              // icon_rigth={'ellipsis-v'}
+              // iconType={'FontAwesome5'}
+              // onpress_rigth={() => {
+              //   this.setState({onModal: true});
+              // }}
+          />
 
-        <View>
-          {/* {loading &&
+          <View>
+            {/* {loading &&
                      <View style={{position:'absolute', flex:1, flexDirection:'row', justifyContent:'center', top:'45%', left:'45%', zIndex:999}}>
-                        <ActivityIndicator size="large" /> 
+                        <ActivityIndicator size="large" />
                     </View>
                   } */}
-          <TouchableOpacity
-            style={{alignItems: 'center', paddingTop: 16}}
-            onPress={() => this.editprofilePicture()}>
-            <View style={{width: screenWidth, height: screenWidth, padding: 5}}>
-              <Image
-                style={{
-                  width: screenWidth,
-                  height: screenWidth,
-                  borderRadius: screenWidth / 2,
-                }}
-                source={{
-                  uri: this.getImageURI(this.state.img_path),
-                }}
-                onError={(e) => {
-                  console.log('Image failed to load:', e.nativeEvent);
-                }}
-                onLoad={() => {
-                  console.log('Image loaded successfully');
-                }}
-              />
-              <View
-                style={{
-                  width: screenWidth * 0.2,
-                  height: screenWidth * 0.2,
-                  borderRadius: screenWidth * 0.34,
-                  position: 'absolute',
-                  backgroundColor: UI.color_Gradient[1],
-                  bottom: 1,
-                  right: 1,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}>
+            <TouchableOpacity
+                style={{alignItems: 'center', paddingTop: 16}}
+                onPress={() => this.editprofilePicture()}>
+              <View style={{width: screenWidth, height: screenWidth, padding: 5}}>
                 <Image
-                  style={{
-                    width: screenWidth * 0.13,
-                    height: screenWidth * 0.13,
-                  }}
-                  source={require('../../../assets/image/icons/camera.png')}
+                    style={{
+                      width: screenWidth,
+                      height: screenWidth,
+                      borderRadius: screenWidth / 2,
+                    }}
+                    source={{
+                      uri: this.getImageURI(this.state.img_path),
+                    }}
+                    onError={(e) => {
+                      console.log('Image failed to load:', e.nativeEvent);
+                    }}
+                    onLoad={() => {
+                      console.log('Image loaded successfully');
+                    }}
                 />
+                <View
+                    style={{
+                      width: screenWidth * 0.2,
+                      height: screenWidth * 0.2,
+                      borderRadius: screenWidth * 0.34,
+                      position: 'absolute',
+                      backgroundColor: UI.color_Gradient[1],
+                      bottom: 1,
+                      right: 1,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}>
+                  <Image
+                      style={{
+                        width: screenWidth * 0.13,
+                        height: screenWidth * 0.13,
+                      }}
+                      source={require('../../../assets/image/icons/camera.png')}
+                  />
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
 
-          <CardProfile
-              lang={this.props.lang}
-              labelFirstName={getLocalizedText(this.props.lang, Lang.firstNamelabel)}
-            inputValueFirstName={this.state.fname}
-            inputFirstName={txt => {
-              this.setState({fname: txt});
-            }}
-            labelLastName={getLocalizedText(this.props.lang, Lang.LastNamelabel)}
-            inputValueLastName={this.state.lname}
-            inputLastName={txt => {
-              this.setState({lname: txt});
-            }}
-            labelEmail={getLocalizedText(this.props.lang, Lang.Emaillabel)}
-            inputValueEmail={this.state.email}
-            inputEmail={txt => {
-              this.setState({email: txt});
-            }}
-            labelGender={getLocalizedText(this.props.lang, Lang.genderlabel)}
-            inputValueGender={this.state.sex}
-            inputGender={txt => {
-              this.setState({sex: txt});
-            }}
-            labelWeigth={getLocalizedText(this.props.lang, Lang.weightLabel)}
-            inputValueWeigth={this.state.weigth}
-            inputWeigth={txt => {
-              this.validateNumber('weigth', txt);
-            }}
-            labelHeight={getLocalizedText(this.props.lang, Lang.heigthLabel)}
-            inputValueHeight={this.state.heigth}
-            inputHeigth={txt => {
-              this.validateNumber('heigth', txt);
-            }}
-            labelAge={getLocalizedText(this.props.lang, Lang.ageLabel)}
-            inputValueAge={this.state.age}
-            inputAge={txt => {
-              this.validateNumber('age', txt);
-            }}
-            labelTel={getLocalizedText(this.props.lang, Lang.emergencyLabel)}
-            inputValueTel={this.state.tel}
-            inputTel={txt => {
-              this.setState({tel: txt});
-            }}
-            type={this.props.user.role}
-            onUpdate={() => this.actionUpdate()}
-          />
+            <CardProfile
+                lang={this.props.lang}
+                labelFirstName={getLocalizedText(this.props.lang, Lang.firstNamelabel)}
+                inputValueFirstName={this.state.fname}
+                inputFirstName={txt => {
+                  this.setState({fname: txt});
+                }}
+                labelLastName={getLocalizedText(this.props.lang, Lang.LastNamelabel)}
+                inputValueLastName={this.state.lname}
+                inputLastName={txt => {
+                  this.setState({lname: txt});
+                }}
+                labelEmail={getLocalizedText(this.props.lang, Lang.Emaillabel)}
+                inputValueEmail={this.state.email}
+                inputEmail={txt => {
+                  this.setState({email: txt});
+                }}
+                labelGender={getLocalizedText(this.props.lang, Lang.genderlabel)}
+                inputValueGender={this.state.sex}
+                inputGender={txt => {
+                  this.setState({sex: txt});
+                }}
+                labelWeigth={getLocalizedText(this.props.lang, Lang.weightLabel)}
+                inputValueWeigth={this.state.weigth}
+                inputWeigth={txt => {
+                  this.validateNumber('weigth', txt);
+                }}
+                labelHeight={getLocalizedText(this.props.lang, Lang.heigthLabel)}
+                inputValueHeight={this.state.heigth}
+                inputHeigth={txt => {
+                  this.validateNumber('heigth', txt);
+                }}
+                labelAge={getLocalizedText(this.props.lang, Lang.ageLabel)}
+                inputValueAge={this.state.age}
+                inputAge={txt => {
+                  this.validateNumber('age', txt);
+                }}
+                labelTel={getLocalizedText(this.props.lang, Lang.emergencyLabel)}
+                inputValueTel={this.state.tel}
+                inputTel={txt => {
+                  this.setState({tel: txt});
+                }}
+                type={this.props.user.role}
+                onUpdate={() => this.actionUpdate()}
+            />
 
-          <LangModal
-              title="Select Language"
-              modalVisible={this.state.onModal}
-              onModalClosed={() => this.setState({ onModal: false })}
-              labelBtn="Select"
-              onLang={this.toggleModal}
-              onSelectLang={this.actionLang}
-          />
-        </View>
-      </ScrollView>
+            <LangModal
+                title="Select Language"
+                modalVisible={this.state.onModal}
+                onModalClosed={() => this.setState({ onModal: false })}
+                labelBtn="Select"
+                onLang={this.toggleModal}
+                onSelectLang={this.actionLang}
+            />
+          </View>
+        </ScrollView>
     );
   }
 }

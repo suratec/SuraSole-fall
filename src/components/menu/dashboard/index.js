@@ -476,7 +476,7 @@ class index extends Component {
         }
 
         try {
-            const response = await fetch('https://www.surasole.com/api/dashboard/dashboard-summary', {
+            const response = await fetch('https://app.surasole.com/api/dashboard/dashboard-summary', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

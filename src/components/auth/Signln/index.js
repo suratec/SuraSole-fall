@@ -295,14 +295,14 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFF',
     borderRadius: 20,
-    padding: 30,
+    padding: 25,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 10,
   },
-  cardHeader: { marginBottom: 25 },
+  cardHeader: { marginBottom: 20 },
   cardTitle: {
     fontSize: 24,
     fontWeight: '700',
@@ -328,8 +328,8 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1.5,
     borderColor: '#E0E0E0',
-    borderRadius: 20,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 8,
     paddingHorizontal: 18,
     fontSize: 16,
     color: '#333',

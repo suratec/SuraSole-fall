@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, ScrollView,
     StyleSheet, Dimensions, Platform, KeyboardAvoidingView,
-    Image, PermissionsAndroid, ActivityIndicator
+    Image, PermissionsAndroid, ActivityIndicator, RefreshControl
 } from 'react-native';
 import { connect } from 'react-redux';
 import Sound from 'react-native-sound';
@@ -23,6 +23,15 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
     const [isTyping, setIsTyping] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [inputDisabled, setInputDisabled] = useState(false);
+
+    // New state for chat history
+    const [chatHistory, setChatHistory] = useState([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const [hasMoreHistory, setHasMoreHistory] = useState(true);
+    const [historySkip, setHistorySkip] = useState(0);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [historyLoaded, setHistoryLoaded] = useState(false);
+
     const scrollRef = useRef();
     const soundRef = useRef(null);
 
@@ -35,14 +44,13 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         }
     };
 
-
     const scrollToEnd = () => {
         scrollRef.current?.scrollToEnd({ animated: true });
     };
 
     const addMessage = (type, text, audio = null) => {
         setMessages(prev => {
-            const updated = [...prev, { type, text, audio }];
+            const updated = [...prev, { type, text, audio, timestamp: new Date().toISOString() }];
             setTimeout(scrollToEnd, 100);
             return updated;
         });
@@ -67,6 +75,124 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         };
     };
 
+    // NEW FUNCTION: Fetch chat history from API
+    const fetchChatHistory = async (skip = 0, isRefresh = false) => {
+        const auth = getAuthFormData();
+        if (!auth) return;
+
+        if (isRefresh) {
+            setIsRefreshing(true);
+        } else {
+            setIsLoadingHistory(true);
+        }
+
+        try {
+            console.log('🔄 Fetching chat history with skip:', skip);
+
+            const requestBody = {
+                security_token: auth.token,
+                user_id: auth.userId,
+                skip: skip,
+                limit: 20
+            };
+
+            const response = await fetch('https://app.surasole.com/chat/history', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            const status = response.status;
+            const data = await response.json();
+
+            console.log('📨 History API status:', status);
+            console.log('📨 History response:', data);
+
+            if (status === 200 && Array.isArray(data)) {
+                // Convert API format to our message format
+                const convertedHistory = convertHistoryToMessages(data);
+
+                if (isRefresh || skip === 0) {
+                    // Replace all history on refresh or initial load
+                    setChatHistory(convertedHistory);
+                    setHistorySkip(data.length);
+                } else {
+                    // Append to existing history for pagination
+                    setChatHistory(prev => [...convertedHistory, ...prev]);
+                    setHistorySkip(prev => prev + data.length);
+                }
+
+                // Check if there's more data
+                setHasMoreHistory(data.length === 20);
+                setHistoryLoaded(true);
+            } else {
+                console.error('❌ History API error:', status, data);
+                Toast.show('Failed to load chat history');
+            }
+        } catch (error) {
+            console.error('❌ History fetch error:', error);
+            Toast.show('Failed to load chat history');
+        } finally {
+            setIsLoadingHistory(false);
+            setIsRefreshing(false);
+        }
+    };
+
+    // NEW FUNCTION: Convert API history format to our message format
+    const convertHistoryToMessages = (historyData) => {
+        const messages = [];
+
+        // Sort by created_at in ascending order (oldest first)
+        const sortedHistory = historyData.sort((a, b) =>
+            new Date(a.created_at) - new Date(b.created_at)
+        );
+
+        sortedHistory.forEach(item => {
+            // Add user message
+            messages.push({
+                type: 'user',
+                text: item.message,
+                timestamp: item.created_at,
+                historyId: item.id
+            });
+
+            // Add bot response
+            messages.push({
+                type: 'bot',
+                text: item.response,
+                audio: item.is_voice === 1 ? item.voice_url : null,
+                timestamp: item.created_at,
+                historyId: item.id
+            });
+        });
+
+        return messages;
+    };
+
+    // NEW FUNCTION: Load more history (pagination)
+    const loadMoreHistory = async () => {
+        if (!hasMoreHistory || isLoadingHistory) return;
+        await fetchChatHistory(historySkip);
+    };
+
+    // NEW FUNCTION: Handle refresh
+    const handleRefresh = async () => {
+        setHistorySkip(0);
+        setHasMoreHistory(true);
+        await fetchChatHistory(0, true);
+    };
+
+    // NEW FUNCTION: Get all messages (history + current)
+    const getAllMessages = () => {
+        return [...chatHistory, ...messages];
+    };
+
+    // MODIFIED: Load history on component mount
+    useEffect(() => {
+        fetchChatHistory(0);
+    }, []);
 
     const sendMessageToAPI = async (formData) => {
         setIsTyping(true);
@@ -208,6 +334,22 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         });
     };
 
+    // NEW FUNCTION: Format timestamp for display (always show time only)
+    const formatMessageTime = (timestamp) => {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    // NEW FUNCTION: Handle scroll to load more
+    const handleScroll = (event) => {
+        const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+
+        // Check if user scrolled to top (with some threshold)
+        if (contentOffset.y <= 50 && hasMoreHistory && !isLoadingHistory) {
+            loadMoreHistory();
+        }
+    };
+
     useEffect(() => {
         return () => {
             if (soundRef.current) {
@@ -218,6 +360,8 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
             }
         };
     }, []);
+
+    const allMessages = getAllMessages();
 
     return (
         <View style={styles.container}>
@@ -232,30 +376,94 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                 style={styles.chatContainer}
                 contentContainerStyle={{ padding: 12 }}
                 onContentSizeChange={scrollToEnd}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isRefreshing}
+                        onRefresh={handleRefresh}
+                        colors={['#00A499']}
+                        tintColor="#00A499"
+                        title="Pull to refresh chat history"
+                        titleColor="#00A499"
+                    />
+                }
             >
-                {messages.map((msg, index) => (
-                    <View
-                        key={index}
-                        style={[
-                            styles.messageBubble,
-                            msg.type === 'user' ? styles.userBubble : styles.botBubble,
-                        ]}
-                    >
-                        <Text style={msg.type === 'user' ? styles.userText : styles.botText}>
-                            {msg.text}
-                        </Text>
-                        {msg.type === 'bot' && msg.audio && (
-                            <TouchableOpacity style={styles.volumeIcon} onPress={() => playAudio(msg.audio)}>
-                                <Image
-                                    source={require('../../../assets/image/Chat/mediumVolume.png')}
-                                    style={{ width: 18, height: 18, tintColor: '#fff' }}
-                                    resizeMode="contain"
-                                />
-                            </TouchableOpacity>
-                        )}
+                {/* Loading indicator for fetching more history */}
+                {isLoadingHistory && (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator color="#00A499" size="small" />
+                        <Text style={styles.loadingText}>Loading chat history...</Text>
                     </View>
-                ))}
+                )}
 
+                {/* Load More button (alternative to auto-load) */}
+                {hasMoreHistory && !isLoadingHistory && historyLoaded && (
+                    <TouchableOpacity style={styles.loadMoreButton} onPress={loadMoreHistory}>
+                        <Text style={styles.loadMoreText}>Load More Messages</Text>
+                    </TouchableOpacity>
+                )}
+
+                {/* Chat messages */}
+                {allMessages.map((msg, index) => {
+                    const isNewDay = index === 0 ||
+                        new Date(msg.timestamp).toDateString() !==
+                        new Date(allMessages[index - 1].timestamp).toDateString();
+
+                    return (
+                        <View key={msg.historyId ? `history-${msg.historyId}-${msg.type}` : `current-${index}`}>
+                            {/* Date separator */}
+                            {isNewDay && (
+                                <View style={styles.dateSeparator}>
+                                    <Text style={styles.dateText}>
+                                        {new Date(msg.timestamp).toLocaleDateString([], {
+                                            weekday: 'long',
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        })}
+                                    </Text>
+                                </View>
+                            )}
+
+                            {/* Message bubble */}
+                            <View
+                                style={[
+                                    styles.messageBubble,
+                                    msg.type === 'user' ? styles.userBubble : styles.botBubble,
+                                ]}
+                            >
+                                <Text style={msg.type === 'user' ? styles.userText : styles.botText}>
+                                    {msg.text}
+                                </Text>
+
+                                {/* Audio button for bot messages */}
+                                {msg.type === 'bot' && msg.audio && (
+                                    <TouchableOpacity
+                                        style={styles.volumeIcon}
+                                        onPress={() => playAudio(msg.audio)}
+                                    >
+                                        <Image
+                                            source={require('../../../assets/image/Chat/mediumVolume.png')}
+                                            style={{ width: 18, height: 18, tintColor: '#fff' }}
+                                            resizeMode="contain"
+                                        />
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Timestamp */}
+                                <Text style={[
+                                    styles.timestampText,
+                                    msg.type === 'user' ? styles.userTimestamp : styles.botTimestamp
+                                ]}>
+                                    {formatMessageTime(msg.timestamp)}
+                                </Text>
+                            </View>
+                        </View>
+                    );
+                })}
+
+                {/* Typing indicator */}
                 {isTyping && (
                     <View style={[styles.messageBubble, styles.botBubble]}>
                         <ActivityIndicator color="#fff" size="small" />
@@ -310,6 +518,8 @@ const styles = StyleSheet.create({
         padding: 10,
         borderRadius: 12,
         position: 'relative',
+        paddingBottom: 25,
+        minWidth: 50,
     },
     userBubble: {
         backgroundColor: '#F0F0F0',
@@ -327,6 +537,62 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 6,
         right: 8,
+    },
+    timestampText: {
+        position: 'absolute',
+        bottom: 4,
+        fontSize: 10,
+        opacity: 0.7,
+        maxWidth: '90%', // Prevent overflow
+    },
+    userTimestamp: {
+        color: '#666666',
+        right: 8,
+        textAlign: 'right',
+    },
+    botTimestamp: {
+        color: '#ffffff',
+        left: 8,
+        textAlign: 'left',
+    },
+    dateSeparator: {
+        alignItems: 'center',
+        marginVertical: 15,
+    },
+    dateText: {
+        backgroundColor: '#E0E0E0',
+        color: '#666666',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 10,
+        fontSize: 12,
+        fontWeight: '500',
+    },
+    loadingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 15,
+    },
+    loadingText: {
+        color: '#00A499',
+        marginLeft: 8,
+        fontSize: 14,
+    },
+    loadMoreButton: {
+        alignSelf: 'center',
+        backgroundColor: '#F0F0F0',
+        paddingHorizontal: 20,
+        paddingVertical: 8,
+        borderRadius: 20,
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: '#00A499',
+    },
+    loadMoreText: {
+        color: '#00A499',
+        fontSize: 14,
+        fontWeight: '500',
     },
     inputRow: {
         flexDirection: 'row',
@@ -367,6 +633,5 @@ const mapStateToProps = state => ({
     impersonating: state.impersonating,
     lang: state.lang,
 });
-
 
 export default connect(mapStateToProps)(Chatbot);

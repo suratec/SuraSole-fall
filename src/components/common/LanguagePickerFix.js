@@ -28,12 +28,7 @@ class LanguagePickerFix extends Component {
     getLanguageOptions = () => {
         const { langSwitch } = this.props;
 
-        // Debug logging
-        console.log('LanguagePickerFix - langSwitch:', langSwitch);
-
-        // Provide default options if langSwitch is missing
         if (!langSwitch || Object.keys(langSwitch).length === 0) {
-            console.log('Using default language options');
             return [
                 { label: 'English', value: 0, key: 'eng', flag: this.getLanguageFlag('eng') },
                 { label: 'ไทย', value: 1, key: 'thai', flag: this.getLanguageFlag('thai') },
@@ -116,9 +111,9 @@ class LanguagePickerFix extends Component {
         const languageOptions = this.getLanguageOptions();
 
         // Debug logging
-        console.log('LanguagePickerFix render - languageOptions:', languageOptions);
-        console.log('LanguagePickerFix render - isCircular:', isCircular);
-        console.log('LanguagePickerFix render - showFlag:', showFlag);
+        // console.log('LanguagePickerFix render - languageOptions:', languageOptions);
+        // console.log('LanguagePickerFix render - isCircular:', isCircular);
+        // console.log('LanguagePickerFix render - showFlag:', showFlag);
 
         // Remove the early return that was causing the issue
         // if (languageOptions.length === 0) {
