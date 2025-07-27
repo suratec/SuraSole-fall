@@ -64,13 +64,23 @@ console.disableYellowBox = true;
 
 const { store, persister } = configureStore();
 
-// 1. HOC to inject FAB on every screen except Chatbot
+// 1. FIXED HOC to inject FAB on every screen except Chatbot (React Navigation v4 compatible)
 const withFAB = (ScreenComponent) => {
     return class extends React.Component {
         render() {
+            // Log props to debug - React Navigation v4 structure
+            console.log('🔧 withFAB - Props received:', this.props);
+            console.log('🔧 withFAB - Navigation state:', this.props.navigation?.state);
+            console.log('🔧 withFAB - Navigation params (v4):', this.props.navigation?.state?.params);
+
             return (
                 <View style={styles.screenContainer}>
-                    <ScreenComponent {...this.props} />
+                    <ScreenComponent
+                        {...this.props}
+                        navigation={this.props.navigation}
+                        // For react-navigation v4 compatibility, create a route-like object
+                        route={{ params: this.props.navigation?.state?.params }}
+                    />
                     <DraggableFAB navigation={this.props.navigation} />
                 </View>
             );

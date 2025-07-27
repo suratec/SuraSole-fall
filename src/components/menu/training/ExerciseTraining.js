@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     cardText: {
-        fontSize: 24,
+        fontSize: 20,
         textAlign: 'center',
         fontWeight: '600',
         verticalAlign: 'center',
