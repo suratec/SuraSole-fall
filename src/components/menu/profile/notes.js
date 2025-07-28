@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, ScrollView, TouchableOpacity, StyleSheet, BackHandler, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, ScrollView, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Card } from 'native-base';
 import InputFix from '../../common/InputFix';
 import ButtonFix from '../../common/ButtonFix';
@@ -39,7 +39,6 @@ class NotesPage extends Component {
 
     componentDidMount() {
         console.log('[NotesPage] componentDidMount: Adding hardwareBackPress listener');
-        BackHandler.addEventListener('hardwareBackPress', this.handleBackPress);
 
         const { userId } = this.props;
         if (!userId) {
@@ -86,28 +85,16 @@ class NotesPage extends Component {
 
     componentWillUnmount() {
         console.log('[NotesPage] componentWillUnmount: Removing hardwareBackPress listener');
-        BackHandler.removeEventListener('hardwareBackPress', this.handleBackPress);
-    }
-
-    handleBackPress = () => {
-        console.log('[NotesPage] handleBackPress called');
-        if (this.props.navigation && typeof this.props.navigation.reset === 'function') {
-            console.log('[NotesPage] handleBackPress: resetting to Profile');
-            this.props.navigation.reset({
-                index: 0,
-                routes: [{ name: 'Profile' }],
-            });
-            return true;
-        }
-        console.log('[NotesPage] handleBackPress: navigation.reset not available');
-        return false;
     }
 
     handleUpdate = () => {
         const { userId } = this.props;
         if (!userId) {
             console.log('[ERROR] Cannot update. userId is missing.');
-            Alert.alert('Error', 'User ID is missing');
+            Alert.alert(
+                getLocalizedText(this.props.lang, langNotes.error),
+                getLocalizedText(this.props.lang, langNotes.userIdMissing)
+            );
             return;
         }
 
@@ -142,11 +129,17 @@ class NotesPage extends Component {
             .then(res => res.json())
             .then(data => {
                 console.log('[SUCCESS] Update response:', data);
-                Alert.alert('Success', 'Medical record saved successfully');
+                Alert.alert(
+                    getLocalizedText(this.props.lang, langNotes.success),
+                    getLocalizedText(this.props.lang, langNotes.medicalRecord)
+                );
             })
             .catch(err => {
                 console.error('[ERROR] Update failed:', err);
-                Alert.alert('Error', 'Failed to save medical record');
+                Alert.alert(
+                    getLocalizedText(this.props.lang, langNotes.error),
+                    getLocalizedText(this.props.lang, langNotes.failedSave)
+                );
             })
             .finally(() => this.setState({ saving: false }));
     };

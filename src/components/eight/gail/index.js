@@ -102,6 +102,12 @@ class index extends Component {
     }
   };
 
+  getButtonText = () => {
+    return this.state.isRecording
+        ? getLocalizedText(this.props.lang, Lang.stopButton)
+        : getLocalizedText(this.props.lang, Lang.recordButton);
+  };
+
   calMeasurePressure = value => {
     return 2.206 * Math.exp(0.0068 * value);
   };
@@ -530,7 +536,7 @@ class index extends Component {
               <ButtonFix
                   action={true}
                   rounded={true}
-                  title={this.state.textAction}
+                  title={this.getButtonText()}
                   onPress={() => this.actionRecording()}
               />
             </Grid>

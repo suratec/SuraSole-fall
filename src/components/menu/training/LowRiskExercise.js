@@ -124,11 +124,11 @@ export default function LowRiskExercise({ navigation }) {
 
     const renderMondayContent = () => (
         <ScrollView style={styles.pageContainer} showsVerticalScrollIndicator={false}>
-            <Text style={styles.dayHeader}>📅 {getLocalizedText(lang, langTraining.monday.title)}</Text>
+            <Text style={styles.dayHeader}>🗓️ {getLocalizedText(lang, langTraining.monday.title)}</Text>
 
             {/* Warm Up */}
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>🔸 Warm-Up (5 min)</Text>
+                <Text style={styles.sectionTitle}>🔸 {getLocalizedText(lang, langTraining.monday.warmUp.title)} (5 min)</Text>
                 <Text style={styles.simpleText}>• {getLocalizedText(lang, langTraining.monday.warmUp.slowWalk)}</Text>
                 <Text style={styles.simpleText}>• {getLocalizedText(lang, langTraining.monday.warmUp.armCircles)}</Text>
                 <Text style={styles.simpleText}>• {getLocalizedText(lang, langTraining.monday.warmUp.gentleStretch)}</Text>
@@ -156,7 +156,7 @@ export default function LowRiskExercise({ navigation }) {
 
     const renderWednesdayContent = () => (
         <ScrollView style={styles.pageContainer} showsVerticalScrollIndicator={false}>
-            <Text style={styles.dayHeader}>📅 {getLocalizedText(lang, langTraining.wednesday.title)}</Text>
+            <Text style={styles.dayHeader}>🗓️ {getLocalizedText(lang, langTraining.wednesday.title)}</Text>
 
             {/* Warm Up */}
             <View style={styles.section}>
@@ -211,7 +211,7 @@ export default function LowRiskExercise({ navigation }) {
 
     const renderFridayContent = () => (
         <ScrollView style={styles.pageContainer} showsVerticalScrollIndicator={false}>
-            <Text style={styles.dayHeader}>📅 {getLocalizedText(lang, langTraining.friday.title)}</Text>
+            <Text style={styles.dayHeader}>🗓️ {getLocalizedText(lang, langTraining.friday.title)}</Text>
 
             {/* Warm Up */}
             <View style={styles.section}>

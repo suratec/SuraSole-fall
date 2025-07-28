@@ -493,6 +493,7 @@ class StandEyes extends Component {
             ]);
             return;
         }
+        // console.log('TESTING MODE: Bluetooth check disabled');
         if (this.state.textAction == 'Record') {
             this.setState({textAction: 'Stop'});
             this.props.actionRecordingButton('Stop');
@@ -567,6 +568,7 @@ class StandEyes extends Component {
                 clearInterval(this.readInterval);
                 clearInterval(timer);
                 // clearInterval(this.readInterval);
+                this.handleNavigationAfterTest()
             }, 11000);
         } else {
             this.setState({textAction: 'Record'});
@@ -576,6 +578,26 @@ class StandEyes extends Component {
                 this.props.type == 'open' ? 'SOE' : 'SCE',
             );
         }
+    };
+
+    handleNavigationAfterTest = () => {
+
+        setTimeout(() => {
+            const currentType = this.props.type;
+
+            try {
+                if (currentType === 'open') {
+                    this.props.navigation.navigate('StandEyesClosed');
+                } else if (currentType === 'closed') {
+                    const result = this.props.navigation.navigate('TenMeterWalkTest');
+                } else {
+                    console.log('🧪 TEST: Unknown type:', currentType);
+                }
+            } catch (error) {
+                console.log('🚨 NAVIGATION ERROR:', error);
+                Alert.alert('Navigation Error', `Failed to navigate: ${error.message}`);
+            }
+        }, 1000);
     };
 
     sendDataToSetverCalibration = legValue => {
@@ -828,6 +850,8 @@ class StandEyes extends Component {
                     this.props.type == 'open' ? 'SOE' : 'SCE',
                 );
                 clearInterval(timer);
+
+                this.handleNavigationAfterTest();
             }, 6000);
         }
     };

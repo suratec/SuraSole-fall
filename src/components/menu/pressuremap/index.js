@@ -567,6 +567,12 @@ class index extends React.PureComponent {
     }
   };
 
+  getButtonTitle = () => {
+    return this.state.textAction === 'Record'
+        ? getLocalizedText(this.props.lang, Lang_pressuremap.recordButton)
+        : getLocalizedText(this.props.lang, Lang_pressuremap.stopButton);
+  };
+
   render() {
     this.canVibration(this.state.shouldVibrate, this.state.switch);
 
@@ -614,7 +620,7 @@ class index extends React.PureComponent {
               <ButtonFix
                   action={true}
                   rounded={true}
-                  title={getLocalizedText(this.props.lang, Lang_pressuremap.recordButton)}
+                  title={this.getButtonTitle()}
                   onPress={() => this.actionRecording()}
               />
             </View>

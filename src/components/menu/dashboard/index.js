@@ -719,7 +719,7 @@ class index extends Component {
                                           alignItems: 'center',
                                       }}>
                                       <Text style={{ fontSize: 18, color: '#00A2A2', textAlign: 'center' }}>
-                                          Fall Risk Prediction
+                                          {getLocalizedText(this.props.lang, LangDashboard.fallRiskPrediction)}
                                       </Text>
 
                                       <LinearGradient
@@ -755,9 +755,9 @@ class index extends Component {
                                                           (fallRisk === 2 && '#D1D501') ||
                                                           (fallRisk === 3 && '#FD9801'),
                                                   }}>
-                                                  {(fallRisk === 1 && 'Low') ||
-                                                      (fallRisk === 2 && 'Medium') ||
-                                                      (fallRisk === 3 && 'High')}
+                                                  {(fallRisk === 1 && getLocalizedText(this.props.lang, LangDashboard.low)) ||
+                                                      (fallRisk === 2 && getLocalizedText(this.props.lang, LangDashboard.medium)) ||
+                                                      (fallRisk === 3 && getLocalizedText(this.props.lang, LangDashboard.high))}
                                               </Text>
                                           </View>
                                       </LinearGradient>
@@ -791,7 +791,7 @@ class index extends Component {
                                           {this.state.healthData.cadence ?? '--'}
                                       </Text>
                                       <Text style={{ fontSize: 14, color: '#00A2A2', textAlign: 'center' }}>
-                                          Cadence{'\n'}(steps/min)
+                                          {getLocalizedText(this.props.lang, LangDashboard.cadence)+'\n'+getLocalizedText(this.props.lang, LangDashboard.cadenceUnit)}
                                       </Text>
 
                                       <View
@@ -815,7 +815,7 @@ class index extends Component {
                                           {this.state.healthData.step_count ?? '--'}
                                       </Text>
                                       <Text style={{ fontSize: 14, color: '#00A2A2', textAlign: 'center' }}>
-                                          Step count{'\n'}(steps)
+                                          {getLocalizedText(this.props.lang, LangDashboard.stepCount)+'\n'+getLocalizedText(this.props.lang, LangDashboard.stepCountUnit)}
                                       </Text>
 
                                       <View
@@ -839,7 +839,7 @@ class index extends Component {
                                           {this.state.healthData.gait_speed ?? '--'}
                                       </Text>
                                       <Text style={{ fontSize: 14, color: '#00A2A2', textAlign: 'center' }}>
-                                          Gait Speed{'\n'}(m/s)
+                                          {getLocalizedText(this.props.lang, LangDashboard.gaitSpeed)+'\n'+getLocalizedText(this.props.lang, LangDashboard.gaitSpeedUnit)}
                                       </Text>
                                   </View>
                               </LinearGradient>
@@ -872,7 +872,7 @@ class index extends Component {
                               fontSize: 18,
                               color: '#00A2A2',
                             }}>
-                          Peak Pressure Summary
+                            {getLocalizedText(this.props.lang, LangDashboard.peakPressureSummary)}
                         </Text>
                         <View
                             style={{
@@ -914,7 +914,7 @@ class index extends Component {
                                     fontSize: 17,
                                     color: '#00A2A2',
                                   }}>
-                                High
+                                  {getLocalizedText(this.props.lang, LangDashboard.high)}
                               </Text>
                               <Text
                                   style={{
@@ -922,7 +922,7 @@ class index extends Component {
                                     fontSize: 17,
                                     color: '#00A2A2',
                                   }}>
-                                Low
+                                  {getLocalizedText(this.props.lang, LangDashboard.low)}
                               </Text>
                             </View>
                           </View>
@@ -1540,10 +1540,10 @@ class index extends Component {
                                         marginBottom:2,            // tiny gap above the pill
                                   }}>
                                     <Text style={{ width:90, textAlign:'center', fontSize:16, fontWeight:'bold', color:'#000' }}>
-                                        Stance
+                                        {getLocalizedText(this.props.lang, LangDashboard.stance)}
                                     </Text>
                                     <Text style={{ width:90, textAlign:'center', fontSize:16, fontWeight:'bold', color:'#000' }}>
-                                        Swing
+                                        {getLocalizedText(this.props.lang, LangDashboard.swing)}
                                     </Text>
                                   </View>
                                   <Pill
@@ -1553,7 +1553,7 @@ class index extends Component {
                               </View>
                               {/* label */}
                               <Text style={{ flex:1, textAlign:'center', color:'#00A2A2', fontSize:14 }}>
-                                  Left foot
+                                  {getLocalizedText(this.props.lang, LangDashboard.leftFoot)}
                               </Text>
                           </View>
 
@@ -1570,7 +1570,7 @@ class index extends Component {
                               </View>
                               {/* label */}
                               <Text style={{ flex:1, textAlign:'center', color:'#00A2A2', fontSize:14 }}>
-                                  Right foot
+                                  {getLocalizedText(this.props.lang, LangDashboard.rightFoot)}
                               </Text>
                             </View>
                             </View>
@@ -1610,7 +1610,7 @@ class index extends Component {
                                                 {/* ---------- Left column: Radar + labels ---------- */}
                                                 <View style={{ width: '40%' }}>
                                                     <Text style={{ fontSize: 18, color: '#00A2A2' }}>
-                                                        Foot Balance{' '}
+                                                        {getLocalizedText(this.props.lang, LangDashboard.footBalance)}
                                                     </Text>
 
                                                     <View style={{ alignItems: 'center', marginVertical: 5 }}>
@@ -1629,8 +1629,8 @@ class index extends Component {
                                                             justifyContent: 'space-between',
                                                             alignItems: 'center',
                                                         }}>
-                                                        <Text style={{ fontSize: 15, color: '#00A2A2' }}>Left</Text>
-                                                        <Text style={{ fontSize: 15, color: '#00A2A2' }}>Right</Text>
+                                                        <Text style={{ fontSize: 15, color: '#00A2A2' }}>{getLocalizedText(this.props.lang, LangDashboard.left)}</Text>
+                                                        <Text style={{ fontSize: 15, color: '#00A2A2' }}>{getLocalizedText(this.props.lang, LangDashboard.right)}</Text>
                                                     </View>
                                                 </View>
 
@@ -1664,7 +1664,7 @@ class index extends Component {
                                                                     alignItems: 'center',
                                                                 }}>
                                                                 <Text style={{ fontSize: 15, color: '#00A2A2' }}>
-                                                                    Path Sway
+                                                                    {getLocalizedText(this.props.lang, LangDashboard.pathSway)}
                                                                 </Text>
                                                                 <Text
                                                                     style={{
@@ -1688,7 +1688,7 @@ class index extends Component {
                                                                         alignItems: 'center',
                                                                     }}>
                                                                     <Text style={{ fontSize: 15, color: '#00A2A2' }}>
-                                                                        ML Sway
+                                                                        {getLocalizedText(this.props.lang, LangDashboard.mlSway)}
                                                                     </Text>
                                                                     <Text
                                                                         style={{
@@ -1706,7 +1706,7 @@ class index extends Component {
                                                                         alignItems: 'center',
                                                                     }}>
                                                                     <Text style={{ fontSize: 15, color: '#00A2A2' }}>
-                                                                        AP Sway
+                                                                        {getLocalizedText(this.props.lang, LangDashboard.apSway)}
                                                                     </Text>
                                                                     <Text
                                                                         style={{
@@ -1757,7 +1757,7 @@ class index extends Component {
                                                                             color: '#00A2A2',
                                                                             textAlign: 'center',
                                                                         }}>
-                                                                        Ellipse Area
+                                                                        {getLocalizedText(this.props.lang, LangDashboard.ellipseArea)}
                                                                     </Text>
                                                                     <Text
                                                                         style={{
@@ -1794,7 +1794,7 @@ class index extends Component {
                                                                             color: '#00A2A2',
                                                                             textAlign: 'center',
                                                                         }}>
-                                                                        Velocity
+                                                                        {getLocalizedText(this.props.lang, LangDashboard.velocity)}
                                                                     </Text>
                                                                     <Text
                                                                         style={{

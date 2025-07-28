@@ -33,6 +33,29 @@ const dashboard = {thai: 'แผงควบคุม', eng: 'Dashboard', japane
 const summary = {thai: 'สรุป', eng: 'Summary', japanese: 'まとめ'};
 const noSummary = {thai: 'ไม่มีบทสรุป', eng: 'No Summary', japanese: '概要なし'};
 const exerciseTraining = { eng: 'Exercise Training', thai: 'การฝึกออกกำลังกาย', japanese: '運動トレーニング' }
+const peakPressureSummary = {eng:'Peak Pressure Summary', thai: 'สรุปแรงกดสูงสุด', japanese: 'ピーク圧概要'}
+const footBalance = {eng:'Foot Balance', thai: 'สมดุลเท้า', japanese: '足のバランス'}
+const left = {eng:'Left', thai: 'ซ้าย', japanese: '左'}
+const right = {eng:'Right', thai: 'ขวา', japanese: '右'}
+const pathSway = {eng:'Path Sway', thai: 'การแกว่งตามแนวทาง', japanese: 'パススウェイ'}
+const mlSway = {eng:'ML Sway', thai: 'การแกว่งด้านข้าง', japanese: 'MLスウェイ'}
+const apSway = {eng:'AP Sway', thai: 'การแกว่งหน้าหลัง', japanese: 'APスウェイ'}
+const ellipseArea = {eng:'Ellipse Area', thai: 'พื้นที่วงรี', japanese: '楕円面積'}
+const velocity = {eng:'Velocity', thai: 'ความเร็ว', japanese: '速度'}
+const fallRiskPrediction = {eng:'Fall Risk Prediction', thai: 'การทำนายความเสี่ยงการหกล้ม', japanese: '転倒リスク予測'}
+const high = {eng:'High', thai: 'สูง', japanese: '高い'}
+const low = {eng:'Low', thai: 'ต่ำ', japanese: '低い'}
+const medium = {eng:'Medium', thai: 'ปานกลาง', japanese: '中'}
+const cadence = {eng:'Cadence', thai: 'รอบขา', japanese: 'ケイデンス'}
+const cadenceUnit = {eng:'(steps/min)', thai: '(ก้าว/นาที)', japanese: '（歩/分）'}
+const stepCount = {eng:'Step Count', thai: 'จำนวนก้าว', japanese: '歩数'}
+const stepCountUnit = {eng:'(steps)', thai: '(ก้าว)', japanese: '（歩）'}
+const gaitSpeed = {eng:'Gait Speed', thai: 'ความเร็วในการเดิน', japanese: '歩行速度'}
+const gaitSpeedUnit = {eng:'(m/s)', thai: '(เมตร/วินาที)', japanese: '（m/s）'}
+const stance = {eng:'Stance', thai: 'ระยะยืน', japanese: '立脚期'}
+const swing = {eng:'Swing', thai: 'ระยะแกว่ง', japanese: '遊脚期'}
+const leftFoot = {eng:'Left Foot', thai: 'เท้าซ้าย', japanese: '左足'}
+const rightFoot = {eng:'Right Foot', thai: 'เท้าขวา', japanese: '右足'}
 
 
 export default {
@@ -41,4 +64,27 @@ export default {
     summary,
     exerciseTraining,
     noSummary,
+    peakPressureSummary,
+    high,
+    low,
+    footBalance,
+    left,
+    right,
+    pathSway,
+    mlSway,
+    apSway,
+    ellipseArea,
+    velocity,
+    fallRiskPrediction,
+    medium,
+    cadence,
+    cadenceUnit,
+    stepCount,
+    stepCountUnit,
+    gaitSpeed,
+    gaitSpeedUnit,
+    stance,
+    swing,
+    leftFoot,
+    rightFoot,
 };

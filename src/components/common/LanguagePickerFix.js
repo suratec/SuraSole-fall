@@ -6,9 +6,12 @@ import {
     Modal,
     StyleSheet,
     Image,
+    Dimensions,
 } from 'react-native';
 import { connect } from 'react-redux';
 import { getLocalizedText } from '../../assets/language/langUtils';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 class LanguagePickerFix extends Component {
     state = {
@@ -22,7 +25,7 @@ class LanguagePickerFix extends Component {
             thai: '🇹🇭',
             japanese: '🇯🇵'
         };
-        return flagMap[langKey] || '🌐';
+        return flagMap[langKey] || '🇺🇸';
     };
 
     getLanguageOptions = () => {
@@ -102,28 +105,30 @@ class LanguagePickerFix extends Component {
             buttonStyle,
             textStyle,
             modalTitle,
-            isCircular = false,  // NEW PROP
-            showFlag = false,    // NEW PROP
-            showText = true      // NEW PROP
+            isCircular = false,
+            showFlag = false,
+            showText = true
         } = this.props;
 
         const { langPickerVisible } = this.state;
         const languageOptions = this.getLanguageOptions();
 
-        // Debug logging
-        // console.log('LanguagePickerFix render - languageOptions:', languageOptions);
-        // console.log('LanguagePickerFix render - isCircular:', isCircular);
-        // console.log('LanguagePickerFix render - showFlag:', showFlag);
-
-        // Remove the early return that was causing the issue
-        // if (languageOptions.length === 0) {
-        //     return null;
-        // }
+        // Get current text to calculate button width
+        const currentText = this.getCurrentLanguageText();
+        const currentFlag = this.getCurrentLanguageFlag();
 
         // Dynamic button style based on isCircular prop
         const dynamicButtonStyle = isCircular
-            ? styles.circularButton  // No additional buttonStyle for circular
-            : [styles.languageButton, buttonStyle];
+            ? styles.circularButton
+            : [
+                styles.languageButton,
+                buttonStyle,
+                // Auto-sizing: Remove fixed width, let flexShrink work
+                {
+                    alignSelf: 'flex-start', // Let button size itself
+                    maxWidth: screenWidth * 0.8, // Prevent it from being too wide
+                }
+            ];
 
         return (
             <View style={[styles.container, style]} pointerEvents="box-none">
@@ -138,14 +143,22 @@ class LanguagePickerFix extends Component {
                         {/* Show flag if requested */}
                         {showFlag && (
                             <Text style={isCircular ? styles.flagTextCircular : styles.flagText}>
-                                {this.getCurrentLanguageFlag()}
+                                {currentFlag}
                             </Text>
                         )}
 
                         {/* Show text if requested and not circular-only mode */}
                         {showText && !isCircular && (
-                            <Text style={[styles.languageButtonText, textStyle]}>
-                                {showFlag ? `${this.getCurrentLanguageText()}` : this.getCurrentLanguageText()} ▼
+                            <Text
+                                style={[
+                                    styles.languageButtonText,
+                                    textStyle,
+                                    showFlag && styles.languageButtonTextWithFlag
+                                ]}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                            >
+                                {currentText} ▼
                             </Text>
                         )}
                     </View>
@@ -228,37 +241,42 @@ const styles = StyleSheet.create({
         zIndex: 1000,
     },
 
-    // Button Content Layout - Simple and clean
+    // Button Content Layout - Flexible sizing
     buttonContent: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        flex: 1,
+        flexShrink: 1, // Allow content to shrink if needed
+        minWidth: 0,   // Allow text to wrap/ellipsize
     },
 
-    // Original Rectangular Button
+    // Updated Rectangular Button - Auto-sizing
     languageButton: {
-        padding: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 16, // Horizontal padding for breathing room
         borderRadius: 8,
         backgroundColor: '#e0f7fa',
         borderWidth: 1,
         borderColor: '#00c3cc',
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
+        // Remove fixed width - let content determine size
+        minWidth: 80, // Minimum width for small text
+        flexShrink: 0, // Don't shrink the button itself
     },
 
-    // NEW: Circular Button Style - Completely clean like logout
+    // Circular Button Style - unchanged
     circularButton: {
-        width: 30,                       // Match logout image size
+        width: 30,
         height: 30,
-        borderRadius: 15,                // Half of width/height
-        backgroundColor: 'transparent',   // Transparent like logout
-        borderWidth: 0,                  // No border (parent handles it)
+        borderRadius: 15,
+        backgroundColor: 'transparent',
+        borderWidth: 0,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 0,
         margin: 0,
-        // Remove ALL styling that could cause artifacts
         elevation: 0,
         shadowColor: 'transparent',
         shadowOffset: { width: 0, height: 0 },
@@ -271,16 +289,19 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#00c3cc',
         fontWeight: 'bold',
+        textAlign: 'center',
+        flexShrink: 1, // Allow text to shrink if needed
     },
     languageButtonTextWithFlag: {
-        marginLeft: 5, // Add spacing between flag and text
+        marginLeft: 6, // Add spacing between flag and text
     },
 
-    // Flag Text Style - Clean and simple
+    // Flag Text Style
     flagText: {
         fontSize: 18,
         textAlign: 'center',
         backgroundColor: 'transparent',
+        flexShrink: 0, // Don't shrink flags
     },
     flagTextCircular: {
         fontSize: 20,
@@ -301,6 +322,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         padding: 20,
         width: 250,
+        maxWidth: screenWidth * 0.9,
     },
     modalTitle: {
         fontSize: 18,
@@ -310,9 +332,10 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
 
-    // Language Option Styles (enhanced with flags)
+    // Language Option Styles
     languageOption: {
         paddingVertical: 12,
+        paddingHorizontal: 8,
         borderRadius: 6,
         marginVertical: 2,
         backgroundColor: '#fff',
@@ -324,15 +347,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        flexShrink: 1,
     },
     languageOptionFlag: {
         fontSize: 20,
         marginRight: 10,
+        flexShrink: 0,
     },
     languageOptionText: {
         fontSize: 18,
         fontWeight: 'normal',
         color: '#00c3cc',
+        flexShrink: 1,
+        textAlign: 'center',
     },
     languageOptionTextSelected: {
         color: '#fff',

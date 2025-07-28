@@ -124,7 +124,7 @@ export default function ModerateRiskExercise({ navigation }) {
 
     const renderMondayContent = () => (
         <ScrollView style={styles.pageContainer} showsVerticalScrollIndicator={false}>
-            <Text style={styles.dayHeader}>📅 {getLocalizedText(lang, langTraining.mondayModerate.title)}</Text>
+            <Text style={styles.dayHeader}>🗓️ {getLocalizedText(lang, langTraining.mondayModerate.title)}</Text>
 
             {/* Warm Up */}
             <View style={styles.section}>
@@ -156,7 +156,7 @@ export default function ModerateRiskExercise({ navigation }) {
 
     const renderWednesdayContent = () => (
         <ScrollView style={styles.pageContainer} showsVerticalScrollIndicator={false}>
-            <Text style={styles.dayHeader}>📅 {getLocalizedText(lang, langTraining.wednesdayModerate.title)}</Text>
+            <Text style={styles.dayHeader}>🗓️ {getLocalizedText(lang, langTraining.wednesdayModerate.title)}</Text>
 
             {/* Warm Up */}
             <View style={styles.section}>
@@ -211,7 +211,7 @@ export default function ModerateRiskExercise({ navigation }) {
 
     const renderFridayContent = () => (
         <ScrollView style={styles.pageContainer} showsVerticalScrollIndicator={false}>
-            <Text style={styles.dayHeader}>📅 {getLocalizedText(lang, langTraining.fridayModerate.title)}</Text>
+            <Text style={styles.dayHeader}>🗓️ {getLocalizedText(lang, langTraining.fridayModerate.title)}</Text>
 
             {/* Warm Up */}
             <View style={styles.section}>

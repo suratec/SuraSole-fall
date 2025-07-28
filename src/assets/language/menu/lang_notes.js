@@ -11,6 +11,11 @@ const otherInjuriesPlaceholder = { eng: 'Other injuries', thai: 'การบา
 const updateBtn = { eng: 'Update', thai: 'อัปเดต', japanese: '更新' };
 const cancelBtn = { eng: 'Cancel', thai: 'ยกเลิก', japanese: 'キャンセル' };
 const saving = { eng: 'Saving...', thai: 'กำลังบันทึก...', japanese: '保存中...' };
+const error = {eng: 'Error', thai: 'ข้อผิดพลาด', japanese: 'エラー'};
+const userIdMissing = {eng: 'User ID is missing', thai: 'ไม่พบ User ID', japanese: 'ユーザーIDがありません'};
+const success =  {eng: 'Success', thai: 'สำเร็จ', japanese: '成功'};
+const medicalRecord = {eng: 'Medical record saved successfully', thai: 'บันทึกเวชระเบียนสำเร็จ', japanese: '診療記録が正常に保存されました'};
+const failedSave =  {eng: 'Failed to save medical record', thai: 'ไม่สามารถบันทึกเวชระเบียนได้', japanese: '診療記録の保存に失敗しました'};
 
 export default {
     medicalCondition,
@@ -26,4 +31,9 @@ export default {
     updateBtn,
     cancelBtn,
     saving,
+    error,
+    userIdMissing,
+    success,
+    medicalRecord,
+    failedSave,
 };

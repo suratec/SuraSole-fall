@@ -161,6 +161,11 @@ const monday = {
         japanese: '月曜日 – ウォーキング＆柔軟性'
     },
     warmUp: {
+        title: {
+            eng: 'Warm-Up',
+            thai: 'วอร์มอัพ',
+            japanese: '準備し始める'
+        },
         slowWalk: {
             eng: 'Slow Walk (2 min): Walk around your home at relaxed pace',
             thai: 'เดินช้า (2 นาที): เดินรอบบ้านในจังหวะสบายๆ',

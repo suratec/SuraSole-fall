@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { View, TouchableOpacity, ScrollView } from 'react-native'
+import { View, TouchableOpacity, ScrollView, Text as RNText } from 'react-native'
 import { Card, CardItem } from 'native-base';
 
 import Text from '../../common/TextFix';
@@ -103,31 +103,41 @@ export default class card_profile extends Component {
                                     paddingVertical: 12,
                                     paddingHorizontal: 20,
                                     flex: 1,
-                                    marginRight: 8,
+                                    marginRight: 18,
                                     alignItems: 'center',
                                 }}
                                 onPress={this.props.onUpdate}
                             >
-                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                <RNText style={{
+                                    color: '#FFFFFF',
+                                    fontSize: 16,
+                                    fontWeight: 'bold',
+                                    textAlign: 'center'
+                                }}>
                                     {getLocalizedText(this.props.lang, Lang.updateLabel)}
-                                </Text>
+                                </RNText>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 style={{
-                                    backgroundColor: '#6c7b7f',
+                                    backgroundColor: '#00c3cc',
                                     borderRadius: 25,
                                     paddingVertical: 12,
                                     paddingHorizontal: 20,
                                     flex: 1,
-                                    marginLeft: 8,
+                                    marginLeft: 18,
                                     alignItems: 'center',
                                 }}
                                 onPress={this.props.onNotes}
                             >
-                                <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold' }}>
+                                <RNText style={{
+                                    color: '#FFFFFF',
+                                    fontSize: 16,
+                                    fontWeight: 'bold',
+                                    textAlign: 'center'
+                                }}>
                                     {getLocalizedText(this.props.lang, Lang.note)}
-                                </Text>
+                                </RNText>
                             </TouchableOpacity>
                         </View>
                     </View>
