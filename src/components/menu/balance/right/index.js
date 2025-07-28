@@ -9,6 +9,9 @@ import {
   NativeEventEmitter,
   Vibration,
   Alert,
+  Text as RNText,
+  Dimensions,
+  StyleSheet,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -44,21 +47,11 @@ var RNFS = require('react-native-fs');
 
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
+const { width, height } = Dimensions.get('window');
 
 const TIMER_BIG = 1;
 const TIMER = 100;
 const Duration = 1500;
-
-/*
-code vibration
-
-if (this.state.switch) {
-      Vibration.vibrate(Duration);
-}else{
-  Vibration.cancel();
-}
-
-*/
 
 class index extends Component {
   leftPhase = 0;
@@ -99,6 +92,22 @@ class index extends Component {
     score: 0,
     isConnected: true,
     notiAlarm: 0,
+  };
+
+  // Helper methods for balance grade colors
+  getScoreColor = (score) => {
+    if (score >= 80) return '#28a745'; // Green for good
+    if (score >= 40) return '#ffc107'; // Yellow for medium
+    return '#dc3545'; // Red for bad
+  };
+
+  getStatusColor = (status) => {
+    switch (status.toLowerCase()) {
+      case 'good': return '#28a745';
+      case 'medium': return '#ffc107';
+      case 'bad': return '#dc3545';
+      default: return '#6c757d';
+    }
   };
 
   componentDidMount = async () => {
@@ -180,9 +189,7 @@ class index extends Component {
         this.inZone = true;
       }
       this.setState({
-        txt: this.state.lang
-          ? BalanceLang.goodBalance.thai
-          : BalanceLang.goodBalance.eng,
+        txt: getLocalizedText(this.props.lang, BalanceLang.goodBalance),
         status: 'Good',
         balance: Math.round(100 - persent),
       });
@@ -192,9 +199,7 @@ class index extends Component {
         this.inZone = false;
       }
       this.setState({
-        txt: this.state.lang
-          ? BalanceLang.mediumBalance.thai
-          : BalanceLang.mediumBalance.eng,
+        txt: getLocalizedText(this.props.lang, BalanceLang.mediumBalance),
         status: 'Medium',
         balance: Math.round(100 - persent),
       });
@@ -204,9 +209,7 @@ class index extends Component {
         this.inZone = false;
       }
       this.setState({
-        txt: this.state.lang
-          ? BalanceLang.badBalance.thai
-          : BalanceLang.badBalance.eng,
+        txt: getLocalizedText(this.props.lang, BalanceLang.badBalance),
         status: 'Bad',
         balance: Math.round(100 - persent),
       });
@@ -238,35 +241,35 @@ class index extends Component {
       await BleManager.retrieveServices(this.props.leftDevice);
     }
     this.dataRecord = bleManagerEmitter.addListener(
-      'BleManagerDidUpdateValueForCharacteristic',
-      ({value, peripheral, characteristic, service}) => {
-        let time = new Date();
-        if (peripheral === this.props.leftDevice) {
-          leftsensor = this.toDecimalArray(value);
-          this.recordData(leftsensor, 'L');
-          if (time - this.ltime > 333) {
-            this.leftPhase = leftsensor.reduce((a, b) => a + b, 0);
-            this.setState({leftsensor});
-            this.ltime = time;
+        'BleManagerDidUpdateValueForCharacteristic',
+        ({value, peripheral, characteristic, service}) => {
+          let time = new Date();
+          if (peripheral === this.props.leftDevice) {
+            leftsensor = this.toDecimalArray(value);
+            this.recordData(leftsensor, 'L');
+            if (time - this.ltime > 333) {
+              this.leftPhase = leftsensor.reduce((a, b) => a + b, 0);
+              this.setState({leftsensor});
+              this.ltime = time;
+            }
           }
-        }
-        if (peripheral === this.props.rightDevice) {
-          rightsensor = this.toDecimalArray(value);
-          this.recordData(rightsensor, 'R');
-          if (time - this.rtime > 333) {
-            this.shouldBeVibration(rightsensor);
-            let {xPos, yPos} = this.findCoordinate(rightsensor);
-            xPos = xPos / 7.8;
-            yPos = yPos / -7.8;
-            let xPosN = (xPos + 100) * 1.5;
-            let yPosN = (yPos + 100) * 1.5;
-            this.setStatus(xPos, yPos);
-            this.rightPhase = rightsensor.reduce((a, b) => a + b, 0);
-            this.setState({rightsensor, xPosN, yPosN});
-            this.rtime = time;
+          if (peripheral === this.props.rightDevice) {
+            rightsensor = this.toDecimalArray(value);
+            this.recordData(rightsensor, 'R');
+            if (time - this.rtime > 333) {
+              this.shouldBeVibration(rightsensor);
+              let {xPos, yPos} = this.findCoordinate(rightsensor);
+              xPos = xPos / 7.8;
+              yPos = yPos / -7.8;
+              let xPosN = (xPos + 100) * 1.5;
+              let yPosN = (yPos + 100) * 1.5;
+              this.setStatus(xPos, yPos);
+              this.rightPhase = rightsensor.reduce((a, b) => a + b, 0);
+              this.setState({rightsensor, xPosN, yPosN});
+              this.rtime = time;
+            }
           }
-        }
-      },
+        },
     );
   }
 
@@ -288,8 +291,8 @@ class index extends Component {
 
   actionRecording = async () => {
     if (
-      typeof this.props.rightDevice === 'undefined' &&
-      typeof this.props.leftDevice === 'undefined'
+        typeof this.props.rightDevice === 'undefined' &&
+        typeof this.props.leftDevice === 'undefined'
     ) {
       Alert.alert('Warning !', 'Please Check Your Bluetooth Connect', [
         {
@@ -297,8 +300,8 @@ class index extends Component {
           onPress: () => {
             this.props.navigation.navigate('Device', {
               name: this.props.lang
-                ? LangHome.addDeviceButton.thai
-                : LangHome.addDeviceButton.eng,
+                  ? LangHome.addDeviceButton.thai
+                  : LangHome.addDeviceButton.eng,
             });
           },
         },
@@ -332,24 +335,24 @@ class index extends Component {
         };
         try {
           await await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
+              RNFS.CachesDirectoryPath +
               '/suratechM/' +
               this.start.getFullYear() +
               this.start.getMonth() +
               this.start.getDate() +
               this.round,
-            JSON.stringify(data) + ',',
+              JSON.stringify(data) + ',',
           );
         } catch {
           await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
           await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
+              RNFS.CachesDirectoryPath +
               '/suratechM/' +
               this.start.getFullYear() +
               this.start.getMonth() +
               this.start.getDate() +
               this.round,
-            JSON.stringify(data) + ',',
+              JSON.stringify(data) + ',',
           );
         }
       }, 100);
@@ -363,98 +366,92 @@ class index extends Component {
 
   sendDataToSetver() {
     this.state.isConnected == false
-      ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
+        ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
           console.log('WiFi is not connect');
           res.forEach(r => {
             console.log(r.path);
           });
         })
-      : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
+        : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
           res.forEach(r => {
             console.log(r.path);
             RNFS.readFile(r.path)
-              .then(text => {
-                let data = JSON.parse(
-                  '[' + text.substring(0, text.length - 1) + ']',
-                );
-                var content = {
-                  data: data,
-                  id_customer: data[0].id_customer,
-                  id_device: '',
-                  type: 1, // for medical
-                  product_number: this.props.productNumber,
-                  bluetooth_left_id: this.props.leftDevice,
-                  bluetooth_right_id: this.props.rightDevice,
-                };
-                fetch(`${API}/addjson`, {
-                  method: 'POST',
-                  headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(content),
-                })
-                  .then(resp => resp.json())
-                  .then(resp => {
-                    if (resp.status != 'ผิดพลาด') {
-                      console.log(`Clear : ${r.path}`);
-                      RNFS.unlink(r.path);
+                .then(text => {
+                  let data = JSON.parse(
+                      '[' + text.substring(0, text.length - 1) + ']',
+                  );
+                  var content = {
+                    data: data,
+                    id_customer: data[0].id_customer,
+                    id_device: '',
+                    type: 1, // for medical
+                    product_number: this.props.productNumber,
+                    bluetooth_left_id: this.props.leftDevice,
+                    bluetooth_right_id: this.props.rightDevice,
+                  };
+                  fetch(`${API}/addjson`, {
+                    method: 'POST',
+                    headers: {
+                      Accept: 'application/json',
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(content),
+                  })
+                      .then(resp => resp.json())
+                      .then(resp => {
+                        if (resp.status != 'ผิดพลาด') {
+                          console.log(`Clear : ${r.path}`);
+                          RNFS.unlink(r.path);
 
-                      fetch(`${API}member/getUserDashboardStatic`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          id: this.props.user.id_customer,
-                          // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
-                        }),
-                      })
-                      .then(resp1 => {
-                            console.log('============API Response============');
-                            return  resp1.json();
-                          })
-                        .then(resp1 => {
-                          
-                          fetch(`${API}member/get_user_data`, {
+                          fetch(`${API}member/getUserDashboardStatic`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               id: this.props.user.id_customer,
-                              ...resp1
-                              // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
                             }),
                           })
-                            .then(res => {
-                              console.log('============API Response============');
-                              return console.log(res), res.json();
-                            })
-                            .then(res => {
-                              console.log(res, 'responseFromAPU');
-  
-                            })
-                            .catch(err => {
-                              console.log(err);
-                              this.setState({ isLoading: false });
-                              Toast.show('Something went wrong. Please Try again!!!');
-                            });
+                              .then(resp1 => {
+                                console.log('============API Response============');
+                                return  resp1.json();
+                              })
+                              .then(resp1 => {
+
+                                fetch(`${API}member/get_user_data`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    id: this.props.user.id_customer,
+                                    ...resp1
+                                  }),
+                                })
+                                    .then(res => {
+                                      console.log('============API Response============');
+                                      return console.log(res), res.json();
+                                    })
+                                    .then(res => {
+                                      console.log(res, 'responseFromAPU');
+                                    })
+                                    .catch(err => {
+                                      console.log(err);
+                                      this.setState({ isLoading: false });
+                                      Toast.show('Something went wrong. Please Try again!!!');
+                                    });
+                              })
+                              .catch(err => {
+                                console.log(err);
+                                this.setState({ isLoading: false });
+                                Toast.show('Something went wrong. Please Try again!!!');
+                              });
                         }
-  
-                        )
-                        .catch(err => {
-                          console.log(err);
-                          this.setState({ isLoading: false });
-                          Toast.show('Something went wrong. Please Try again!!!');
-                        });
-                    }
-                  });
-              })
-              .catch(e => {});
+                      });
+                })
+                .catch(e => {});
           });
         });
     alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
   }
 
   actionUpdate = content => {
-    //อ่านไฟล์ และส่งข่อมูล
     console.log('Update =>');
 
     content = {
@@ -473,55 +470,29 @@ class index extends Component {
       },
       body: JSON.stringify(content),
     })
-      .then(res => res.json())
-      .then(res => {
-        console.log('res => ');
-        console.log(res);
-        if (res.status === 'สำเร็จ') {
+        .then(res => res.json())
+        .then(res => {
+          console.log('res => ');
+          console.log(res);
+          if (res.status === 'สำเร็จ') {
+            AlertFix.alertBasic(
+                getLocalizedText(this.props.lang, Lang.successTitle),
+                getLocalizedText(this.props.lang, Lang.successBody),
+            );
+            deleteFile(this.fileStamp_n);
+          } else {
+            AlertFix.alertBasic(
+                getLocalizedText(this.props.lang, Lang.errorTitle),
+                getLocalizedText(this.props.lang, Lang.errorBody1),
+            );
+          }
+        })
+        .catch(error => {
           AlertFix.alertBasic(
-            this.props.lang ? Lang.successTitle.thai : Lang.successTitle.eng,
-            this.props.lang ? Lang.successBody.thai : Lang.successBody.eng,
+              getLocalizedText(this.props.lang, Lang.errorTitle),
+              getLocalizedText(this.props.lang, Lang.errorBody2),
           );
-          deleteFile(this.fileStamp_n);
-        } else {
-          AlertFix.alertBasic(
-            this.props.lang ? Lang.errorTitle.thai : Lang.errorTitle.eng,
-            this.props.lang ? Lang.errorBody1.thai : Lang.errorBody1.eng,
-          );
-        }
-      })
-      .catch(error => {
-        AlertFix.alertBasic(
-          this.props.lang ? Lang.errorTitle.thai : Lang.errorTitle.eng,
-          this.props.lang ? Lang.errorBody2.thai : Lang.errorBody2.eng,
-        );
-      });
-
-    //อ่านไฟล์ และส่งข่อมูล
-
-    // fetch(`${API}/..`, {
-    //   method: 'POST',
-    //   headers: {
-    //     'Accept': 'application/json',
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     id_customer: this.props.user.id_customer
-    //   })
-    // }).then((res) => res.json())
-    //   .then((res) => {
-    //     if (res.status != 'บันทึกข้อมูลสำเร็จ') {
-    //       //error
-    //       AlertFix.alertBasic(null, 'ไม่สามาถแก้ไขโปรไฟล์ได้ !')
-    //     } else {
-    //       //sucsss !
-    //       AlertFix.alertBasic(false, 'แก้ไขข้อมูลสำเร็จ !')
-
-    //       this.props.navigation.goBack()
-    //     }
-    //   }).catch((error) => {
-    //     console.error(error);
-    //   });
+        });
   };
 
   actionDashboard = () => {
@@ -539,69 +510,217 @@ class index extends Component {
   render() {
     this.canVibration(this.state.shouldVibrate, this.state.switch);
     return (
-      <ScrollView style={{flex: 1}}>
-        <HeaderFix
-          icon_left={'left'}
-          onpress_left={() => {
-            this.props.navigation.dispatch(NavigationActions.back());
-          }}
-          title={getLocalizedText(this.props.lang, BalanceLang.rightFootBalance)}
-        />
+        <View style={styles.container}>
+          <HeaderFix
+              icon_left={'left'}
+              onpress_left={() => {
+                this.props.navigation.dispatch(NavigationActions.back());
+              }}
+              title={getLocalizedText(this.props.lang, BalanceLang.rightFootBalance)}
+          />
 
-        {/*<NotificationsState />*/}
+          {/* Main Content Container - Optimized for No Scrolling */}
+          <View style={styles.mainContentContainer}>
 
-        <View style={{padding: 15}}>
-          <View style={{flex: 4, height: '100%'}}>
-            <Text>Right Foot Balance </Text>
-
-            <View style={{alignItems: 'center'}}>
+            {/* Radar Chart Section - More Space */}
+            <View style={styles.radarContainer}>
               <RadarChartFix xPos={this.state.xPosN} yPos={this.state.yPosN} />
             </View>
-          </View>
 
-          <ScoreFix
-            title={'Balancing Grade'}
-            status={this.state.balance}
-            score={this.state.score}
-            holder={'Time in Zone'}
-          />
+            {/* Enhanced Balance Grade Display - Positioned Much Lower & Smaller */}
+            <View style={styles.balanceGradeContainer}>
+              {/* Score and Status Row */}
+              <View style={styles.scoreStatusRow}>
+                {/* Balance Score */}
+                <View style={styles.scoreSection}>
+                  <RNText style={styles.sectionLabel}>Score</RNText>
+                  <View style={[styles.scoreBadge, { backgroundColor: this.getScoreColor(this.state.balance) }]}>
+                    <RNText style={styles.scoreText}>{this.state.balance}%</RNText>
+                  </View>
+                </View>
 
-          <CardStatusFix
-            title={'Balancing Grade'}
-            status={this.state.status}
-            txt={this.state.txt}
-          />
+                {/* Status Badge */}
+                <View style={styles.statusSection}>
+                  <RNText style={styles.sectionLabel}>Status</RNText>
+                  <View style={[styles.statusBadge, { backgroundColor: this.getStatusColor(this.state.status) }]}>
+                    <RNText style={styles.statusText}>{this.state.status}</RNText>
+                  </View>
+                </View>
+              </View>
 
-          <View
-            style={{
-              flex: 1,
-              height: '100%',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}>
-            {/* <Grid style={{padding: 15}}>
-              <Col> */}
-            <ButtonFix
-              action={true}
-              rounded={true}
-              title={this.state.textAction}
-              onPress={() => this.actionRecording()}
-            />
-            {/* </Col>
-              <Col>
-                <ButtonFix
+              {/* Compact Progress Bar */}
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBarBackground}>
+                  <View style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${this.state.balance}%`,
+                      backgroundColor: this.getScoreColor(this.state.balance)
+                    }
+                  ]} />
+                </View>
+              </View>
+
+              {/* Description Text - Compact */}
+              <RNText style={styles.descriptionText}>{this.state.txt}</RNText>
+            </View>
+            {/* Time in Zone Display */}
+            <View style={styles.timeInZoneContainer}>
+              <RNText style={styles.timeInZoneLabel}>Time in Zone</RNText>
+              <RNText style={styles.timeInZoneValue}>{this.state.score}s</RNText>
+            </View>
+            {/* Record button - Fixed Spacing */}
+            <View style={styles.recordButtonContainer}>
+              <ButtonFix
+                  action={true}
                   rounded={true}
-                  title={'Dashboard'}
-                  onPress={() => this.actionDashboard()}
-                />
-              </Col>
-            </Grid> */}
+                  title={this.state.textAction}
+                  onPress={() => this.actionRecording()}
+              />
+            </View>
           </View>
         </View>
-      </ScrollView>
     );
   }
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  mainContentContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    justifyContent: 'space-between',
+  },
+
+  // Radar chart styles - More Space
+  radarContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 30, // Increased space after radar chart
+    flex: 0.6, // Chart space
+  },
+
+  // Balance grade styles - Positioned Much Lower & Smaller Size
+  balanceGradeContainer: {
+    marginVertical: 5, // Reduced spacing
+    paddingHorizontal: 10, // Reduced width
+    paddingVertical: 8, // Reduced height
+    backgroundColor: '#ffffff',
+    borderRadius: 10, // Smaller radius
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 3,
+    flex: 0.15, // Much smaller space allocation
+    alignSelf: 'center', // Center the card
+    width: '85%', // Reduced width to 85% of container
+  },
+  scoreStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6, // Reduced spacing
+  },
+  scoreSection: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statusSection: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  sectionLabel: {
+    fontSize: 10, // Smaller font
+    color: '#666',
+    marginBottom: 3, // Reduced spacing
+    fontWeight: '500',
+  },
+  scoreBadge: {
+    paddingHorizontal: 8, // Reduced padding
+    paddingVertical: 4, // Reduced padding
+    borderRadius: 15, // Smaller radius
+    minWidth: 50, // Smaller width
+    alignItems: 'center',
+  },
+  statusBadge: {
+    paddingHorizontal: 8, // Reduced padding
+    paddingVertical: 4, // Reduced padding
+    borderRadius: 15, // Smaller radius
+    minWidth: 60, // Smaller width
+    alignItems: 'center',
+  },
+  scoreText: {
+    fontSize: 14, // Smaller font
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  statusText: {
+    fontSize: 12, // Smaller font
+    fontWeight: '600',
+    color: '#fff',
+  },
+  progressContainer: {
+    marginTop: 5, // Reduced spacing
+  },
+  progressBarBackground: {
+    height: 4, // Thinner progress bar
+    backgroundColor: '#e9ecef',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  descriptionText: {
+    fontSize: 10, // Smaller font
+    color: '#495057',
+    textAlign: 'center',
+    marginTop: 5, // Reduced spacing
+    fontStyle: 'italic',
+    lineHeight: 14, // Tighter line height
+  },
+
+  // Record button styles - More Space
+  recordButtonContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 0.25, // Control record button space
+  },
+
+
+  // Time in Zone styles
+  timeInZoneContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    marginVertical: 10,
+    alignItems: 'center',
+    flex: 0.1,
+    justifyContent: 'center',
+  },
+  timeInZoneLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+    marginBottom: 3,
+  },
+  timeInZoneValue: {
+    fontSize: 18,
+    color: '#007bff',
+    fontWeight: 'bold',
+  },
+});
 
 const mapStateToProps = state => {
   return {
@@ -614,6 +733,7 @@ const mapStateToProps = state => {
     productNumber: state.productNumber,
   };
 };
+
 const mapDisPatchToProps = dispatch => {
   return {
     addDashBoardData: data => {
@@ -627,4 +747,5 @@ const mapDisPatchToProps = dispatch => {
     },
   };
 };
+
 export default connect(mapStateToProps, mapDisPatchToProps)(index);

@@ -4,12 +4,14 @@ import React, { Component } from 'react';
 import {
   View,
   Image,
-  ScrollView,
   NativeModules,
   NativeEventEmitter,
   Vibration,
-  TouchableOpacity, Text as RNText,
+  TouchableOpacity,
+  Text as RNText,
   Alert,
+  Dimensions,
+  StyleSheet,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -39,27 +41,17 @@ import { TabHeading } from 'native-base';
 import BalanceLang from '../../../assets/language/menu/lang_balance';
 import Lang from '../../../assets/language/menu/lang_record';
 import LangHome from '../../../assets/language/screen/lang_home';
-import {getLocalizedText} from '../../../assets/language/langUtils';
+import { getLocalizedText } from '../../../assets/language/langUtils';
 
 const RNFS = require('react-native-fs');
 
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
+const { width, height } = Dimensions.get('window');
 
 const TIMER = 100;
 const TIMER_BIG = 1;
 const Duration = 1500;
-
-/*
-code vibration
-
-if (this.state.switch) {
-      Vibration.vibrate(Duration);
-}else{
-  Vibration.cancel();
-}
-
-*/
 
 class index extends Component {
   leftSwingTime = 0;
@@ -96,32 +88,30 @@ class index extends Component {
     lsensor: [0, 0, 0, 0, 0, 0, 0, 0],
     shouldVibrate: false,
     score: 0,
-    balance: 0,
+    balance: 0, // Keep original balance calculation
     txt: '',
     status: 'waiting',
     isConnected: true,
     peripherals: new Map(),
     notiAlarm: 0,
     shoeSize: 0,
-    selectedMenu: 1,
-    menuAction: [
-      { key: 1, title: 'Dynamic' },
-      { key: 2, title: 'Static' },
-    ],
-    countDownTimer: 10,
-    isCalibrated: false,
-    leftLegCalibrated: false,
-    rightLegCalibrated: false,
-    percentageCompleted: 0,
-    calibrationScreenOn: false,
-    calibrationPhase: 0,
-    showButton: true,
-
   };
 
-  //findCoordinate(sensor) {
-  //return { xPos: ((sensor[2] - sensor[1]) / 650) * 150 + 150, yPos: ((((sensor[0] + sensor[1] + sensor[2]) / 3) - sensor[4]) / -650) * 150 + 150 }
-  //}
+  // Helper methods for balance grade colors
+  getScoreColor = (score) => {
+    if (score >= 80) return '#28a745'; // Green for good
+    if (score >= 40) return '#ffc107'; // Yellow for medium
+    return '#dc3545'; // Red for bad
+  };
+
+  getStatusColor = (status) => {
+    switch (status.toLowerCase()) {
+      case 'good': return '#28a745';
+      case 'medium': return '#ffc107';
+      case 'bad': return '#dc3545';
+      default: return '#6c757d';
+    }
+  };
 
   calMeasurePressure = value => {
     return 2.206 * Math.exp(0.0068 * value);
@@ -170,7 +160,7 @@ class index extends Component {
     });
     this.zoneInterval = setInterval(() => {
       var score =
-        (this.state.balance + Number.parseInt(this.state.score)) / this.counter;
+          (this.state.balance + Number.parseInt(this.state.score)) / this.counter;
       this.setState({ score: score.toFixed(0) }, () => this.counter++);
     }, 1000);
   };
@@ -182,7 +172,6 @@ class index extends Component {
       this.dataRecord.remove();
     }
     this.focusListener.remove();
-    
   };
 
   actionConnectDevice(peripheral) {
@@ -191,44 +180,44 @@ class index extends Component {
         BleManager.disconnect(peripheral.id);
       } else {
         BleManager.connect(peripheral.id)
-          .then(() => {
-            let peripherals = this.state.peripherals;
-            let p = peripherals.get(peripheral.id);
-            if (p) {
-              p.connected = true;
-              peripherals.set(peripheral.id, p);
-              this.setState({ peripherals });
-            }
-            if (peripheral.name[peripheral.name.length - 1] === 'L') {
-              this.props.addLeftDevice(peripheral.id);
-              this.setState({ shoeSize: peripheral.name[peripheral.name.length - 3] + peripheral.name[peripheral.name.length - 2] })
-            } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
-              this.props.addRightDevice(peripheral.id);
-            }
+            .then(() => {
+              let peripherals = this.state.peripherals;
+              let p = peripherals.get(peripheral.id);
+              if (p) {
+                p.connected = true;
+                peripherals.set(peripheral.id, p);
+                this.setState({ peripherals });
+              }
+              if (peripheral.name[peripheral.name.length - 1] === 'L') {
+                this.props.addLeftDevice(peripheral.id);
+                this.setState({ shoeSize: peripheral.name[peripheral.name.length - 3] + peripheral.name[peripheral.name.length - 2] })
+              } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
+                this.props.addRightDevice(peripheral.id);
+              }
 
-            setTimeout(() => {
-              BleManager.retrieveServices(peripheral.id).then(
-                peripheralInfo => {
-                  var service;
-                  var bakeCharacteristic;
-                  var crustCharacteristic;
-                  if (Platform.OS === 'android') {
-                    service = '0000FFE0-0000-1000-8000-00805F9B34FB';
-                    bakeCharacteristic = '0000FFE1-0000-1000-8000-00805F9B34FB';
-                    crustCharacteristic =
-                      '0000FFE1-0000-1000-8000-00805F9B34FB';
-                  } else {
-                    service = 'FFE0';
-                    bakeCharacteristic = 'FFE1';
-                    crustCharacteristic = 'FFE1';
-                  }
-                },
-              );
-            }, 900);
-          })
-          .catch(error => {
-            console.log('Connection error', error);
-          });
+              setTimeout(() => {
+                BleManager.retrieveServices(peripheral.id).then(
+                    peripheralInfo => {
+                      var service;
+                      var bakeCharacteristic;
+                      var crustCharacteristic;
+                      if (Platform.OS === 'android') {
+                        service = '0000FFE0-0000-1000-8000-00805F9B34FB';
+                        bakeCharacteristic = '0000FFE1-0000-1000-8000-00805F9B34FB';
+                        crustCharacteristic =
+                            '0000FFE1-0000-1000-8000-00805F9B34FB';
+                      } else {
+                        service = 'FFE0';
+                        bakeCharacteristic = 'FFE1';
+                        crustCharacteristic = 'FFE1';
+                      }
+                    },
+                );
+              }, 900);
+            })
+            .catch(error => {
+              console.log('Connection error', error);
+            });
       }
     }
   }
@@ -251,93 +240,93 @@ class index extends Component {
 
   async startReading() {
     this.dataRecord = bleManagerEmitter.addListener(
-      'BleManagerDidUpdateValueForCharacteristic',
-      ({ value, peripheral, characteristic, service }) => {
-        let time = new Date();
-        if (peripheral === this.props.rightDevice) {
-          let rsensor = this.toDecimalArray(value);
-          this.recordData(rsensor, 'R');
-          if (time - this.rtime > 250) {
-            let lsensor = this.state.lsensor;
-            let shouldVibrate = this.shouldBeVibration(lsensor);
-            let sumright =
-              (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
-              5 +
-              (rsensor[5] + rsensor[6]) / 2 +
-              rsensor[7];
-            let sumleft =
-              (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
-              5 +
-              (lsensor[5] + lsensor[6]) / 2 +
-              lsensor[7];
-            let sumup =
-              (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
-              5 +
-              (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
-              5;
-            let sumdown = lsensor[7] + rsensor[7];
-            let xPos = (sumright - sumleft) / 23.4;  
-            let yPos = (sumup - sumdown) / -15.6;
-            let xPosN = (xPos + 100) * 1.5;
-            let yPosN = (yPos + 100) * 1.5;
-            let rphase = rsensor.reduce((a, b) => a + b, 0);
-            let { txt, status, balance } = this.setStatus(xPos, yPos);
-            this.setState({
-              xPosN,
-              yPosN,
-              rphase,
-              rsensor,
-              shouldVibrate,
-              txt,
-              status,
-              balance,
-            });
-            this.rtime = time;
+        'BleManagerDidUpdateValueForCharacteristic',
+        ({ value, peripheral, characteristic, service }) => {
+          let time = new Date();
+          if (peripheral === this.props.rightDevice) {
+            let rsensor = this.toDecimalArray(value);
+            this.recordData(rsensor, 'R');
+            if (time - this.rtime > 250) {
+              let lsensor = this.state.lsensor;
+              let shouldVibrate = this.shouldBeVibration(lsensor);
+              let sumright =
+                  (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
+                  5 +
+                  (rsensor[5] + rsensor[6]) / 2 +
+                  rsensor[7];
+              let sumleft =
+                  (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
+                  5 +
+                  (lsensor[5] + lsensor[6]) / 2 +
+                  lsensor[7];
+              let sumup =
+                  (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
+                  5 +
+                  (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
+                  5;
+              let sumdown = lsensor[7] + rsensor[7];
+              let xPos = (sumright - sumleft) / 23.4;
+              let yPos = (sumup - sumdown) / -15.6;
+              let xPosN = (xPos + 100) * 1.5;
+              let yPosN = (yPos + 100) * 1.5;
+              let rphase = rsensor.reduce((a, b) => a + b, 0);
+              let { txt, status, balance } = this.setStatus(xPos, yPos);
+              this.setState({
+                xPosN,
+                yPosN,
+                rphase,
+                rsensor,
+                shouldVibrate,
+                txt,
+                status,
+                balance,
+              });
+              this.rtime = time;
+            }
           }
-        }
-        if (peripheral === this.props.leftDevice) {
-          let lsensor = this.toDecimalArray(value);
-          this.recordData(lsensor, 'L');
-          if (time - this.ltime > 250) {
-            let rsensor = this.state.rsensor;
-            let shouldVibrate = this.shouldBeVibration(lsensor);
-            let sumright =
-              (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
-              5 +
-              (rsensor[5] + rsensor[6]) / 2 +
-              rsensor[7];
-            let sumleft =
-              (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
-              5 +
-              (lsensor[5] + lsensor[6]) / 2 +
-              lsensor[7];
-            let sumup =
-              (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
-              5 +
-              (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
-              5;
-            let sumdown = lsensor[7] + rsensor[7];
-            let xPos = (sumright - sumleft) / 23.4;
-            let yPos = (sumup - sumdown) / -15.6;
-            let xPosN = (xPos + 100) * 1.5;
-            let yPosN = (yPos + 100) * 1.5;
+          if (peripheral === this.props.leftDevice) {
+            let lsensor = this.toDecimalArray(value);
+            this.recordData(lsensor, 'L');
+            if (time - this.ltime > 250) {
+              let rsensor = this.state.rsensor;
+              let shouldVibrate = this.shouldBeVibration(lsensor);
+              let sumright =
+                  (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
+                  5 +
+                  (rsensor[5] + rsensor[6]) / 2 +
+                  rsensor[7];
+              let sumleft =
+                  (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
+                  5 +
+                  (lsensor[5] + lsensor[6]) / 2 +
+                  lsensor[7];
+              let sumup =
+                  (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
+                  5 +
+                  (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
+                  5;
+              let sumdown = lsensor[7] + rsensor[7];
+              let xPos = (sumright - sumleft) / 23.4;
+              let yPos = (sumup - sumdown) / -15.6;
+              let xPosN = (xPos + 100) * 1.5;
+              let yPosN = (yPos + 100) * 1.5;
 
-            let lphase = lsensor.reduce((a, b) => a + b, 0);
-            let { txt, status, balance } = this.setStatus(xPos, yPos);
-            this.setState({
-              xPosN,
-              yPosN,
-              lphase,
-              lsensor,
-              shouldVibrate,
-              txt,
-              status,
-              balance,
-            });
-            this.ltime = time;
+              let lphase = lsensor.reduce((a, b) => a + b, 0);
+              let { txt, status, balance } = this.setStatus(xPos, yPos);
+              this.setState({
+                xPosN,
+                yPosN,
+                lphase,
+                lsensor,
+                shouldVibrate,
+                txt,
+                status,
+                balance,
+              });
+              this.ltime = time;
+            }
           }
-        }
-      },
+        },
     );
   }
 
@@ -383,47 +372,12 @@ class index extends Component {
 
   handleConnectivityChange = status => {
     this.setState({ isConnected: status.isConnected });
-    // console.log(`Wifi Status : ${this.state.isConnected}`);
-  };
-
-  showStages = () => {
-    this.setState({ calibrationPhase: 2 })
-  }
-
-  handleStartCalibration = () => {
-    if (
-      typeof this.props.rightDevice === 'undefined' &&
-      typeof this.props.leftDevice === 'undefined'
-    ) {
-      Alert.alert(getLocalizedText(this.props.lang, BalanceLang.warning), getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert), [
-        {
-          text: 'OK',
-          onPress: () => {
-            this.props.navigation.navigate('Product', {
-              name: getLocalizedText(this.state.lang, LangHome.addDeviceButton),
-            });
-          },
-        },
-      ]);
-      return;
-    } else {
-      this.setState({ calibrationPhase: 1 });
-    }
-  };
-
-  handleSaveData = (calibrationStatus, butonLabel) => {
-    this.props.actionRecordingButton(butonLabel);
-    this.setState({ isCalibrated: calibrationStatus, textAction: butonLabel });
-  }
-
-  changeMenu = value => {
-    this.setState({ selectedMenu: value });
   };
 
   actionRecording = async () => {
     if (
-      typeof this.props.rightDevice === 'undefined' &&
-      typeof this.props.leftDevice === 'undefined'
+        typeof this.props.rightDevice === 'undefined' &&
+        typeof this.props.leftDevice === 'undefined'
     ) {
       Alert.alert(getLocalizedText(this.props.lang, BalanceLang.warning), getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert), [
         {
@@ -464,24 +418,24 @@ class index extends Component {
         };
         try {
           await await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
-            '/suratechM/' +
-            this.start.getFullYear() +
-            this.start.getMonth() +
-            this.start.getDate() +
-            this.round,
-            JSON.stringify(data) + ',',
+              RNFS.CachesDirectoryPath +
+              '/suratechM/' +
+              this.start.getFullYear() +
+              this.start.getMonth() +
+              this.start.getDate() +
+              this.round,
+              JSON.stringify(data) + ',',
           );
         } catch {
           await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
           await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
-            '/suratechM/' +
-            this.start.getFullYear() +
-            this.start.getMonth() +
-            this.start.getDate() +
-            this.round,
-            JSON.stringify(data) + ',',
+              RNFS.CachesDirectoryPath +
+              '/suratechM/' +
+              this.start.getFullYear() +
+              this.start.getMonth() +
+              this.start.getDate() +
+              this.round,
+              JSON.stringify(data) + ',',
           );
         }
       }, 100);
@@ -493,308 +447,92 @@ class index extends Component {
     }
   };
 
-
-  actionRecordingFor10 = async () => {
-    if (
-      typeof this.props.rightDevice === 'undefined' &&
-      typeof this.props.leftDevice === 'undefined'
-    ) {
-      Alert.alert(getLocalizedText(this.props.lang, BalanceLang.warning), getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert), [
-        {
-          text: 'OK',
-          onPress: () => {
-            this.props.navigation.navigate('Product', {
-              name: getLocalizedText(this.state.lang, LangHome.addDeviceButton),
-            });
-          },
-        },
-      ]);
-      return;
-    }
-    if (this.state.textAction == 'Record') {
-      this.setState({ textAction: 'Stop' });
-      this.props.actionRecordingButton('Stop');
-      var initTime = new Date();
-      var start = initTime;
-      let lastLtime = initTime;
-      let lastRtime = initTime;
-
-      let count = 10;
-      var timer = setInterval(() => {
-        if (this.state.countDownTimer >= 1) {
-
-          var timer2 = setInterval(async() => {
-            var time = new Date();
-            if (Math.floor((time - start) / 1000) < 11) {
-              var data = {
-                stamp: time.getTime(),
-                timestamp: time,
-                duration: Math.floor((time - start) / 1000),
-                left: {
-                  sensor: this.lsensor,
-                  swing: this.leftSwingTime,
-                  stance: this.leftStanceTime,
-                },
-                right: {
-                  sensor: this.rsensor,
-                  swing: this.rightSwingTime,
-                  stance: this.rightStanceTime,
-                },
-                id_customer: this.props.user.id_customer,
-              };
-              try {
-            await     RNFS.appendFile(
-                  RNFS.CachesDirectoryPath +
-                  '/suratechM/' +
-                  start.getFullYear() +
-                  start.getMonth() +
-                  start.getDate() +
-                  this.round,
-                  JSON.stringify(data) + ',',
-                );
-              } catch {
-                await  RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
-                await  RNFS.appendFile(
-                  RNFS.CachesDirectoryPath +
-                  '/suratechM/' +
-                  start.getFullYear() +
-                  start.getMonth() +
-                  start.getDate() +
-                  this.round,
-                  JSON.stringify(data) + ',',
-                );
-              }
-            }
-
-          }, 100);
-
-          setTimeout(() => {
-            clearInterval(timer2);
-          }, 1000);
-
-          this.setState({ countDownTimer: parseInt(this.state.countDownTimer) - 1 })
-        }
-
-      }, 1000);
-
-      setTimeout(() => {
-        this.setState({ textAction: 'Record', countDownTimer: 10 });
-        this.props.actionRecordingButton('Record');
-        this.sendDataToSetverCalibration('S');
-
-        clearInterval(this.readInterval)
-        clearInterval(timer);
-        // clearInterval(this.readInterval);
-      }, 11000);
-
-    } else {
-      this.setState({ textAction: 'Record' });
-      this.props.actionRecordingButton('Record');
-      // clearInterval(this.readInterval);
-      this.sendDataToSetverCalibration('S');
-    }
-  };
-
-  sendDataToSetver = () => {  
+  sendDataToSetver = () => {
     this.state.isConnected == false
-      ?  RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-        res.forEach(r => {
-          console.log(r.path);
-        });
-      })
-      :  RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-        res.forEach(r => {
-          console.log(r.path,'path');
-          RNFS.readFile(r.path)
-            .then(  text => {
-              let data = JSON.parse(
-                '[' + text.substring(0, text.length - 1) + ']',
-              );
-              var content = {
-                data: data,
-                id_customer: data[0].id_customer,
-                id_device: '',
-                type: 1, // for medical
-                product_number: this.props.productNumber,
-                bluetooth_left_id: this.props.leftDevice,
-                bluetooth_right_id: this.props.rightDevice,
-                shoe_size: this.state.shoeSize,
-                leg_type:'D'
-              };
-              fetch(`${API}/addjson`, {
-                method: 'POST',
-                headers: {
-                  Accept: 'application/json',
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(content),
-              })
-                .then(resp => resp.json())
-                .then(resp => {
-                  // console.log(resp,content,"response");
-                  // if (resp.status != 'ผิดพลาด') {
-                  //   console.log(`Clear : ${r.path}`);
-                  //   RNFS.unlink(r.path);
-                  // }
-                  if (resp.status != 'ผิดพลาด') {
-                    console.log(`Clear : ${r.path}`);
-                    RNFS.unlink(r.path);
-
-                    fetch(`${API}member/getUserDashboardStatic`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        id: this.props.user.id_customer,
-                        // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
-                      }),
-                    })
-                    .then(resp1 => {
-                          console.log('============API Response============');
-                          return  resp1.json();
-                        })
-                      .then(resp1 => {
-                        
-                        fetch(`${API}member/get_user_data`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            id: this.props.user.id_customer,
-                            ...resp1
-                            // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
-                          }),
-                        })
-                          .then(res => {
-                            console.log('============API Response============');
-                            return console.log(res), res.json();
+        ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
+          res.forEach(r => {
+            console.log(r.path);
+          });
+        })
+        : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
+          res.forEach(r => {
+            console.log(r.path, 'path');
+            RNFS.readFile(r.path)
+                .then(text => {
+                  let data = JSON.parse(
+                      '[' + text.substring(0, text.length - 1) + ']',
+                  );
+                  var content = {
+                    data: data,
+                    id_customer: data[0].id_customer,
+                    id_device: '',
+                    type: 1, // for medical
+                    product_number: this.props.productNumber,
+                    bluetooth_left_id: this.props.leftDevice,
+                    bluetooth_right_id: this.props.rightDevice,
+                    shoe_size: this.state.shoeSize,
+                    leg_type: 'D'
+                  };
+                  fetch(`${API}/addjson`, {
+                    method: 'POST',
+                    headers: {
+                      Accept: 'application/json',
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(content),
+                  })
+                      .then(resp => resp.json())
+                      .then(resp => {
+                        if (resp.status != 'ผิดพลาด') {
+                          console.log(`Clear : ${r.path}`);
+                          RNFS.unlink(r.path);
+                          fetch(`${API}member/getUserDashboardStatic`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              id: this.props.user.id_customer,
+                            }),
                           })
-                          .then(res => {
-                            console.log(res, 'responseFromAPU');
-
-                          })
-                          .catch(err => {
-                            console.log(err);
-                            this.setState({ isLoading: false });
-                            Toast.show('Something went wrong. Please Try again!!!');
-                          });
-                      }
-
-                      )
-                      .catch(err => {
-                        console.log(err);
-                        this.setState({ isLoading: false });
-                        Toast.show('Something went wrong. Please Try again!!!');
+                              .then(resp1 => {
+                                console.log('============API Response============');
+                                return resp1.json();
+                              })
+                              .then(resp1 => {
+                                fetch(`${API}member/get_user_data`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    id: this.props.user.id_customer,
+                                    ...resp1
+                                  }),
+                                })
+                                    .then(res => {
+                                      console.log('============API Response============');
+                                      return console.log(res), res.json();
+                                    })
+                                    .then(res => {
+                                      console.log(res, 'responseFromAPU');
+                                    })
+                                    .catch(err => {
+                                      console.log(err);
+                                      this.setState({ isLoading: false });
+                                      Toast.show('Something went wrong. Please Try again!!!');
+                                    });
+                              })
+                              .catch(err => {
+                                console.log(err);
+                                this.setState({ isLoading: false });
+                                Toast.show('Something went wrong. Please Try again!!!');
+                              });
+                        }
                       });
-                  }
-                });
-            })
-            .catch(e => { });
+                })
+                .catch(e => { });
+          });
         });
-      });
-    // alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
-  }
-
-  sendDataToSetverCalibration = (legValue) => {
-    this.state.isConnected == false
-      ?  RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-        console.log('WiFi is not connect');
-        res.forEach(r => {
-          console.log(r.path);
-        });
-      })
-      :  RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-        res.forEach(r => {
-          console.log(r.path,'path');
-          RNFS.readFile(r.path)
-            .then(  text => {
-              let data = JSON.parse(
-                '[' + text.substring(0, text.length - 1) + ']',
-              );
-              var content = {
-                data: data,
-                id_customer: data[0].id_customer,
-                id_device: '',
-                type: 1, // for medical
-                product_number: this.props.productNumber,
-                bluetooth_left_id: this.props.leftDevice,
-                bluetooth_right_id: this.props.rightDevice,
-                shoe_size: this.state.shoeSize,
-                leg_type:legValue
-              };
-
-              fetch(`${API}/addjson`, {
-                method: 'POST',
-                headers: {
-                  Accept: 'application/json',
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(content),
-              })
-                .then(resp => resp.json())
-                .then(resp => {
-                  console.log(resp,content,"response");
-                  // if (resp.status != 'ผิดพลาด') {
-                  //   console.log(`Clear : ${r.path}`);
-                  //   RNFS.unlink(r.path);
-                  // }
-                  if (resp.status != 'ผิดพลาด') {
-                    console.log(`Clear : ${r.path}`);
-                    RNFS.unlink(r.path);
-
-                    fetch(`${API}member/getUserDashboardStatic`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        id: this.props.user.id_customer,
-                        // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
-                      }),
-                    })
-                    .then(resp1 => {
-                          console.log('============API Response============');
-                          return  resp1.json();
-                        })
-                      .then(resp1 => {
-                        
-                        fetch(`${API}member/get_user_data`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            id: this.props.user.id_customer,
-                            ...resp1
-                            // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
-                          }),
-                        })
-                          .then(res => {
-                            console.log('============API Response============');
-                            return console.log(res), res.json();
-                          })
-                          .then(res => {
-                            console.log(res, 'responseFromAPU');
-
-                          })
-                          .catch(err => {
-                            console.log(err);
-                            this.setState({ isLoading: false });
-                            Toast.show('Something went wrong. Please Try again!!!');
-                          });
-                      }
-
-                      )
-                      .catch(err => {
-                        console.log(err);
-                        this.setState({ isLoading: false });
-                        Toast.show('Something went wrong. Please Try again!!!');
-                      });
-                  }
-                });
-            })
-            .catch(e => { });
-        });
-      });
-    // alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
   }
 
   actionUpdate = content => {
-  
     content = {
       data: content,
       id_customer: this.props.user.id_customer,
@@ -810,29 +548,27 @@ class index extends Component {
       },
       body: JSON.stringify(content),
     })
-      .then(res => res.json())
-      .then(res => {
-        // console.log('res => ');
-        // console.log(res);
-        if (res.status === 'สำเร็จ') {
-          AlertFix.alertBasic(
-              getLocalizedText(this.state.lang, Lang.successTitle),
-              getLocalizedText(this.state.lang, Lang.successBody),
-          );
-          deleteFile(this.fileStamp_n);
-        } else {
+        .then(res => res.json())
+        .then(res => {
+          if (res.status === 'สำเร็จ') {
+            AlertFix.alertBasic(
+                getLocalizedText(this.state.lang, Lang.successTitle),
+                getLocalizedText(this.state.lang, Lang.successBody),
+            );
+            deleteFile(this.fileStamp_n);
+          } else {
+            AlertFix.alertBasic(
+                getLocalizedText(this.state.lang, Lang.errorTitle),
+                getLocalizedText(this.state.lang, Lang.errorBody1),
+            );
+          }
+        })
+        .catch(error => {
           AlertFix.alertBasic(
               getLocalizedText(this.state.lang, Lang.errorTitle),
-              getLocalizedText(this.state.lang, Lang.errorBody1),
+              getLocalizedText(this.state.lang, Lang.errorBody2),
           );
-        }
-      })
-      .catch(error => {
-        AlertFix.alertBasic(
-            getLocalizedText(this.state.lang, Lang.errorTitle),
-            getLocalizedText(this.state.lang, Lang.errorBody2),
-        );
-      });
+        });
   };
 
   actionDashboard = () => {
@@ -847,726 +583,112 @@ class index extends Component {
     }
   };
 
-  startCalibration = () => {
-    this.setState({ calibrationScreenOn: true });
-  };
-
-  handleStartLeftLegCalibration = () => {
-
-    if (
-      typeof this.props.rightDevice === 'undefined' &&
-      typeof this.props.leftDevice === 'undefined'
-    ) {
-      Alert.alert(getLocalizedText(this.props.lang, BalanceLang.warning), getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert), [
-        {
-          text: 'OK',
-          onPress: () => {
-            this.props.navigation.navigate('Product', {
-              name: getLocalizedText(this.state.lang, LangHome.addDeviceButton),
-            });
-          },
-        },
-      ]);
-      return;
-    } else {
-      this.setState({ showButton: false });
-      this.handleSaveData(true, 'Stop');
-
-      let progMargin = 20;
-      let totalCount = 0;
-      let actualValue = 0;
-      let progressValue = '';
-
-      var initTime = new Date();
-      var start = initTime;
-      let lastLtime = initTime;
-      let lastRtime = initTime;
-
-      var count = 5;
-
-      // this.actionRecording();
-      var timer = setInterval(() => {
-
-        if (count >= 1) {
-
-          var timer2 = setInterval(async() => {
-            var time = new Date();
-            // console.log(Math.floor((time - start) / 1000), "Duration Time 755");
-            if (Math.floor((time - start) / 1000) < 6) {
-              var data = {
-                stamp: time.getTime(),
-                timestamp: time,
-                duration: Math.floor((time - start) / 1000),
-                left: {
-                  sensor: this.lsensor,
-                  swing: this.leftSwingTime,
-                  stance: this.leftStanceTime,
-                },
-                right: {
-                  sensor: this.rsensor,
-                  swing: this.rightSwingTime,
-                  stance: this.rightStanceTime,
-                },
-                id_customer: this.props.user.id_customer,
-              };
-
-              try {
-            await    RNFS.appendFile(
-                  RNFS.CachesDirectoryPath +
-                  '/suratechM/' +
-                  start.getFullYear() +
-                  start.getMonth() +
-                  start.getDate() +
-                  this.round,
-                  JSON.stringify(data) + ',',
-                );
-
-
-              } catch {
-               await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
-               await RNFS.appendFile(
-                  RNFS.CachesDirectoryPath +
-                  '/suratechM/' +
-                  start.getFullYear() +
-                  start.getMonth() +
-                  start.getDate() +
-                  this.round,
-                  JSON.stringify(data) + ',',
-                );
-              }
-            }
-
-          }, 100);
-
-          setTimeout(() => {
-            clearInterval(timer2);
-          }, 1000);
-
-          count = count - 1;
-        }
-
-        if (totalCount == 5) {
-          actualValue = 0;
-          progMargin = 20;
-
-        } else
-          if (totalCount < 5) {
-            totalCount = totalCount + 1;
-            actualValue = parseInt(actualValue) + parseInt(progMargin);
-            progressValue = actualValue + '%';
-            this.setState({
-              percentageCompleted: progressValue,
-            });
-
-          }
-
-      }, 1000);
-
-      setTimeout(() => {
-        this.setState({ leftLegCalibrated: true, calibrationPhase: 2, percentageCompleted: 0, showButton: true });
-        this.handleSaveData(true, 'Record');
-        this.sendDataToSetverCalibration('L');
-        clearInterval(timer);
-
-      }, 6000);
-
-    }
-  }
-
-  handleStartRightLegCalibration = () => {
-    if (
-      typeof this.props.rightDevice === 'undefined' &&
-      typeof this.props.leftDevice === 'undefined'
-    ) {
-      Alert.alert(getLocalizedText(this.props.lang, BalanceLang.warning), getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert), [
-        {
-          text: 'OK',
-          onPress: () => {
-            this.props.navigation.navigate('Product', {
-              name: getLocalizedText(this.state.lang, LangHome.addDeviceButton),
-            });
-          },
-        },
-      ]);
-      return;
-    } else {
-      this.setState({ showButton: false });
-      this.handleSaveData(true, 'Stop');
-
-      let progMargin = 20;
-      let totalCount = 0;
-      let actualValue = 0;
-      let progressValue = '';
-
-      var initTime = new Date();
-      var start = initTime;
-      let lastLtime = initTime;
-      let lastRtime = initTime;
-
-      var count = 5;
-
-      var timer = setInterval(() => {
-
-        if (count >= 1) {
-
-          var timer2 = setInterval(async() => {
-            var time = new Date();
-            if (Math.floor((time - start) / 1000) < 6) {
-              var data = {
-                stamp: time.getTime(),
-                timestamp: time,
-                duration: Math.floor((time - start) / 1000),
-                left: {
-                  sensor: this.lsensor,
-                  swing: this.leftSwingTime,
-                  stance: this.leftStanceTime,
-                },
-                right: {
-                  sensor: this.rsensor,
-                  swing: this.rightSwingTime,
-                  stance: this.rightStanceTime,
-                },
-                id_customer: this.props.user.id_customer,
-              };
-
-              try {
-               await RNFS.appendFile(
-                  RNFS.CachesDirectoryPath +
-                  '/suratechM/' +
-                  start.getFullYear() +
-                  start.getMonth() +
-                  start.getDate() +
-                  this.round,
-                  JSON.stringify(data) + ',',
-                );
-              } catch {
-              await  RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
-              await  RNFS.appendFile(
-                  RNFS.CachesDirectoryPath +
-                  '/suratechM/' +
-                  start.getFullYear() +
-                  start.getMonth() +
-                  start.getDate() +
-                  this.round,
-                  JSON.stringify(data) + ',',
-                );
-              }
-            }
-
-          }, 100);
-
-          setTimeout(() => {
-            clearInterval(timer2);
-          }, 1000);
-
-          count = count - 1;
-        }
-
-        if (totalCount == 5) {
-          actualValue = 0;
-          progMargin = 20;
-
-        } else
-          if (totalCount < 5) {
-            totalCount = totalCount + 1;
-            actualValue = parseInt(actualValue) + parseInt(progMargin);
-            progressValue = actualValue + '%';
-            this.setState({
-              percentageCompleted: progressValue,
-            });
-
-          }
-
-      }, 1000);
-
-      setTimeout(() => {
-        this.setState({ rightLegCalibrated: true, calibrationPhase: 3, percentageCompleted: 0, showButton: true });
-        this.handleSaveData(true, 'Record');
-        this.sendDataToSetverCalibration('R');
-        clearInterval(timer);
-
-      }, 6000);
-
-    }
-  }
-
-
   render() {
     this.canVibration(this.state.shouldVibrate, this.state.switch);
     return (
-      <ScrollView style={{ flex: 1,backgroundColor:"#fff" }}>
-        {this.state.calibrationScreenOn ? (
+        <View style={styles.container}>
           <HeaderFix
-            icon_left={'left'}
-            onpress_left={() => {
-              // this.props.navigation.goBack();
-              this.setState({ calibrationScreenOn: false });
-            }}
-            title={'Calibration'}
+              icon_left={'left'}
+              onpress_left={() => {
+                this.props.navigation.goBack();
+              }}
+              title={this.props.navigation.getParam('name', '')}
           />
-        ) : (
-          <HeaderFix
-            icon_left={'left'}
-            onpress_left={() => {
-              this.props.navigation.goBack();
-            }}
-            title={this.props.navigation.getParam('name', '')}
-          />
-        )}
 
-        {this.state.calibrationScreenOn ? (
-          <>
-            {(this.state.calibrationPhase == 0 && (
-              <View
-                style={{
-                  // flex: 1,
-                  height: 700,
-                  marginVertical: 10,
-                  flexDirection: 'column',
-                  justifyContent: 'space-evenly',
-                  marginHorizontal: 20,
+          {/* Main Content Container - Optimized for No Scrolling */}
+          <View style={styles.mainContentContainer}>
 
-                }}>
-                <View style={{ justifyContent: "center", alignItems: "center" }}>
-                  <RNText
-                    style={{ fontSize: 20, color: '#00A2A2', fontWeight: '700', textAlign: "left" }}>
-                    Start calibration of SURASOLE
-                  </RNText>
-                  <Image source={require('../../../assets/image/start.png')} style={{ height: 400, width: 400, resizeMode: "center" }} />
-
-                  <RNText
-                    style={{
-                      fontSize: 20,
-                      color: '#00A2A2',
-                      fontWeight: '700',
-                      marginVertical: 10,
-                    }}>
-                    Please stand up and follow the guide to perform calibration
-                  </RNText>
-                </View>
-                <View style={{ justifyContent: "center", alignItems: "center" }}>
-                  <TouchableOpacity
-                  onPress={() => 
-                    {
-                      if(this.props.user.height != null && this.props.user.height != 0){
-                        this.setState({calibrationPhase:1})
-                      }else{
-                        Alert.alert("Please Update Height in profile section to get customized result","Do you want to provide Height",[
-                          {
-                            text: 'Yes',
-                            onPress: () =>  this.props.navigation.navigate('Profile'),
-                          },
-                          {
-                            text: 'No',
-                            onPress: () => this.setState({calibrationPhase:1}),
-                            style: 'cancel',
-                          }])
-                       
-                      }                     
-                    } }
-                    style={{
-                      marginHorizontal: 10,
-                      paddingHorizontal: 20,
-                      paddingVertical: 10,
-                      width: "60%",
-                      backgroundColor: '#00A2A2',
-                      borderRadius: 20,
-                      marginVertical: 40,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}>
-                    <RNText style={{ fontSize: 18, color: '#fff' }}>
-                      Calibration
-                    </RNText>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )) ||
-              (this.state.calibrationPhase == 1 && (
-                <View
-                  style={{
-                    // flex: 1,
-                    height: 700,
-                    marginVertical: 10,
-                    flexDirection: 'column',
-                    justifyContent: 'space-evenly',
-                    marginHorizontal: 20,
-
-                  }}>
-                  <View style={{}}>
-                    <RNText
-                      style={{ fontSize: 20, color: '#00A2A2', fontWeight: '700', textAlign: "left" }}>
-                      Please Keep your left foot off from the ground
-                    </RNText>
-                    <Image source={require('../../../assets/image/left_leg_up.png')}
-                      style={{ height: 400, width: 400, resizeMode: "center", alignSelf: "center" }} />
-                    <View
-                      style={{
-                        marginHorizontal: 20,
-                        marginVertical: 20,
-                        borderRadius: 20,
-                        borderWidth: 0.5,
-                        borderColor: '#ccc',
-                      }}>
-                      <View
-                        style={{
-                          padding: 20,
-                          backgroundColor: '#00A2A2',
-                          borderRadius: 20,
-                          width: this.state.percentageCompleted,
-                          // width:"60%",
-                        }}
-                      />
-                    </View>
-                    {this.state.percentageCompleted != 0 && <RNText
-                      style={{
-                        fontSize: 20,
-                        color: '#00A2A2',
-                        fontWeight: '700',
-                        textAlign: "center",
-                      }}>
-                      left foot calibrating...
-                    </RNText>}
-
-
-                  </View>
-                  {this.state.showButton && <View style={{ justifyContent: "center", alignItems: "center" }}>
-                    <TouchableOpacity
-                      onPress={() => this.handleStartLeftLegCalibration()}
-                      style={{
-                        marginHorizontal: 10,
-                        paddingHorizontal: 20,
-                        paddingVertical: 10,
-                        width: "60%",
-                        backgroundColor: '#00A2A2',
-                        borderRadius: 20,
-                        marginVertical: 40,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}>
-                      <RNText style={{ fontSize: 18, color: '#fff' }}>
-                        Start Calibration
-                      </RNText>
-                    </TouchableOpacity>
-                  </View>}
-
-                </View>
-              )) ||
-              (this.state.calibrationPhase == 2 && (
-                <View
-                  style={{
-                    // flex: 1,
-                    height: 700,
-                    marginVertical: 10,
-                    flexDirection: 'column',
-                    justifyContent: 'space-evenly',
-                    marginHorizontal: 20,
-
-                  }}>
-                  <View style={{}}>
-                    <RNText
-                      style={{ fontSize: 20, color: '#00A2A2', fontWeight: '700', textAlign: "left" }}>
-                      Please Keep your right foot off from the ground
-                    </RNText>
-                    <Image source={require('../../../assets/image/right_leg_up.png')}
-                      style={{ height: 400, width: 400, resizeMode: "center", alignSelf: "center" }} />
-                    <View
-                      style={{
-                        marginHorizontal: 20,
-                        marginVertical: 20,
-                        borderRadius: 20,
-                        borderWidth: 0.5,
-                        borderColor: '#ccc',
-                      }}>
-                      <View
-                        style={{
-                          padding: 20,
-                          backgroundColor: '#00A2A2',
-                          borderRadius: 20,
-                          width: this.state.percentageCompleted,
-                          // width:"60%",
-                        }}
-                      />
-                    </View>
-                    {this.state.percentageCompleted != 0 && <RNText
-                      style={{
-                        fontSize: 20,
-                        color: '#00A2A2',
-                        fontWeight: '700',
-                        textAlign: "center",
-                      }}>
-                      right foot calibrating...
-                    </RNText>}
-
-
-                  </View>
-                  {this.state.showButton && <View style={{ justifyContent: "center", alignItems: "center" }}>
-                    <TouchableOpacity
-                      onPress={() => this.handleStartRightLegCalibration()}
-                      style={{
-                        marginHorizontal: 10,
-                        paddingHorizontal: 20,
-                        paddingVertical: 10,
-                        width: "60%",
-                        backgroundColor: '#00A2A2',
-                        borderRadius: 20,
-                        marginVertical: 40,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}>
-                      <RNText style={{ fontSize: 18, color: '#fff' }}>
-                        Start Calibration
-                      </RNText>
-                    </TouchableOpacity>
-                  </View>}
-
-                </View>
-              )) ||
-              (this.state.calibrationPhase == 3 && (
-                <View
-                  style={{
-                    flex: 1,
-                    height: 800,
-                    marginVertical: 10,
-                    flexDirection: 'column',
-                    justifyContent: 'space-evenly',
-                    alignItems: 'center',
-                    marginHorizontal: 20,
-                  }}>
-                  <View style={{}}>
-                    {/* <RNText
-                      style={{
-                        fontSize: 20,
-                        color: '#027862',
-                        fontWeight: '700',
-                      }}>
-                      Start calibration of SURASOLE
-                    </RNText> */}
-                    <RNText
-                      style={{
-                        fontSize: 18,
-                        color: '#00A2A2',
-                        fontWeight: '700',
-                        marginVertical: 20,
-                      }}>
-                      Calibration of SURASOLE Completed
-                    </RNText>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() =>
-                      this.setState({
-                        // calibrationPhase: 3,
-                        calibrationScreenOn: false,
-                      })
-                    }
-                    style={{
-                      marginHorizontal: 10,
-                      paddingHorizontal: 20,
-                      paddingVertical: 10,
-                      backgroundColor: '#00A2A2',
-                      borderRadius: 10,
-                      marginVertical: 40,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}>
-                    <RNText style={{ fontSize: 18, color: '#fff' }}>
-                      Completed
-                    </RNText>
-                  </TouchableOpacity>
-                </View>
-              ))}
-          </>
-        ) : (
-          <>
-            <View
-              style={{
-                // borderWidth: 0.5,
-                borderRadius: 6,
-                marginHorizontal: 20,
-                marginTop: 20,
-                // paddingVertical: 10,
-                flexDirection: 'row',
-                justifyContent: 'space-evenly',
-                alignItems: 'center',
-                backgroundColor: '#ccc',
-              }}>
-              {this.state.menuAction.map((data, index) => (
-                <TouchableOpacity
-                  onPress={() => this.setState({ selectedMenu: data.key })}
-                  style={{
-                    padding: 10,
-                    width: '50%',
-                    backgroundColor:
-                      this.state.selectedMenu == data.key ? '#fff' : '#ccc',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    borderRadius: 6,
-                  }}>
-                  <RNText
-                    style={{
-                      fontSize: 17,
-                      color:
-                        this.state.selectedMenu == data.key
-                          ? '#0CFFD3'
-                          : '#000',
-                      fontWeight: '700',
-                    }}>
-                    {data.title}
-                  </RNText>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {/*<NotificationsState />*/}
-            <View
-              style={{
-                padding: 15,
-              }}>
-              <View style={{ flex: 4, height: '100%', marginHorizontal: 10 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text>Foot Balance </Text>
-                  {this.state.selectedMenu == 2 && this.state.textAction == 'Stop' && <RNText style={{ fontSize: 18, color: '#FF4433', fontWeight: "700" }}>
-                    {this.state.countDownTimer}
-                  </RNText>}
-                </View>
-
-
-                <View style={{ alignItems: 'center' }}>
-                  {this.state.focus ? (
-                    <RadarChartFix
+            {/* Radar Chart Section - More Space */}
+            <View style={styles.radarContainer}>
+              {this.state.focus ? (
+                  <RadarChartFix
                       xPos={this.state.xPosN}
                       yPos={this.state.yPosN}
-                    />
-                  ) : (
-                    <View />
-                  )}
-                </View>
-              </View>
-              {this.state.selectedMenu == 1 && (
-                <View style={{ flex: 1, height: '100%' }}>
-                  <Grid style={{ padding: 15 }}>
-                    <Col>
-                      <BalanceButton
-                        bntName={'Left'}
-                        onPress={() => {
-                          if (this.dataRecord) {
-                            this.dataRecord.remove();
-                          }
-                          this.setState({ focus: false });
-                          this.props.navigation.navigate('LeftFootsEight');
-                        }}
-                      />
-                    </Col>
-                    <Col>
-                      <BalanceButton
-                        bntName={'Right'}
-                        onPress={() => {
-                          if (this.dataRecord) {
-                            this.dataRecord.remove();
-                          }
-                          this.setState({ focus: false });
-                          this.props.navigation.navigate('RigthFootsEight');
-                        }}
-                      />
-                    </Col>
-                  </Grid>
-                </View>
-              )}
-
-              <ScoreFix
-                title={'Balancing Grade'}
-                status={this.state.status}
-                score={this.state.score}
-              />
-
-              <CardStatusFix
-                title={'Balancing Grade'}
-                status={this.state.status}
-                txt={this.state.txt}
-              />
-
-              {this.state.selectedMenu == 1 ? (
-                <View
-                  style={{
-                    flex: 1,
-                    height: '100%',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}>
-                  {/* <Grid style={{padding: 15}}> */}
-                  {/* <Col> */}
-                  <ButtonFix
-                    action={true}
-                    rounded={true}
-                    title={getLocalizedText(this.props.lang, Lang.record)}
-                    onPress={() => this.actionRecording()}
                   />
-
-                  {/* </Col> */}
-                  {/* <Col>
-                <ButtonFix
-                  rounded={true}
-                  title={'Dashboard'}
-                  onPress={() => this.actionDashboard()}
-                />
-              </Col> */}
-                  {/* </Grid> */}
-                </View>
               ) : (
-                <View
-                  style={{
-                    flex: 1,
-                    height: '100%',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}>
-                  <Grid style={{ padding: 15 }}>
-                    <Col>
-                      <TouchableOpacity
-                        onPress={() => this.startCalibration()}
-                        disabled={this.state.isCalibrated}
-                        style={{
-                          marginHorizontal: 10,
-                          padding: 10,
-                          backgroundColor: this.state.isCalibrated
-                            ? '#ccc'
-                            : '#FF4433',
-                          borderRadius: 10,
-                          marginVertical: 10,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}>
-                        <RNText style={{ fontSize: 18, color: '#fff' }}>
-                          Calibration
-                        </RNText>
-                      </TouchableOpacity>
-                    </Col>
-                    <Col>
-                      <TouchableOpacity
-                        onPress={() => this.actionRecordingFor10()}
-                        disabled={!this.state.isCalibrated || this.state.textAction != "Record"}
-                        style={{
-                          marginHorizontal: 10,
-                          padding: 10,
-                          backgroundColor: !this.state.isCalibrated || this.state.textAction != 'Record'
-                            ? '#ccc'
-                            : '#FF4433',
-                          borderRadius: 10,
-                          marginVertical: 10,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}>
-                        <RNText style={{ fontSize: 18, color: '#fff' }}>
-                          {this.state.textAction}
-                        </RNText>
-                      </TouchableOpacity>
-                    </Col>
-                  </Grid>
-                </View>
+                  <View />
               )}
             </View>
-          </>
-        )}
-      </ScrollView>
+
+            {/* Enhanced Balance Grade Display - Positioned Much Lower & Smaller */}
+            <View style={styles.balanceGradeContainer}>
+              {/* Score and Status Row */}
+              <View style={styles.scoreStatusRow}>
+                {/* Balance Score */}
+                <View style={styles.scoreSection}>
+                  <RNText style={styles.sectionLabel}>Score</RNText>
+                  <View style={[styles.scoreBadge, { backgroundColor: this.getScoreColor(this.state.balance) }]}>
+                    <RNText style={styles.scoreText}>{this.state.balance}%</RNText>
+                  </View>
+                </View>
+
+                {/* Status Badge */}
+                <View style={styles.statusSection}>
+                  <RNText style={styles.sectionLabel}>Status</RNText>
+                  <View style={[styles.statusBadge, { backgroundColor: this.getStatusColor(this.state.status) }]}>
+                    <RNText style={styles.statusText}>{this.state.status}</RNText>
+                  </View>
+                </View>
+              </View>
+
+              {/* Compact Progress Bar */}
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBarBackground}>
+                  <View style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${this.state.balance}%`,
+                      backgroundColor: this.getScoreColor(this.state.balance)
+                    }
+                  ]} />
+                </View>
+              </View>
+
+              {/* Description Text - Compact */}
+              <RNText style={styles.descriptionText}>{this.state.txt}</RNText>
+            </View>
+
+            {/* Left and Right foot buttons - Fixed Spacing */}
+            <View style={styles.buttonsContainer}>
+              <Grid style={styles.buttonsGrid}>
+                <Col>
+                  <BalanceButton
+                      bntName={'Left'}
+                      onPress={() => {
+                        if (this.dataRecord) {
+                          this.dataRecord.remove();
+                        }
+                        this.setState({ focus: false });
+                        this.props.navigation.navigate('LeftFootsEight');
+                      }}
+                  />
+                </Col>
+                <Col>
+                  <BalanceButton
+                      bntName={'Right'}
+                      onPress={() => {
+                        if (this.dataRecord) {
+                          this.dataRecord.remove();
+                        }
+                        this.setState({ focus: false });
+                        this.props.navigation.navigate('RigthFootsEight');
+                      }}
+                  />
+                </Col>
+              </Grid>
+            </View>
+
+            {/* Record button - Fixed Spacing */}
+            <View style={styles.recordButtonContainer}>
+              <ButtonFix
+                  action={true}
+                  rounded={true}
+                  title={getLocalizedText(this.props.lang, Lang.record)}
+                  onPress={() => this.actionRecording()}
+              />
+            </View>
+          </View>
+        </View>
     );
   }
 }
@@ -1574,24 +696,157 @@ class index extends Component {
 class BalanceButton extends React.PureComponent {
   render() {
     return (
-      <TouchableOpacity
-        style={{ padding: 10, flex: 1 }}
-        onPress={this.props.onPress}>
-        <View
-          style={{
-            padding: 10,
-            backgroundColor: '#d2afa8',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-evenly',
-            borderRadius: 50,
-          }}>
-          <Text>{this.props.bntName}</Text>
-        </View>
-      </TouchableOpacity>
+        <TouchableOpacity
+            style={styles.balanceButtonContainer}
+            onPress={this.props.onPress}>
+          <View style={styles.balanceButton}>
+            <Text>{this.props.bntName}</Text>
+          </View>
+        </TouchableOpacity>
     );
   }
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  mainContentContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    justifyContent: 'space-between',
+  },
+
+  // Radar chart styles - More Space
+  radarContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 30, // Increased space after radar chart
+    flex: 0.55, // Increased chart space
+  },
+
+  // Balance grade styles - Positioned Much Lower & Smaller Size
+  balanceGradeContainer: {
+    marginVertical: 5, // Reduced spacing
+    paddingHorizontal: 10, // Reduced width
+    paddingVertical: 8, // Reduced height
+    backgroundColor: '#ffffff',
+    borderRadius: 10, // Smaller radius
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 3,
+    flex: 0.15, // Much smaller space allocation
+    alignSelf: 'center', // Center the card
+    width: '85%', // Reduced width to 85% of container
+  },
+  scoreStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6, // Reduced spacing
+  },
+  scoreSection: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statusSection: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  sectionLabel: {
+    fontSize: 10, // Smaller font
+    color: '#666',
+    marginBottom: 3, // Reduced spacing
+    fontWeight: '500',
+  },
+  scoreBadge: {
+    paddingHorizontal: 8, // Reduced padding
+    paddingVertical: 4, // Reduced padding
+    borderRadius: 15, // Smaller radius
+    minWidth: 50, // Smaller width
+    alignItems: 'center',
+  },
+  statusBadge: {
+    paddingHorizontal: 8, // Reduced padding
+    paddingVertical: 4, // Reduced padding
+    borderRadius: 15, // Smaller radius
+    minWidth: 60, // Smaller width
+    alignItems: 'center',
+  },
+  scoreText: {
+    fontSize: 14, // Smaller font
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  statusText: {
+    fontSize: 12, // Smaller font
+    fontWeight: '600',
+    color: '#fff',
+  },
+  progressContainer: {
+    marginTop: 5, // Reduced spacing
+  },
+  progressBarBackground: {
+    height: 4, // Thinner progress bar
+    backgroundColor: '#e9ecef',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  descriptionText: {
+    fontSize: 10, // Smaller font
+    color: '#495057',
+    textAlign: 'center',
+    marginTop: 5, // Reduced spacing
+    fontStyle: 'italic',
+    lineHeight: 14, // Tighter line height
+  },
+
+  // Buttons styles - More Space
+  buttonsContainer: {
+    marginTop: 10,
+    marginBottom: 10,
+    flex: 0.18, // Control button space
+  },
+  buttonsGrid: {
+    paddingHorizontal: 10,
+  },
+  balanceButtonContainer: {
+    paddingHorizontal: 8,
+    flex: 1,
+  },
+  balanceButton: {
+    padding: 12,
+    backgroundColor: '#d2afa8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+
+  // Record button styles - More Space
+  recordButtonContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 0.12, // Control record button space
+  },
+});
 
 const mapStateToProps = state => {
   return {

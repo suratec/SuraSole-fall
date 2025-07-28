@@ -1,11 +1,30 @@
-const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
+const { getDefaultConfig } = require('metro-config');
+const blacklist = require('metro-config/src/defaults/exclusionList');
 
-/**
- * Metro configuration
- * https://facebook.github.io/metro/docs/configuration
- *
- * @type {import('metro-config').MetroConfig}
- */
-const config = {};
+module.exports = (async () => {
+    const {
+        resolver: { sourceExts, assetExts },
+    } = await getDefaultConfig();
 
-module.exports = mergeConfig(getDefaultConfig(__dirname), config);
+    // This regex tells Metro to ignore any folder named 'build' inside any 'android' folder
+    // that is itself inside any folder within node_modules.
+    const blockListRegex = /.*\\node_modules\\.*\\android\\build\\.*/;
+
+    return {
+        transformer: {
+            babelTransformerPath: require.resolve('react-native-svg-transformer'),
+            getTransformOptions: async () => ({
+                transform: {
+                    experimentalImportSupport: false,
+                    inlineRequires: true,
+                },
+            }),
+        },
+        resolver: {
+            assetExts: assetExts.filter((ext) => ext !== 'svg'),
+            sourceExts: [...sourceExts, 'svg'],
+            // Add our new blockList regex to the default list
+            blockList: blacklist([blockListRegex]),
+        },
+    };
+})();
