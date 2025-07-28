@@ -25,7 +25,7 @@ import Lang from '../../../assets/language/menu/lang_profile';
 import LanguagePickerFix from '../../common/LanguagePickerFix';
 import {getLocalizedText} from '../../../assets/language/langUtils';
 import LangModal from './lang_model';
-
+import NotesPage from './notes';
 import * as ImagePicker from 'react-native-image-picker';
 
 const options = {
@@ -54,6 +54,15 @@ class index extends Component {
     img_path: '',
     onModal: false,
     loading: false,
+    showNotes: false,
+  };
+
+  handleOpenNotes = () => {
+    this.setState({ showNotes: true });
+  };
+
+  handleCloseNotes = () => {
+    this.setState({ showNotes: false });
   };
 
   getImageURI = (img_path) => {
@@ -282,9 +291,25 @@ class index extends Component {
   }
 
   render() {
-    const {img_path, loading} = this.state;
+
+    const {img_path, loading, showNotes} = this.state;  // Add showNotes here
     console.log('props.user.image:', this.props.user.image);
     console.log('state.img_path:', this.state.img_path);
+
+    // Add this entire block
+    if (showNotes) {
+      const userId = this.props.user?.id_customer || this.props.user?.id;
+      return (
+          <View style={{ flex: 1, backgroundColor: '#fff' }}>
+            <HeaderFix
+                icon_left={'left'}
+                onpress_left={this.handleCloseNotes}
+                title={getLocalizedText(this.props.lang, { eng: 'Medical Records', thai: 'บันทึกทางการแพทย์', japanese: '医療記録' })}
+            />
+            <NotesPage navigation={this.props.navigation} userId={userId} />
+          </View>
+      );
+    }
 
     return (
         <ScrollView style={{flex: 1}}>
@@ -362,11 +387,6 @@ class index extends Component {
                 inputLastName={txt => {
                   this.setState({lname: txt});
                 }}
-                labelEmail={getLocalizedText(this.props.lang, Lang.Emaillabel)}
-                inputValueEmail={this.state.email}
-                inputEmail={txt => {
-                  this.setState({email: txt});
-                }}
                 labelGender={getLocalizedText(this.props.lang, Lang.genderlabel)}
                 inputValueGender={this.state.sex}
                 inputGender={txt => {
@@ -387,13 +407,9 @@ class index extends Component {
                 inputAge={txt => {
                   this.validateNumber('age', txt);
                 }}
-                labelTel={getLocalizedText(this.props.lang, Lang.emergencyLabel)}
-                inputValueTel={this.state.tel}
-                inputTel={txt => {
-                  this.setState({tel: txt});
-                }}
                 type={this.props.user.role}
                 onUpdate={() => this.actionUpdate()}
+                onNotes={() => this.handleOpenNotes()}  // 🆕 Add this line
             />
 
             <LangModal

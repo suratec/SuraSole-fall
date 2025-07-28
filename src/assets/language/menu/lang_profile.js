@@ -25,7 +25,7 @@ const langSwitch = {
     thai: '🇹🇭 ภาษาไทย ',
     japanese: '🇯🇵 日本語',
 }
-
+const note = { eng: 'Note', thai: 'บันทึก', japanese: 'ノート' }
 
 export default {
     logoutAlert,
@@ -51,4 +51,5 @@ export default {
     female,
     other,
     langSwitch,
+    note,
 }

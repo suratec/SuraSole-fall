@@ -8,11 +8,7 @@ import DropDownPicker from 'react-native-dropdown-picker';
 import InputFix from '../../common/InputFix'
 import Lang from '../../../assets/language/menu/lang_profile';
 import {getLocalizedText} from '../../../assets/language/langUtils';
-// let genderList = [
-//     { label: 'Male', value: 0},
-//     { label: 'Female', value: 1},
-//     { label: 'Other', value: 2},
-// ];
+
 export default class card_profile extends Component {
     constructor(props) {
         super(props);
@@ -28,11 +24,9 @@ export default class card_profile extends Component {
         };
 
         this.setValue = this.setValue.bind(this);
-
     }
 
     setOpen(open) {
-
         this.setState({
             open: open
         });
@@ -46,14 +40,7 @@ export default class card_profile extends Component {
         }));
     }
 
-    // setItems(callback) {
-    //     this.setState(state => ({
-    //         items: callback(state.items)
-    //     }));
-    // }
-
     render() {
-
         const { open, value, genderList } = this.state;
 
         console.log(this.props)
@@ -85,16 +72,9 @@ export default class card_profile extends Component {
                             value={this.props.inputValueGender}
                             dropDownMaxHeight={300}
                             dropDownStyle={{ backgroundColor: '#fafafa' }}
-                            // onChangeValue={item => {
-                            //     this.props.inputGender(item.value)
-                            // }}
                             setValue={(item) => this.setValue(item)}
-                        // setItems={(item) => this.setItems(item)}
                         />
 
-
-                        <Text styles={{ padding: 15, paddingTop: 10, paddingBottom: 5 }}>{this.props.labelEmail}</Text>
-                        <InputFix disabled={true} value={this.props.inputValueEmail} rounded={true} placeholder={''} onChangeText={this.props.inputEmail} />
                         {this.props.type === "mod_customer" &&
                             <>
                                 <Text styles={{ padding: 15, paddingTop: 5, paddingBottom: 5 }}>{this.props.labelWeigth}</Text>
@@ -107,16 +87,50 @@ export default class card_profile extends Component {
                                 <InputFix value={this.props.inputValueAge} rounded={true} secure={false} placeholder={''} onChangeText={this.props.inputAge} keyboardType={'decimal-pad'} />
                             </>
                         }
-                        <Text styles={{ padding: 15, paddingTop: 5, paddingBottom: 5 }}>{this.props.labelTel}</Text>
-                        <InputFix value={this.props.inputValueTel} rounded={true} secure={false} placeholder={''} onChangeText={this.props.inputTel} keyboardType={'decimal-pad'} />
 
-                        <ButtonFix styles={{ marginBottom: 30, marginTop: 20 }} rounded={true} title={getLocalizedText(this.props.lang, Lang.updateLabel)} onPress={this.props.onUpdate} />
-                        {/* <ButtonFix action={true} rounded={true} title={'Log Out'} onPress={this.props.onLogout} /> */}
+                        <View style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            marginTop: 20,
+                            marginBottom: 30,
+                            paddingHorizontal: 0,
+                            paddingBottom: 10
+                        }}>
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: '#00c3cc',
+                                    borderRadius: 25,
+                                    paddingVertical: 12,
+                                    paddingHorizontal: 20,
+                                    flex: 1,
+                                    marginRight: 8,
+                                    alignItems: 'center',
+                                }}
+                                onPress={this.props.onUpdate}
+                            >
+                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                    {getLocalizedText(this.props.lang, Lang.updateLabel)}
+                                </Text>
+                            </TouchableOpacity>
 
-                        {/* <View style={{ height: '3%' }}></View> */}
-
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: '#6c7b7f',
+                                    borderRadius: 25,
+                                    paddingVertical: 12,
+                                    paddingHorizontal: 20,
+                                    flex: 1,
+                                    marginLeft: 8,
+                                    alignItems: 'center',
+                                }}
+                                onPress={this.props.onNotes}
+                            >
+                                <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold' }}>
+                                    {getLocalizedText(this.props.lang, Lang.note)}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-
                 </Card>
             </View>
         )
