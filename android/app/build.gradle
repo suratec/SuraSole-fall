@@ -73,9 +73,9 @@ android {
 
     compileSdkVersion rootProject.ext.compileSdkVersion
 
-    namespace "com.surasole.medical"
+    namespace "com.surasole.fallrisk"
     defaultConfig {
-        applicationId "com.surasole.medical"
+        applicationId "com.surasole.fallrisk"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 11

@@ -8,14 +8,22 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1000915057889:android:b37d4e3cef9bb32dbf0ba0",
+        "mobilesdk_app_id": "1:1000915057889:android:b16c7a5a67d8aac2bf0ba0",
         "android_client_info": {
-          "package_name": "com.surasole.medical"
+          "package_name": "com.devlomi.fireapp"
         }
       },
       "oauth_client": [
         {
-          "client_id": "1000915057889-565gpudrhb68nvk8r5cgden10sbpqv6u.apps.googleusercontent.com",
+          "client_id": "1000915057889-qe6levv2ulab98b4jpgabfv9qsu2bsv2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.devlomi.fireapp",
+            "certificate_hash": "2e7a39f13a6efb496268d3121427026caaf43348"
+          }
+        },
+        {
+          "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -28,8 +36,195 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "1000915057889-565gpudrhb68nvk8r5cgden10sbpqv6u.apps.googleusercontent.com",
+              "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "1000915057889-6o6ocd4kb08ut6u7q3u9dfh48d9f678f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.devlomi.ifireapp.qqq"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1000915057889:android:b37d4e3cef9bb32dbf0ba0",
+        "android_client_info": {
+          "package_name": "com.reactsuratecm"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNRVyAn_bddwUyupO37Cl4rTJ5D3Fcxfo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1000915057889-6o6ocd4kb08ut6u7q3u9dfh48d9f678f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.devlomi.ifireapp.qqq"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1000915057889:android:501c8c5ef793a7d7bf0ba0",
+        "android_client_info": {
+          "package_name": "com.surasole.diabetic"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNRVyAn_bddwUyupO37Cl4rTJ5D3Fcxfo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1000915057889-6o6ocd4kb08ut6u7q3u9dfh48d9f678f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.devlomi.ifireapp.qqq"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1000915057889:android:b666ff1dc888a783bf0ba0",
+        "android_client_info": {
+          "package_name": "com.surasole.fallrisk"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNRVyAn_bddwUyupO37Cl4rTJ5D3Fcxfo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1000915057889-6o6ocd4kb08ut6u7q3u9dfh48d9f678f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.devlomi.ifireapp.qqq"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1000915057889:android:e952e02eee68f7c3bf0ba0",
+        "android_client_info": {
+          "package_name": "com.surasole.medical"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNRVyAn_bddwUyupO37Cl4rTJ5D3Fcxfo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1000915057889-6o6ocd4kb08ut6u7q3u9dfh48d9f678f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.devlomi.ifireapp.qqq"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1000915057889:android:1a772f5cb45297eebf0ba0",
+        "android_client_info": {
+          "package_name": "com.surasolefall"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNRVyAn_bddwUyupO37Cl4rTJ5D3Fcxfo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1000915057889-3hhetc7sud228bka63l3evoe0f0v8vih.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1000915057889-6o6ocd4kb08ut6u7q3u9dfh48d9f678f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.devlomi.ifireapp.qqq"
+              }
             }
           ]
         }

@@ -1,4 +1,4 @@
-package com.surasole.medical;
+package com.surasole.fallrisk;
 
 import android.app.Application;
 import com.facebook.react.PackageList;
