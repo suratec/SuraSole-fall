@@ -76,7 +76,7 @@ class index extends Component {
   counter = 1;
 
   state = {
-    textAction: 'Record',
+    textAction: getLocalizedText(this.props.lang, BalanceLang.recordButton),
     lstage: 0,
     rstage: 0,
     xPosN: 150,
@@ -90,7 +90,7 @@ class index extends Component {
     score: 0,
     balance: 0, // Keep original balance calculation
     txt: '',
-    status: 'waiting',
+    status: getLocalizedText(this.props.lang, BalanceLang.waiting),
     isConnected: true,
     peripherals: new Map(),
     notiAlarm: 0,
@@ -105,13 +105,22 @@ class index extends Component {
   };
 
   getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case 'good': return '#28a745';
-      case 'medium': return '#ffc107';
-      case 'bad': return '#dc3545';
-      default: return '#6c757d';
+    const englishGood = getLocalizedText(false, BalanceLang.good);
+    const englishMedium = getLocalizedText(false, BalanceLang.medium);
+    const englishPoor = getLocalizedText(false, BalanceLang.poor);
+
+    if (status === englishGood || status === getLocalizedText(this.props.lang, BalanceLang.good) || status.toLowerCase() === 'good') {
+      return '#28a745';
     }
+    if (status === englishMedium || status === getLocalizedText(this.props.lang, BalanceLang.medium) || status.toLowerCase() === 'medium') {
+      return '#ffc107';
+    }
+    if (status === englishPoor || status === getLocalizedText(this.props.lang, BalanceLang.poor) || status.toLowerCase() === 'poor' || status.toLowerCase() === 'bad') {
+      return '#dc3545';
+    }
+    return '#6c757d';
   };
+
 
   calMeasurePressure = value => {
     return 2.206 * Math.exp(0.0068 * value);
@@ -351,24 +360,25 @@ class index extends Component {
     }
     if (100 - persent >= 80) {
       return {
-        txt: getLocalizedText(this.state.lang, BalanceLang.goodBalance),
-        status: 'Good',
+        txt: getLocalizedText(this.props.lang, BalanceLang.goodBalance),
+        status: getLocalizedText(this.props.lang, BalanceLang.good),
         balance: Math.round(100 - persent),
       };
     } else if (100 - persent >= 40) {
       return {
-        txt: getLocalizedText(this.state.lang, BalanceLang.goodBalance),
-        status: 'Medium',
+        txt: getLocalizedText(this.props.lang, BalanceLang.mediumBalance),
+        status: getLocalizedText(this.props.lang, BalanceLang.medium),
         balance: Math.round(100 - persent),
       };
     } else {
       return {
-        txt: getLocalizedText(this.state.lang, BalanceLang.badBalance),
-        status: 'Bad',
+        txt: getLocalizedText(this.props.lang, BalanceLang.badBalance),
+        status: getLocalizedText(this.props.lang, BalanceLang.poor),
         balance: Math.round(100 - persent),
       };
     }
   }
+
 
   handleConnectivityChange = status => {
     this.setState({ isConnected: status.isConnected });
@@ -379,20 +389,25 @@ class index extends Component {
         typeof this.props.rightDevice === 'undefined' &&
         typeof this.props.leftDevice === 'undefined'
     ) {
-      Alert.alert(getLocalizedText(this.props.lang, BalanceLang.warning), getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert), [
-        {
-          text: 'OK',
-          onPress: () => {
-            this.props.navigation.navigate('Product', {
-              name: getLocalizedText(this.state.lang, LangHome.addDeviceButton),
-            });
-          },
-        },
-      ]);
+      Alert.alert(
+          getLocalizedText(this.props.lang, BalanceLang.warning),
+          getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert),
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                this.props.navigation.navigate('Device', {
+                  name: this.props.lang
+                      ? LangHome.addDeviceButton.thai
+                      : LangHome.addDeviceButton.eng,
+                });
+              },
+            },
+          ]);
       return;
     }
     if (this.state.textAction == 'Record') {
-      this.setState({ textAction: 'Stop' });
+      this.setState({textAction: 'Stop'});
       this.props.actionRecordingButton('Stop');
       let initTime = new Date();
       this.start = initTime;
@@ -440,12 +455,16 @@ class index extends Component {
         }
       }, 100);
     } else {
-      this.setState({ textAction: 'Record' });
+      this.setState({textAction: 'Record'});
       this.props.actionRecordingButton('Record');
       clearInterval(this.readInterval);
       this.sendDataToSetver();
     }
   };
+
+
+
+
 
   sendDataToSetver = () => {
     this.state.isConnected == false
@@ -530,6 +549,7 @@ class index extends Component {
                 .catch(e => { });
           });
         });
+    alert(getLocalizedText(this.props.lang, Lang.alert));
   }
 
   actionUpdate = content => {
@@ -616,7 +636,9 @@ class index extends Component {
               <View style={styles.scoreStatusRow}>
                 {/* Balance Score */}
                 <View style={styles.scoreSection}>
-                  <RNText style={styles.sectionLabel}>Score</RNText>
+                  <RNText style={styles.sectionLabel}>
+                    {getLocalizedText(this.props.lang, BalanceLang.score)}
+                  </RNText>
                   <View style={[styles.scoreBadge, { backgroundColor: this.getScoreColor(this.state.balance) }]}>
                     <RNText style={styles.scoreText}>{this.state.balance}%</RNText>
                   </View>
@@ -624,7 +646,9 @@ class index extends Component {
 
                 {/* Status Badge */}
                 <View style={styles.statusSection}>
-                  <RNText style={styles.sectionLabel}>Status</RNText>
+                  <RNText style={styles.sectionLabel}>
+                    {getLocalizedText(this.props.lang, BalanceLang.status)}
+                  </RNText>
                   <View style={[styles.statusBadge, { backgroundColor: this.getStatusColor(this.state.status) }]}>
                     <RNText style={styles.statusText}>{this.state.status}</RNText>
                   </View>
@@ -648,12 +672,13 @@ class index extends Component {
               <RNText style={styles.descriptionText}>{this.state.txt}</RNText>
             </View>
 
+
             {/* Left and Right foot buttons - Fixed Spacing */}
             <View style={styles.buttonsContainer}>
               <Grid style={styles.buttonsGrid}>
                 <Col>
                   <BalanceButton
-                      bntName={'Left'}
+                      bntName={getLocalizedText(this.props.lang, BalanceLang.leftButton)}
                       onPress={() => {
                         if (this.dataRecord) {
                           this.dataRecord.remove();
@@ -665,7 +690,7 @@ class index extends Component {
                 </Col>
                 <Col>
                   <BalanceButton
-                      bntName={'Right'}
+                      bntName={getLocalizedText(this.props.lang, BalanceLang.rightButton)}
                       onPress={() => {
                         if (this.dataRecord) {
                           this.dataRecord.remove();
@@ -678,12 +703,13 @@ class index extends Component {
               </Grid>
             </View>
 
+
             {/* Record button - Fixed Spacing */}
             <View style={styles.recordButtonContainer}>
               <ButtonFix
                   action={true}
                   rounded={true}
-                  title={getLocalizedText(this.props.lang, Lang.record)}
+                  title={this.state.textAction}
                   onPress={() => this.actionRecording()}
               />
             </View>
@@ -723,9 +749,9 @@ const styles = StyleSheet.create({
   // Radar chart styles - More Space
   radarContainer: {
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 70,
     marginBottom: 30, // Increased space after radar chart
-    flex: 0.55, // Increased chart space
+    flex: 0.5, // Increased chart space
   },
 
   // Balance grade styles - Positioned Much Lower & Smaller Size
@@ -844,7 +870,8 @@ const styles = StyleSheet.create({
   recordButtonContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    flex: 0.12, // Control record button space
+    flex: 0.08,
+    marginTop: -5,
   },
 });
 

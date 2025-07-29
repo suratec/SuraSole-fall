@@ -78,7 +78,7 @@ class index extends Component {
   inZone = true;
 
   state = {
-    textAction: 'Record',
+    textAction: getLocalizedText(this.props.lang, BalanceLang.recordButton),
     rightsensor: [0, 0, 0, 0, 0, 0, 0, 0],
     rstage: 0,
     leftsensor: [0, 0, 0, 0, 0, 0, 0, 0],
@@ -86,7 +86,7 @@ class index extends Component {
     xPosN: 150,
     yPosN: 150,
     shouldVibrate: false,
-    status: 'waiting',
+    status: getLocalizedText(this.props.lang, BalanceLang.waiting),
     txt: '',
     balance: 0,
     score: 0,
@@ -190,7 +190,7 @@ class index extends Component {
       }
       this.setState({
         txt: getLocalizedText(this.props.lang, BalanceLang.goodBalance),
-        status: 'Good',
+        status: getLocalizedText(this.props.lang, BalanceLang.good),
         balance: Math.round(100 - persent),
       });
     } else if (100 - persent >= 40) {
@@ -200,7 +200,7 @@ class index extends Component {
       }
       this.setState({
         txt: getLocalizedText(this.props.lang, BalanceLang.mediumBalance),
-        status: 'Medium',
+        status: getLocalizedText(this.props.lang, BalanceLang.medium),
         balance: Math.round(100 - persent),
       });
     } else {
@@ -210,7 +210,7 @@ class index extends Component {
       }
       this.setState({
         txt: getLocalizedText(this.props.lang, BalanceLang.badBalance),
-        status: 'Bad',
+        status: getLocalizedText(this.props.lang, BalanceLang.poor),
         balance: Math.round(100 - persent),
       });
     }
@@ -294,18 +294,21 @@ class index extends Component {
         typeof this.props.rightDevice === 'undefined' &&
         typeof this.props.leftDevice === 'undefined'
     ) {
-      Alert.alert('Warning !', 'Please Check Your Bluetooth Connect', [
-        {
-          text: 'OK',
-          onPress: () => {
-            this.props.navigation.navigate('Device', {
-              name: this.props.lang
-                  ? LangHome.addDeviceButton.thai
-                  : LangHome.addDeviceButton.eng,
-            });
-          },
-        },
-      ]);
+      Alert.alert(
+          getLocalizedText(this.props.lang, BalanceLang.warning),
+          getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert),
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                this.props.navigation.navigate('Device', {
+                  name: this.props.lang
+                      ? LangHome.addDeviceButton.thai
+                      : LangHome.addDeviceButton.eng,
+                });
+              },
+            },
+          ]);
       return;
     }
     if (this.state.textAction == 'Record') {
@@ -448,7 +451,7 @@ class index extends Component {
                 .catch(e => {});
           });
         });
-    alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+    alert(getLocalizedText(this.props.lang, Lang.alert));
   }
 
   actionUpdate = content => {
@@ -533,7 +536,9 @@ class index extends Component {
               <View style={styles.scoreStatusRow}>
                 {/* Balance Score */}
                 <View style={styles.scoreSection}>
-                  <RNText style={styles.sectionLabel}>Score</RNText>
+                  <RNText style={styles.sectionLabel}>
+                    {getLocalizedText(this.props.lang, BalanceLang.score)}
+                  </RNText>
                   <View style={[styles.scoreBadge, { backgroundColor: this.getScoreColor(this.state.balance) }]}>
                     <RNText style={styles.scoreText}>{this.state.balance}%</RNText>
                   </View>
@@ -541,7 +546,9 @@ class index extends Component {
 
                 {/* Status Badge */}
                 <View style={styles.statusSection}>
-                  <RNText style={styles.sectionLabel}>Status</RNText>
+                  <RNText style={styles.sectionLabel}>
+                    {getLocalizedText(this.props.lang, BalanceLang.status)}
+                  </RNText>
                   <View style={[styles.statusBadge, { backgroundColor: this.getStatusColor(this.state.status) }]}>
                     <RNText style={styles.statusText}>{this.state.status}</RNText>
                   </View>
@@ -565,11 +572,6 @@ class index extends Component {
               <RNText style={styles.descriptionText}>{this.state.txt}</RNText>
             </View>
 
-            {/* Time in Zone Display */}
-            <View style={styles.timeInZoneContainer}>
-              <RNText style={styles.timeInZoneLabel}>Time in Zone</RNText>
-              <RNText style={styles.timeInZoneValue}>{this.state.score}s</RNText>
-            </View>
 
             {/* Record button - Fixed Spacing */}
             <View style={styles.recordButtonContainer}>
@@ -585,7 +587,6 @@ class index extends Component {
     );
   }
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -596,24 +597,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 20,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
 
   // Radar chart styles - More Space
   radarContainer: {
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 30, // Increased space after radar chart
-    flex: 0.45, // Chart space
+    marginTop: 90,
+    marginBottom: 0,
+    flex: 0.56,
   },
 
-  // Balance grade styles - Positioned Much Lower & Smaller Size
+  // Balance grade styles
   balanceGradeContainer: {
-    marginVertical: 5, // Reduced spacing
-    paddingHorizontal: 10, // Reduced width
-    paddingVertical: 8, // Reduced height
+    marginVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: '#ffffff',
-    borderRadius: 10, // Smaller radius
+    borderRadius: 10,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -700,7 +701,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginVertical: 10,
     alignItems: 'center',
-    flex: 0.12,
+    flex: 0.1,
     justifyContent: 'center',
   },
   timeInZoneLabel: {
@@ -719,7 +720,8 @@ const styles = StyleSheet.create({
   recordButtonContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    flex: 0.18, // Control record button space
+    flex: 0.08,
+    marginTop: 8,
   },
 });
 

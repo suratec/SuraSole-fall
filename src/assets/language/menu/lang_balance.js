@@ -87,10 +87,72 @@ const bluetoothAlert = {
     thai: 'กรุณาตรวจสอบการเชื่อมต่อบลูทูธ',
     japanese: 'Bluetooth接続を確認してください'
 }
+
 const warning = {
     eng: 'Warning !',
     thai: 'คำเตือน !',
     japanese: '警告 !'
+}
+
+// Additional balance translations
+const status = {
+    eng: 'Status',
+    thai: 'สถานะ',
+    japanese: 'ステータス'
+}
+
+const score = {
+    eng: 'Score',
+    thai: 'คะแนน',
+    japanese: 'スコア'
+}
+
+const waiting = {
+    eng: 'Waiting',
+    thai: 'รอ',
+    japanese: '待機中'
+}
+
+const dynamic = {
+    eng: 'Dynamic',
+    thai: 'ไดนามิก',
+    japanese: 'ダイナミック'
+}
+
+const staticMode = {
+    eng: 'Static',
+    thai: 'สแตติก',
+    japanese: 'สタティック'
+}
+
+const timeInZone = {
+    eng: 'Time in Zone',
+    thai: 'เวลาในโซน',
+    japanese: 'ゾーン内時間'
+}
+
+const good = {
+    eng: 'Good',
+    thai: 'ดี',
+    japanese: '良い'
+}
+
+const medium = {
+    eng: 'Medium',
+    thai: 'ปานกลาง',
+    japanese: '中程度'
+}
+
+const poor = {
+    eng: 'Poor',
+    thai: 'แย่',
+    japanese: '悪い'
+}
+
+const time = {
+    eng: 'Time',
+    thai: 'เวลา',
+    japanese: '時間'
 }
 
 export default {
@@ -109,5 +171,15 @@ export default {
     leftFootBalance,
     rightFootBalance,
     bluetoothAlert,
-    warning
+    warning,
+    status,
+    score,
+    waiting,
+    timeInZone,
+    good,
+    medium,
+    poor,
+    time,
+    dynamic,
+    staticMode
 }
