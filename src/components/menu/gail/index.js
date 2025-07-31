@@ -9,6 +9,8 @@ import {
   NativeEventEmitter,
   Vibration,
   Alert,
+  Platform,
+  Toast,
 } from 'react-native';
 import {Card} from 'native-base';
 import {Col, Grid} from 'react-native-easy-grid';
@@ -30,6 +32,7 @@ import BleManager from 'react-native-ble-manager';
 
 import Lang from '../../../assets/language//menu/lang_record';
 import LangHome from '../../../assets/language/screen/lang_home';
+import lang_gail from '../../../assets/language/menu/lang_gail'; // Import the language file
 import { getLocalizedText } from '../../../assets/language/langUtils';
 import {set} from 'lodash';
 
@@ -80,7 +83,7 @@ class index extends Component {
   round = Math.floor(1000 + Math.random() * 9000);
 
   state = {
-    textAction: 'Record',
+    textAction: 'Record', // Initialize with default value
     lsensor: [0, 0, 0, 0, 0],
     rsensor: [0, 0, 0, 0, 0],
     lstage: 0,
@@ -93,6 +96,10 @@ class index extends Component {
     NetInfo.addEventListener(this.handleConnectivityChange);
     this.retrieveConnected();
     this.startReading();
+    // Set initial button text with proper translation
+    this.setState({
+      textAction: getLocalizedText(this.props.lang, lang_gail.recordButton)
+    });
   };
 
   componentWillUnmount = () => {
@@ -100,12 +107,6 @@ class index extends Component {
     if (this.dataRecord) {
       this.dataRecord.remove();
     }
-  };
-
-  getButtonText = () => {
-    return this.state.isRecording
-        ? getLocalizedText(this.props.lang, Lang.stopButton)
-        : getLocalizedText(this.props.lang, Lang.recordButton);
   };
 
   calMeasurePressure = value => {
@@ -135,46 +136,46 @@ class index extends Component {
         BleManager.disconnect(peripheral.id);
       } else {
         BleManager.connect(peripheral.id)
-          .then(() => {
-            let peripherals = this.state.peripherals;
-            let p = peripherals.get(peripheral.id);
-            if (p) {
-              p.connected = true;
-              peripherals.set(peripheral.id, p);
-              this.setState({peripherals});
-            }
-            if (peripheral.name[peripheral.name.length - 1] === 'L') {
-              this.props.addLeftDevice(peripheral.id);
-            } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
-              this.props.addRightDevice(peripheral.id);
-            }
-            console.log('Connected to ' + peripheral.id);
+            .then(() => {
+              let peripherals = this.state.peripherals;
+              let p = peripherals.get(peripheral.id);
+              if (p) {
+                p.connected = true;
+                peripherals.set(peripheral.id, p);
+                this.setState({peripherals});
+              }
+              if (peripheral.name[peripheral.name.length - 1] === 'L') {
+                this.props.addLeftDevice(peripheral.id);
+              } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
+                this.props.addRightDevice(peripheral.id);
+              }
+              console.log('Connected to ' + peripheral.id);
 
-            setTimeout(() => {
-              BleManager.retrieveServices(peripheral.id).then(
-                peripheralInfo => {
-                  console.log(peripheralInfo);
+              setTimeout(() => {
+                BleManager.retrieveServices(peripheral.id).then(
+                    peripheralInfo => {
+                      console.log(peripheralInfo);
 
-                  var service;
-                  var bakeCharacteristic;
-                  var crustCharacteristic;
-                  if (Platform.OS === 'android') {
-                    service = '0000FFE0-0000-1000-8000-00805F9B34FB';
-                    bakeCharacteristic = '0000FFE1-0000-1000-8000-00805F9B34FB';
-                    crustCharacteristic =
-                      '0000FFE1-0000-1000-8000-00805F9B34FB';
-                  } else {
-                    service = 'FFE0';
-                    bakeCharacteristic = 'FFE1';
-                    crustCharacteristic = 'FFE1';
-                  }
-                },
-              );
-            }, 900);
-          })
-          .catch(error => {
-            console.log('Connection error', error);
-          });
+                      var service;
+                      var bakeCharacteristic;
+                      var crustCharacteristic;
+                      if (Platform.OS === 'android') {
+                        service = '0000FFE0-0000-1000-8000-00805F9B34FB';
+                        bakeCharacteristic = '0000FFE1-0000-1000-8000-00805F9B34FB';
+                        crustCharacteristic =
+                            '0000FFE1-0000-1000-8000-00805F9B34FB';
+                      } else {
+                        service = 'FFE0';
+                        bakeCharacteristic = 'FFE1';
+                        crustCharacteristic = 'FFE1';
+                      }
+                    },
+                );
+              }, 900);
+            })
+            .catch(error => {
+              console.log('Connection error', error);
+            });
       }
     }
   }
@@ -203,30 +204,30 @@ class index extends Component {
       }
     } else {
       this.props.actionRecordingButton('Record');
-      this.setState({textAction: 'Record'});
+      this.setState({textAction: getLocalizedText(this.props.lang, lang_gail.recordButton)});
     }
 
     this.dataRecord = bleManagerEmitter.addListener(
-      'BleManagerDidUpdateValueForCharacteristic',
-      ({value, peripheral, characteristic, service}) => {
-        let time = new Date();
-        if (peripheral === this.props.rightDevice) {
-          let sensor = this.toDecimalArray(value);
-          this.recordData(sensor, 'R');
-          if (time - this.rtime > 333) {
-            this.setState({rsensor: sensor});
-            this.rtime = time;
+        'BleManagerDidUpdateValueForCharacteristic',
+        ({value, peripheral, characteristic, service}) => {
+          let time = new Date();
+          if (peripheral === this.props.rightDevice) {
+            let sensor = this.toDecimalArray(value);
+            this.recordData(sensor, 'R');
+            if (time - this.rtime > 333) {
+              this.setState({rsensor: sensor});
+              this.rtime = time;
+            }
           }
-        }
-        if (peripheral === this.props.leftDevice) {
-          let sensor = this.toDecimalArray(value);
-          this.recordData(sensor, 'L');
-          if (time - this.ltime > 333) {
-            this.setState({lsensor: sensor});
-            this.ltime = time;
+          if (peripheral === this.props.leftDevice) {
+            let sensor = this.toDecimalArray(value);
+            this.recordData(sensor, 'L');
+            if (time - this.ltime > 333) {
+              this.setState({lsensor: sensor});
+              this.ltime = time;
+            }
           }
-        }
-      },
+        },
     );
   }
 
@@ -253,27 +254,27 @@ class index extends Component {
     ) {
       Alert.alert(getLocalizedText(this.props.lang, Lang.warning),
           getLocalizedText(this.props.lang, Lang.bluetoothAlert), [
-        {
-          text: 'OK',
-          onPress: () => {
-            this.props.navigation.navigate('Device', {
-              name: getLocalizedText(this.props.lang, LangHome.addDeviceButton),
-            });
-          },
-        },
-      ]);
+            {
+              text: 'OK',
+              onPress: () => {
+                this.props.navigation.navigate('Device', {
+                  name: getLocalizedText(this.props.lang, LangHome.addDeviceButton),
+                });
+              },
+            },
+          ]);
       return;
     }
-    if (this.state.textAction == 'Record') {
-      this.setState({textAction: 'Stop'});
+    if (this.state.textAction === getLocalizedText(this.props.lang, lang_gail.recordButton)) {
+      this.setState({textAction: getLocalizedText(this.props.lang, lang_gail.stopButton)});
       this.props.actionRecordingButton('Stop');
       let initTime = new Date();
       this.start = initTime;
       this.lastLTime = initTime;
       this.lastRTime = initTime;
       this.readInterval = setInterval(async () => {
-        time = new Date();
-        data = {
+        let time = new Date();
+        let data = {
           stamp: time.getTime(),
           timestamp: time,
           duration: Math.floor((time - this.start) / 1000),
@@ -291,29 +292,29 @@ class index extends Component {
         };
         try {
           await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
+              RNFS.CachesDirectoryPath +
               '/suratechM/' +
               this.start.getFullYear() +
               this.start.getMonth() +
               this.start.getDate() +
               this.round,
-            JSON.stringify(data) + ',',
+              JSON.stringify(data) + ',',
           );
         } catch {
           await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
           await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
+              RNFS.CachesDirectoryPath +
               '/suratechM/' +
               this.start.getFullYear() +
               this.start.getMonth() +
               this.start.getDate() +
               this.round,
-            JSON.stringify(data) + ',',
+              JSON.stringify(data) + ',',
           );
         }
       }, 100);
     } else {
-      this.setState({textAction: 'Record'});
+      this.setState({textAction: getLocalizedText(this.props.lang, lang_gail.recordButton)});
       this.props.actionRecordingButton('Record');
       clearInterval(this.readInterval);
       this.sendDataToSetver();
@@ -322,91 +323,91 @@ class index extends Component {
 
   sendDataToSetver() {
     this.state.isConnected == false
-      ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
+        ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
           console.log('WiFi is not connect');
           res.forEach(r => {
             console.log(r.path);
           });
         })
-      : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
+        : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
           res.forEach(r => {
             console.log(r.path);
             RNFS.readFile(r.path)
-              .then(text => {
-                let data = JSON.parse(
-                  '[' + text.substring(0, text.length - 1) + ']',
-                );
-                var content = {
-                  data: data,
-                  id_customer: data[0].id_customer,
-                  id_device: '',
-                  type: 1, // for medical
-                  product_number: this.props.productNumber,
-                  bluetooth_left_id: this.props.leftDevice,
-                  bluetooth_right_id: this.props.rightDevice,
-                };
-                fetch(`${API}/addjson`, {
-                  method: 'POST',
-                  headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(content),
-                })
-                  .then(resp => resp.json())
-                  .then(resp => {
-                    if (resp.status != 'ผิดพลาด') {
-                      console.log(`Clear : ${r.path}`);
-                      RNFS.unlink(r.path);
+                .then(text => {
+                  let data = JSON.parse(
+                      '[' + text.substring(0, text.length - 1) + ']',
+                  );
+                  var content = {
+                    data: data,
+                    id_customer: data[0].id_customer,
+                    id_device: '',
+                    type: 1, // for medical
+                    product_number: this.props.productNumber,
+                    bluetooth_left_id: this.props.leftDevice,
+                    bluetooth_right_id: this.props.rightDevice,
+                  };
+                  fetch(`${API}/addjson`, {
+                    method: 'POST',
+                    headers: {
+                      Accept: 'application/json',
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(content),
+                  })
+                      .then(resp => resp.json())
+                      .then(resp => {
+                        if (resp.status != 'ผิดพลาด') {
+                          console.log(`Clear : ${r.path}`);
+                          RNFS.unlink(r.path);
 
-                      fetch(`${API}member/getUserDashboardStatic`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          id: this.props.user.id_customer,
-                          // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
-                        }),
-                      })
-                      .then(resp1 => {
-                            console.log('============API Response============');
-                            return  resp1.json();
-                          })
-                        .then(resp1 => {
-                          
-                          fetch(`${API}member/get_user_data`, {
+                          fetch(`${API}member/getUserDashboardStatic`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               id: this.props.user.id_customer,
-                              ...resp1
                               // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
                             }),
                           })
-                            .then(res => {
-                              console.log('============API Response============');
-                              return console.log(res), res.json();
-                            })
-                            .then(res => {
-                              console.log(res, 'responseFromAPU');
-  
-                            })
-                            .catch(err => {
-                              console.log(err);
-                              this.setState({ isLoading: false });
-                              Toast.show('Something went wrong. Please Try again!!!');
-                            });
+                              .then(resp1 => {
+                                console.log('============API Response============');
+                                return  resp1.json();
+                              })
+                              .then(resp1 => {
+
+                                    fetch(`${API}member/get_user_data`, {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        id: this.props.user.id_customer,
+                                        ...resp1
+                                        // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
+                                      }),
+                                    })
+                                        .then(res => {
+                                          console.log('============API Response============');
+                                          return console.log(res), res.json();
+                                        })
+                                        .then(res => {
+                                          console.log(res, 'responseFromAPU');
+
+                                        })
+                                        .catch(err => {
+                                          console.log(err);
+                                          this.setState({ isLoading: false });
+                                          Toast.show('Something went wrong. Please Try again!!!');
+                                        });
+                                  }
+
+                              )
+                              .catch(err => {
+                                console.log(err);
+                                this.setState({ isLoading: false });
+                                Toast.show('Something went wrong. Please Try again!!!');
+                              });
                         }
-  
-                        )
-                        .catch(err => {
-                          console.log(err);
-                          this.setState({ isLoading: false });
-                          Toast.show('Something went wrong. Please Try again!!!');
-                        });
-                    }
-                  });
-              })
-              .catch(e => {});
+                      });
+                })
+                .catch(e => {});
           });
         });
     alert(getLocalizedText(this.props.lang, Lang.alert));
@@ -437,29 +438,29 @@ class index extends Component {
       },
       body: JSON.stringify(content),
     })
-      .then(res => res.json())
-      .then(res => {
-        console.log('res => ');
-        console.log(res);
-        if (res.status === 'สำเร็จ') {
-          AlertFix.alertBasic(
-              getLocalizedText(this.props.lang, Lang.successTitle),
-              getLocalizedText(this.props.lang, Lang.successBody),
-          );
-          deleteFile(this.fileStamp_n);
-        } else {
+        .then(res => res.json())
+        .then(res => {
+          console.log('res => ');
+          console.log(res);
+          if (res.status === 'สำเร็จ') {
+            AlertFix.alertBasic(
+                getLocalizedText(this.props.lang, Lang.successTitle),
+                getLocalizedText(this.props.lang, Lang.successBody),
+            );
+            deleteFile(this.fileStamp_n);
+          } else {
+            AlertFix.alertBasic(
+                getLocalizedText(this.props.lang, Lang.errorTitle),
+                getLocalizedText(this.props.lang, Lang.errorBody1),
+            );
+          }
+        })
+        .catch(error => {
           AlertFix.alertBasic(
               getLocalizedText(this.props.lang, Lang.errorTitle),
-              getLocalizedText(this.props.lang, Lang.errorBody1),
+              getLocalizedText(this.props.lang, Lang.errorBody2),
           );
-        }
-      })
-      .catch(error => {
-        AlertFix.alertBasic(
-            getLocalizedText(this.props.lang, Lang.errorTitle),
-            getLocalizedText(this.props.lang, Lang.errorBody2),
-        );
-      });
+        });
   };
 
   actionDashboard = () => {
@@ -468,7 +469,7 @@ class index extends Component {
 
   render() {
     return (
-        <View style={{ flex: 1 }}>
+        <ScrollView>
           <HeaderFix
               icon_left={'left'}
               onpress_left={() => {
@@ -477,32 +478,43 @@ class index extends Component {
               title={this.props.navigation.getParam('name', '')}
           />
 
-          <ScrollView
-              contentContainerStyle={{
-                flexGrow: 1,
-                justifyContent: 'space-around', // Distributes space evenly
-                paddingVertical: 20,
-              }}
-              showsVerticalScrollIndicator={false}
-          >
-            {/* Chart gets more space in the center */}
-            <View style={{ flex: 1, justifyContent: 'center' }}>
-              <Chart lsensor={this.state.lsensor} rsensor={this.state.rsensor} />
-            </View>
+          {/* Add smaller spacer to push chart slightly higher */}
+          <View style={{ height: 40 }} />
 
-            {/* Button at the bottom but still within the centered area */}
-            <Grid
-                style={{padding: 15, justifyContent: 'center', alignItems: 'center'}}
-            >
-              <ButtonFix
-                  action={true}
-                  rounded={true}
-                  title={this.getButtonText()}
-                  onPress={() => this.actionRecording()}
-              />
-            </Grid>
-          </ScrollView>
-        </View>
+          <Chart
+              lsensor={this.state.lsensor}
+              rsensor={this.state.rsensor}
+              // Pass translations to Chart component
+              foreFootText={getLocalizedText(this.props.lang, lang_gail.foreFootText)}
+              midFootText={getLocalizedText(this.props.lang, lang_gail.midFootText)}
+              heelText={getLocalizedText(this.props.lang, lang_gail.heelText)}
+              entireFootText={getLocalizedText(this.props.lang, lang_gail.entireFootText)}
+              rightSideText={getLocalizedText(this.props.lang, lang_gail.rightSideText)}
+              leftSideText={getLocalizedText(this.props.lang, lang_gail.leftSideText)}
+              // Add text color props for left and right foot labels
+              textColor="#000000" // Black color for general text
+              footTextColor="#000000" // Specifically for left foot and right foot text
+          />
+
+          <Grid
+              style={{padding: 15, justifyContent: 'center', alignItems: 'center'}}>
+            {/* <Col> */}
+            <ButtonFix
+                action={true}
+                rounded={true}
+                title={this.state.textAction}
+                onPress={() => this.actionRecording()}
+            />
+            {/* </Col> */}
+            {/* <Col>
+            <ButtonFix
+              rounded={true}
+              title={'Dashboard 8'}
+              onPress={() => this.actionDashboard()}
+            />
+          </Col> */}
+          </Grid>
+        </ScrollView>
     );
   }
 }
