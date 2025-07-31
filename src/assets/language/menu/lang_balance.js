@@ -24,49 +24,49 @@ const footsBalancesText = {
 
 const leftButton = {
     thai: 'ซ้าย',
-    eng: 'left',
+    eng: 'Left',
     japanese: '左'
 }
 
 const rightButton = {
     thai: 'ขวา',
-    eng: 'right',
+    eng: 'Right',
     japanese: '右'
 }
 
 const recordButton = {
     thai: 'บันทึก',
-    eng: 'record',
+    eng: 'Record',
     japanese: '記録'
 }
 
 const stopButton = {
     thai: 'หยุด',
-    eng: 'stop',
+    eng: 'Stop',
     japanese: '停止'
 }
 
 const dashBoardButton = {
     thai: 'แดชบอร์ด',
-    eng: 'dashboard',
+    eng: 'Dashboard',
     japanese: 'ダッシュボード'
 }
 
 const goodBalance = {
     thai: 'การทรงตัวปกติ',
-    eng: 'good balance',
+    eng: 'Good Balance',
     japanese: '良好なバランス'
 }
 
 const mediumBalance = {
     thai: 'การทรงตัวมีปัญหา ให้ปรับการทรงตัว',
-    eng: 'balance has problem plase adjust',
+    eng: 'Balance has problem plase adjust',
     japanese: 'バランスに問題があります。調整してください'
 }
 
 const badBalance = {
     thai: 'สูญเสียการทรงตัว ระวังล้ม!',
-    eng: 'lost balance beware failing!',
+    eng: 'Lost balance beware failing!',
     japanese: 'バランスを失いました。転倒注意！'
 }
 

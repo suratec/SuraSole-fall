@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 90,
     marginBottom: 0,
-    flex: 0.56,
+    flex: 0.7,
   },
 
   // Balance grade styles
@@ -730,7 +730,7 @@ const styles = StyleSheet.create({
   recordButtonContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    flex: 0.08,
+    flex: 0.4,
     marginTop: 8,
   },
 });

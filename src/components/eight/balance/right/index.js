@@ -605,16 +605,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 90,
     marginBottom: 0,
-    flex: 0.56,
+    flex: 0.7,
   },
 
   // Balance grade styles
   balanceGradeContainer: {
-    marginVertical: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    marginVertical: 5, // Reduced spacing
+    paddingHorizontal: 10, // Reduced width
+    paddingVertical: 8, // Reduced height
     backgroundColor: '#ffffff',
-    borderRadius: 10,
+    borderRadius: 10, // Smaller radius
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -693,6 +693,7 @@ const styles = StyleSheet.create({
     lineHeight: 14, // Tighter line height
   },
 
+
   // Time in Zone styles
   timeInZoneContainer: {
     backgroundColor: '#f8f9fa',
@@ -720,8 +721,8 @@ const styles = StyleSheet.create({
   recordButtonContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    flex: 0.08,
-    marginTop: 8,
+    flex: 0.4,
+    marginTop: 10,
   },
 });
 
