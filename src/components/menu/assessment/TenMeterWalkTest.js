@@ -30,7 +30,8 @@ class TenMeterWalkTest extends Component {
         this.state = {
             isConnected: true,
             textAction: getLocalizedText(this.props.lang, langAssessment.startText),
-            countDownTimer: 10,
+            isRecording: false,
+            // countDownTimer: 10,
         };
 
         this.round = Math.floor(1000 + Math.random() * 9000);
@@ -139,10 +140,10 @@ class TenMeterWalkTest extends Component {
 
     handleStart = () => {
         const { rightDevice, leftDevice } = this.props;
-        if (!rightDevice && !leftDevice) {
-            Alert.alert('Warning!', 'Please Check Your Bluetooth Connect');
-            return;
-        }
+        // if (!rightDevice && !leftDevice) {
+        //     Alert.alert('Warning!', 'Please Check Your Bluetooth Connect');
+        //     return;
+        // }
 
         this.setState({ textAction: 'Recording...' });
 
@@ -186,6 +187,55 @@ class TenMeterWalkTest extends Component {
         }, 10000);
     };
 
+    handleToggleRecording = () => {
+        if (this.state.isRecording) {
+            clearInterval(this.readInterval);
+            this.sendDataToServer();
+            this.setState({ isRecording: false });
+        } else {
+            const { rightDevice, leftDevice } = this.props;
+            if (!rightDevice && !leftDevice) {
+                Alert.alert('Warning!', 'Please check your Bluetooth connection.');
+                return;
+            }
+
+            const start = new Date();
+            this.readInterval = setInterval(() => {
+                const time = new Date();
+                const data = {
+                    stamp: time.getTime(),
+                    timestamp: time,
+                    duration: Math.floor((time - start) / 1000),
+                    left: {
+                        sensor: this.lsensor,
+                        swing: 0,
+                        stance: 0,
+                    },
+                    right: {
+                        sensor: this.rsensor,
+                        swing: 0,
+                        stance: 0,
+                    },
+                    id_customer: this.props.user.id_customer,
+                };
+
+                RNFS.appendFile(
+                    `${RNFS.CachesDirectoryPath}/suratechM/${start.getFullYear()}${start.getMonth()}${start.getDate()}${this.round}`,
+                    JSON.stringify(data) + ',',
+                ).catch(() => {
+                    RNFS.mkdir(`${RNFS.CachesDirectoryPath}/suratechM/`).then(() => {
+                        RNFS.appendFile(
+                            `${RNFS.CachesDirectoryPath}/suratechM/${start.getFullYear()}${start.getMonth()}${start.getDate()}${this.round}`,
+                            JSON.stringify(data) + ',',
+                        );
+                    });
+                });
+            }, 100);
+
+            this.setState({ isRecording: true }); // Update the state to reflect recording has started
+        }
+    };
+
     render() {
 
         return (
@@ -214,12 +264,19 @@ class TenMeterWalkTest extends Component {
                     <Text style={styles.description}>{getLocalizedText(this.props.lang, langAssessment.walkStraight)}</Text>
                 </View>
 
-                <TouchableOpacity
-                    style={styles.button}
-                    onPress={this.handleStart}
-                    disabled={this.state.textAction !== getLocalizedText(this.props.lang, langAssessment.startText)}>
-                    <Text style={styles.buttonText}>{this.state.textAction}</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            styles.button,
+                            this.state.isRecording && { backgroundColor: '#D02222' }
+                        ]}
+                        onPress={this.handleToggleRecording}
+                    >
+                        <Text style={styles.buttonText}>
+                            {this.state.isRecording
+                                ? getLocalizedText(this.props.lang, langAssessment.stopText)
+                                : getLocalizedText(this.props.lang, langAssessment.startText)}
+                        </Text>
+                    </TouchableOpacity>
                 </ScrollView>
             </View>
         );

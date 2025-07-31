@@ -78,6 +78,12 @@ const startText = {
     japanese: '開始'
 };
 
+const stopText = {
+    eng: 'Stop',
+    thai: 'หยุด',
+    japanese: '停止'
+};
+
 const finish = {
     eng: 'finish',
     thai: 'เสร็จสิ้น',
@@ -138,6 +144,7 @@ export default {
     balanceInstructionOpen,
     balanceInstructionClosed,
     startText,
+    stopText,
     finish,
     testComplete,
     walking,

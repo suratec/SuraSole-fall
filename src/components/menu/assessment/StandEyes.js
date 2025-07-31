@@ -83,7 +83,7 @@ class StandEyes extends Component {
             {key: 1, title: 'Dynamic'},
             {key: 2, title: 'Static'},
         ],
-        countDownTimer: 10,
+        countDownTimer: 20,
         isCalibrated: false,
         leftLegCalibrated: false,
         rightLegCalibrated: false,
@@ -493,7 +493,7 @@ class StandEyes extends Component {
             ]);
             return;
         }
-        // console.log('TESTING MODE: Bluetooth check disabled');
+        // console.log('DEBUGGING TESTING MODE: Bluetooth check disabled');
         if (this.state.textAction == 'Record') {
             this.setState({textAction: 'Stop'});
             this.props.actionRecordingButton('Stop');
@@ -507,7 +507,7 @@ class StandEyes extends Component {
                 if (this.state.countDownTimer >= 1) {
                     var timer2 = setInterval(() => {
                         var time = new Date();
-                        if (Math.floor((time - start) / 1000) < 11) {
+                        if (Math.floor((time - start) / 1000) < 21) {
                             var data = {
                                 stamp: time.getTime(),
                                 timestamp: time,
@@ -560,7 +560,7 @@ class StandEyes extends Component {
             }, 1000);
 
             setTimeout(() => {
-                this.setState({textAction: 'Record', countDownTimer: 10});
+                this.setState({textAction: 'Record', countDownTimer: 20});
                 this.props.actionRecordingButton('Record');
                 this.sendDataToSetverCalibration(
                     this.props.type == 'open' ? 'SOE' : 'SCE',
@@ -569,7 +569,7 @@ class StandEyes extends Component {
                 clearInterval(timer);
                 // clearInterval(this.readInterval);
                 this.handleNavigationAfterTest()
-            }, 11000);
+            }, 21000);
         } else {
             this.setState({textAction: 'Record'});
             this.props.actionRecordingButton('Record');
