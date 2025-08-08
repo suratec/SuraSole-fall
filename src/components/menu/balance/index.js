@@ -1432,7 +1432,7 @@ const styles = StyleSheet.create({
   mainContentContainer: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 10,
     paddingBottom: 20,
     justifyContent: 'flex-start'
   },
@@ -1444,7 +1444,6 @@ const styles = StyleSheet.create({
     flex: 0.55,
   },
 
-  // Balance grade styles - Positioned Much Lower & Smaller Size
   balanceGradeContainer: {
     marginVertical: 5, // Reduced spacing
     paddingHorizontal: 10, // Reduced width

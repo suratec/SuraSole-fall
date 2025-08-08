@@ -60,13 +60,13 @@ const goodBalance = {
 
 const mediumBalance = {
     thai: 'การทรงตัวมีปัญหา ให้ปรับการทรงตัว',
-    eng: 'Balance has problem plase adjust',
+    eng: 'Balance has problem, please adjust',
     japanese: 'バランスに問題があります。調整してください'
 }
 
 const badBalance = {
     thai: 'สูญเสียการทรงตัว ระวังล้ม!',
-    eng: 'Lost balance beware failing!',
+    eng: 'Lost balance, beware failing!',
     japanese: 'バランスを失いました。転倒注意！'
 }
 
