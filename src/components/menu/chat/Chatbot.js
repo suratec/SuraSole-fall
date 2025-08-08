@@ -24,6 +24,10 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
     const [isRecording, setIsRecording] = useState(false);
     const [inputDisabled, setInputDisabled] = useState(false);
 
+    // ✅ New state for audio playback control
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentPlayingMessageId, setCurrentPlayingMessageId] = useState(null);
+
     // New state for chat history
     const [chatHistory, setChatHistory] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -48,9 +52,17 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         scrollRef.current?.scrollToEnd({ animated: true });
     };
 
+    // ✅ Updated addMessage to include unique IDs
     const addMessage = (type, text, audio = null) => {
         setMessages(prev => {
-            const updated = [...prev, { type, text, audio, timestamp: new Date().toISOString() }];
+            const messageId = `${Date.now()}-${Math.random()}`;
+            const updated = [...prev, {
+                id: messageId,
+                type,
+                text,
+                audio,
+                timestamp: new Date().toISOString()
+            }];
             setTimeout(scrollToEnd, 100);
             return updated;
         });
@@ -140,7 +152,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         }
     };
 
-    // NEW FUNCTION: Convert API history format to our message format
+    // ✅ Updated convertHistoryToMessages to include unique IDs
     const convertHistoryToMessages = (historyData) => {
         const messages = [];
 
@@ -152,6 +164,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         sortedHistory.forEach(item => {
             // Add user message
             messages.push({
+                id: `history-${item.id}-user`,
                 type: 'user',
                 text: item.message,
                 timestamp: item.created_at,
@@ -160,6 +173,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
 
             // Add bot response
             messages.push({
+                id: `history-${item.id}-bot`,
                 type: 'bot',
                 text: item.response,
                 audio: item.is_voice === 1 ? item.voice_url : null,
@@ -311,7 +325,15 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         }
     };
 
-    const playAudio = (url) => {
+    // ✅ Updated playAudio function with stop functionality
+    const playAudio = (url, messageId) => {
+        // If already playing this audio, stop it
+        if (isPlaying && currentPlayingMessageId === messageId) {
+            stopAudio();
+            return;
+        }
+
+        // Stop any currently playing audio
         if (soundRef.current) {
             soundRef.current.stop(() => {
                 soundRef.current.release();
@@ -319,19 +341,42 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
             });
         }
 
+        setIsPlaying(true);
+        setCurrentPlayingMessageId(messageId);
+
         const sound = new Sound(url, null, (error) => {
             if (error) {
                 console.log('Sound load error:', error);
+                setIsPlaying(false);
+                setCurrentPlayingMessageId(null);
+                Toast.show('Failed to load audio');
                 return;
             }
+
             soundRef.current = sound;
             sound.play(success => {
                 if (!success) {
                     Toast.show('Playback failed');
                 }
+                // Audio finished playing
+                setIsPlaying(false);
+                setCurrentPlayingMessageId(null);
                 sound.release();
+                soundRef.current = null;
             });
         });
+    };
+
+    // ✅ New function to stop audio playback
+    const stopAudio = () => {
+        if (soundRef.current) {
+            soundRef.current.stop(() => {
+                soundRef.current.release();
+                soundRef.current = null;
+            });
+        }
+        setIsPlaying(false);
+        setCurrentPlayingMessageId(null);
     };
 
     // NEW FUNCTION: Format timestamp for display (always show time only)
@@ -350,14 +395,10 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         }
     };
 
+    // ✅ Updated cleanup effect
     useEffect(() => {
         return () => {
-            if (soundRef.current) {
-                soundRef.current.stop(() => {
-                    soundRef.current.release();
-                    soundRef.current = null;
-                });
-            }
+            stopAudio(); // Clean up on unmount
         };
     }, []);
 
@@ -370,6 +411,8 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                 onpress_left={() => navigation.goBack()}
                 title={getLocalizedText(lang, langChatbot.title)}
             />
+
+            {/* ✅ Removed global stop button */}
 
             <ScrollView
                 ref={scrollRef}
@@ -410,8 +453,10 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                         new Date(msg.timestamp).toDateString() !==
                         new Date(allMessages[index - 1].timestamp).toDateString();
 
+                    const isCurrentlyPlaying = isPlaying && currentPlayingMessageId === msg.id;
+
                     return (
-                        <View key={msg.historyId ? `history-${msg.historyId}-${msg.type}` : `current-${index}`}>
+                        <View key={msg.id}>
                             {/* Date separator */}
                             {isNewDay && (
                                 <View style={styles.dateSeparator}>
@@ -431,23 +476,35 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                                 style={[
                                     styles.messageBubble,
                                     msg.type === 'user' ? styles.userBubble : styles.botBubble,
+                                    // ✅ Removed red border style
                                 ]}
                             >
                                 <Text style={msg.type === 'user' ? styles.userText : styles.botText}>
                                     {msg.text}
                                 </Text>
 
-                                {/* Audio button for bot messages */}
+                                {/* ✅ Updated audio button with better stop icon */}
                                 {msg.type === 'bot' && msg.audio && (
                                     <TouchableOpacity
-                                        style={styles.volumeIcon}
-                                        onPress={() => playAudio(msg.audio)}
+                                        style={[
+                                            styles.volumeIcon,
+                                            isCurrentlyPlaying && styles.playingIcon
+                                        ]}
+                                        onPress={() => playAudio(msg.audio, msg.id)}
                                     >
-                                        <Image
-                                            source={require('../../../assets/image/Chat/mediumVolume.png')}
-                                            style={{ width: 18, height: 18, tintColor: '#fff' }}
-                                            resizeMode="contain"
-                                        />
+                                        {isCurrentlyPlaying ? (
+                                            // ✅ Better stop icon - using pause symbol
+                                            <View style={styles.pauseIcon}>
+                                                <View style={styles.pauseBar} />
+                                                <View style={styles.pauseBar} />
+                                            </View>
+                                        ) : (
+                                            <Image
+                                                source={require('../../../assets/image/Chat/mediumVolume.png')}
+                                                style={{ width: 18, height: 18, tintColor: '#fff' }}
+                                                resizeMode="contain"
+                                            />
+                                        )}
                                     </TouchableOpacity>
                                 )}
 
@@ -501,6 +558,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
     );
 }
 
+// ✅ Updated styles - removed global stop and red border, added better pause icon
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#E6FCFB' },
     chatContainer: {
@@ -511,6 +569,27 @@ const styles = StyleSheet.create({
         borderColor: '#00A499',
         borderRadius: 12,
         backgroundColor: '#FFFFFF',
+    },
+    // ✅ Removed globalStopContainer, globalStopButton, globalStopIcon, globalStopText, playingBubble
+    playingIcon: {
+        backgroundColor: '#4CAF50', // ✅ Changed to green background when playing
+        borderRadius: 12,
+        padding: 4,
+    },
+    // ✅ Better pause icon using two bars
+    pauseIcon: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 18,
+        height: 18,
+    },
+    pauseBar: {
+        width: 3,
+        height: 12,
+        backgroundColor: '#fff',
+        marginHorizontal: 1.5,
+        borderRadius: 1,
     },
     messageBubble: {
         maxWidth: '85%',
