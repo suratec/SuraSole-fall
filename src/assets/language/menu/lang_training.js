@@ -327,7 +327,7 @@ const exercises = {
             thai: 'ท่าก้มข้างขณะนั่ง',
             japanese: 'シーテッドサイドベンド',
         },
-        "Seated Forward Roll-Ups": {
+        "Seated Forward Roll-ups": {
             eng: 'Seated Forward Roll-Ups',
             thai: 'ท่ารอบตัวขณะนั่ง',
             japanese: 'シーテッドフォワードロールアップ',

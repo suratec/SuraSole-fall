@@ -298,6 +298,63 @@ class index extends Component {
     };
   };
 
+    // UPDATED: handleFetchDashboardData function with server time extraction
+    handleFetchDashboardData = async () => {
+        const { id_customer } = this.props.user;
+        try {
+            const response = await fetch(
+                `${API}/member/get_user_details?id=${id_customer}`,
+                { method: 'POST' },
+            );
+            const res = await response.json();
+
+            console.log('res', res);
+
+            if (res.message === 'User Details Successfully') {
+                const user_details = res.user_details;
+
+                // ✅ EXTRACT SERVER TIME FROM WORKING API
+                if (user_details && user_details.created_at) {
+                    const serverDateTime = moment(user_details.created_at).format('DD/MM/YYYY HH:mm:ss');
+                    console.log('🕐 ✅ Server time extracted from get_user_details:', serverDateTime);
+                    this.setState({ currentDateTime: serverDateTime });
+                } else {
+                    console.warn('🚨 No server time in user_details, using local time');
+                    this.setState({ currentDateTime: moment().format('DD/MM/YYYY HH:mm:ss') });
+                }
+
+                // Original data processing
+                const xPos = JSON.parse(user_details.cop_x);
+                const yPos = JSON.parse(user_details.cop_y);
+                const positionValue = xPos.map((x, index) => ({
+                    x_key: x,
+                    y_key: yPos[index],
+                }));
+
+                this.setState({
+                    healthData: user_details,
+                    positionValue,
+                    isLoading: false,
+                    dataShow: false
+                });
+            } else {
+                this.setState({
+                    dataShow: true,
+                    isLoading: false,
+                    currentDateTime: moment().format('DD/MM/YYYY HH:mm:ss') // Fallback to local time
+                });
+            }
+        } catch (error) {
+            console.error(error);
+            this.setState({
+                isLoading: false,
+                dataShow: true,
+                currentDateTime: moment().format('DD/MM/YYYY HH:mm:ss') // Fallback to local time
+            });
+        }
+    };
+
+// SIMPLIFIED: componentDidMount (remove the failing /record call)
     componentDidMount = () => {
         NetInfo.addEventListener(this.handleConnectivityChange);
 
@@ -307,99 +364,11 @@ class index extends Component {
         console.log('🧾 Logged-in/Impersonated user details:', user);
         console.log('🔐 Using token:', token);
 
-        // Call dashboard APIs
         this.handleFetchDashboardData();
         this.fetchDashboardSummary();
         this.fetchDashboardReport();
 
-        console.log('📤 Sending /record for user:', id_customer);
-
-        fetch(`${API}/record`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-                customer: id_customer,
-            }),
-        })
-            .then(response => response.json())
-            .then(res => {
-                console.log('📦 Parsed /record response:', res);
-
-                // Guard: Check if response is an array
-                if (!Array.isArray(res)) {
-                    console.warn('🚫 Expected array from /record, got:', res);
-                    return;
-                }
-
-                let dataSpecified = [];
-                res.forEach(e => {
-                    let date = new Date(e.action.replace(' ', 'T'));
-                    console.log('📅 Timestamp parsed:', date);
-
-                    let { max, index } = this.findPeak([...e.left, ...e.right]);
-                    dataSpecified.push({
-                        dateTime: `${date.getHours().toString().padStart(2, '0')}:${date
-                            .getMinutes()
-                            .toString()
-                            .padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`,
-                        valueZone: index,
-                        valuePeak: max,
-                    });
-                });
-
-                let result = this.findDataResult(res);
-                let dataResult = [
-                    { nameZone: 'Toe', valueWalk: result.value[0], valueRun: result.max[0] },
-                    { nameZone: 'Medial Metatarsal', valueWalk: result.value[1], valueRun: result.max[1] },
-                    { nameZone: 'Lateral Metatarsal', valueWalk: result.value[2], valueRun: result.max[2] },
-                    { nameZone: 'Medial Midfoot', valueWalk: result.value[3], valueRun: result.max[3] },
-                    { nameZone: 'Heel', valueWalk: result.value[4], valueRun: result.max[4] },
-                ];
-
-                this.setState({ record: res, dataSpecified, dataResult });
-            })
-            .catch(err => {
-                console.error('❌ Error fetching /record data:', err);
-            });
     };
-
-  handleFetchDashboardData = async () => {
-    const { id_customer } = this.props.user;
-    try {
-      const response = await fetch(
-          `${API}/member/get_user_details?id=${id_customer}`,
-          { method: 'POST' },
-      );
-      const res = await response.json();
-
-      console.log('res', res);
-
-      if (res.message === 'User Details Successfully') {
-        const user_details = res.user_details;
-        const xPos = JSON.parse(user_details.cop_x);
-        const yPos = JSON.parse(user_details.cop_y);
-        const positionValue = xPos.map((x, index) => ({
-          x_key: x,
-          y_key: yPos[index],
-        }));
-
-        this.setState({
-          healthData: user_details,
-          positionValue,
-          isLoading: false,
-          dataShow: false
-        });
-      } else {
-        this.setState({ dataShow: true, isLoading: false });
-      }
-    } catch (error) {
-      console.error(error);
-      this.setState({ isLoading: false, dataShow: true });
-    }
-  };
 
     fetchDashboardReport = async () => {
         const { id_customer, security_token } = this.props.user;
@@ -436,11 +405,7 @@ class index extends Component {
             if (res.data_dashboard && res.data_dashboard.created_at) {
                 const createdAt = res.data_dashboard.created_at;
 
-                // Choose your preferred format:
                 const formattedDateTime = moment(createdAt).format('DD/MM/YYYY HH:mm:ss');
-                // Alternative formats:
-                // const formattedDateTime = moment(createdAt).format('MMM DD, YYYY • HH:mm:ss');
-                // const formattedDateTime = moment(createdAt).format('MMMM Do YYYY, h:mm:ss A');
 
                 console.log('🕐 Extracted date-time from created_at:', formattedDateTime);
                 this.setState({ currentDateTime: formattedDateTime });
@@ -519,18 +484,11 @@ class index extends Component {
     // );
   };
 
-  handleGetColorCode = val => {
-    let colorCode = '';
-
-    if (val < 240) {
-      colorCode = '#39bc50';
-    } else if (val < 355 || val > 240) {
-      colorCode = '#ffa202';
-    } else if (val > 355 || val < 600) {
-      colorCode = '#fe0d02';
-    }
-    return colorCode;
-  };
+    handleGetColorCode = val => {
+        return val < 240 ? '#39bc50' :     // Green: < 240
+            val <= 355 ? '#ffa202' :    // Yellow: 240-355
+                '#fe0d02';                  // Red: > 355
+    };
 
   render() {
 
