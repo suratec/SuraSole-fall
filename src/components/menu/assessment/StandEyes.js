@@ -26,6 +26,8 @@ import UI from '../../../config/styles/CommonStyles';
 
 import langAssessment from '../../../assets/language/menu/lang_assessmentTests';
 import {getLocalizedText} from '../../../assets/language/langUtils';
+import ButtonFix from "../../common/ButtonFix";
+import Lang_pressuremap from "../../../assets/language/menu/lang_pressuremap";
 
 var RNFS = require('react-native-fs');
 
@@ -979,6 +981,20 @@ class StandEyes extends Component {
         }
     };
 
+    getButtonDisabled = () => {
+        return this.state.textAction !== 'Record';
+    };
+
+    getButtonAction = () => {
+        return this.state.textAction === 'Record';
+    };
+
+    getButtonTitle = () => {
+        return this.state.textAction === 'Record'
+            ? getLocalizedText(this.props.lang, langAssessment.startText)
+            : getLocalizedText(this.props.lang, langAssessment.stopText);
+    };
+
     render() {
         this.canVibration(this.state.shouldVibrate, this.state.switch);
 
@@ -1029,29 +1045,25 @@ class StandEyes extends Component {
                         {this.getBalanceInstruction()}
                     </Text>
 
-                    <View style={{justifyContent: 'center', alignItems: 'center'}}>
-                        <TouchableOpacity
-                            style={{
-                                marginHorizontal: 10,
-                                paddingHorizontal: 20,
-                                paddingVertical: 10,
-                                width: '60%',
-                                backgroundColor:
-                                    this.state.textAction != 'Record' ? '#ccc' : '#00A2A2',
-                                borderRadius: 20,
-                                marginVertical: 40,
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                            }}
-                            disabled={this.state.textAction != 'Record'}
-                            onPress={() => this.actionRecordingFor10()}>
-                            <Text style={{fontSize: 18, color: '#fff'}}>
-                                {this.state.textAction == 'Record'
-                                    ? this.getLocalizedText(langAssessment.startText)
-                                    : 'Stop'
-                                }
-                            </Text>
-                        </TouchableOpacity>
+                    <View style={{ padding: 15, alignItems: 'center' }}>
+                        {this.getButtonDisabled() ? (
+                            // Disabled button - custom gray styling
+                            <View style={styles.disabledButtonContainer}>
+                                <View style={styles.disabledButton}>
+                                    <Text style={styles.disabledButtonText}>
+                                        {this.getButtonTitle()}
+                                    </Text>
+                                </View>
+                            </View>
+                        ) : (
+                            // Active button - normal ButtonFix
+                            <ButtonFix
+                                action={true}
+                                rounded={true}
+                                title={this.getButtonTitle()}
+                                onPress={() => this.actionRecordingFor10()}
+                            />
+                        )}
                     </View>
                 </View>
             </View>
@@ -1088,6 +1100,24 @@ const styles = StyleSheet.create({
         top: '10%',
         right: 10,
         color: '#ff0000',
+    },
+    disabledButtonContainer: {
+        padding: 10,
+    },
+    disabledButton: {
+        backgroundColor: '#cccccc',
+        borderRadius: 25,
+        width: 'auto',
+        minWidth: 150,
+        height: 50,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    disabledButtonText: {
+        textAlign: 'center',
+        color: '#666666',
+        fontSize: 16,
+        fontWeight: 'normal',
     },
 });
 

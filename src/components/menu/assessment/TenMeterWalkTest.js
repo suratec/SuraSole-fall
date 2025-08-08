@@ -192,6 +192,10 @@ class TenMeterWalkTest extends Component {
             clearInterval(this.readInterval);
             this.sendDataToServer();
             this.setState({ isRecording: false });
+
+            setTimeout(() => {
+                this.props.navigation.replace('Home');
+            }, 500);
         } else {
             const { rightDevice, leftDevice } = this.props;
             if (!rightDevice && !leftDevice) {
@@ -287,21 +291,21 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#FFF' },
     content: {
         alignItems: 'center',
-        marginTop: 50,
+        // marginTop: 50,
     },
     image: {
         width: '100%',
-        height: 300,
+        height: 500,
         resizeMode: 'contain',
     },
     title: {
-        fontSize: 20,
+        fontSize: 30,
         fontWeight: '700',
         color: '#00A2A2',
-        marginTop: 20,
+        // marginTop: 20,
     },
     description: {
-        fontSize: 16,
+        fontSize: 20,
         color: '#00A2A2',
         marginTop: 10,
     },

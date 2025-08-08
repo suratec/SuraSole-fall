@@ -30,7 +30,7 @@ const assessFallSeverity = {
     japanese: '転倒の重症度を評価する :'
 }
 const injury = { eng: 'Injury', thai: 'การบาดเจ็บ', japanese: '怪我' };
-const fallLastYear = { eng: '≥ 2 fall last year', thai: '≥ 2 ครั้งในปีที่แล้ว', japanese: '昨年の転倒 ≥ 2 回' };
+const fallLastYear = { eng: '≥ 2 falls last year', thai: '≥ 2 ครั้งในปีที่แล้ว', japanese: '昨年の転倒 ≥ 2 回' };
 const frailty = { eng: 'Frailty', thai: 'ความอ่อนแอ', japanese: '虚弱' };
 const lyingOnFloor = { eng: 'Lying on the floor/\nunable to get up', thai: 'นอนบนพื้น/\nไม่สามารถลุกขึ้นได้', japanese: '床に横たわる/\n起き上がれない' };
 const lossOfConsciousness = { eng: 'Loss of consciousness/suspected syncope', thai: 'หมดสติ/อาจเป็นลม', japanese: '意識喪失/疑似失神' };
@@ -49,9 +49,9 @@ const standEyesClosed = {
 };
 
 const standText = {
-    eng: 'Stand upright for 10 seconds.',
-    thai: 'ยืนตรง 10 วินาที',
-    japanese: 'まっすぐ立って10秒'
+    eng: 'Stand upright for 20 seconds.',
+    thai: 'ยืนตรง 20 วินาที',
+    japanese: 'まっすぐ立って20秒'
 };
 
 const noteText = {
