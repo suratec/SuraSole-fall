@@ -478,7 +478,7 @@ class StandEyes extends Component {
         }
     };
 
-    actionRecordingFor10 = async () => {
+    actionRecordingFor20 = async () => {
         if (
             typeof this.props.rightDevice === 'undefined' &&
             typeof this.props.leftDevice === 'undefined'
@@ -1003,7 +1003,7 @@ class StandEyes extends Component {
                 <HeaderFix
                     icon_left={'left'}
                     onpress_left={() => {
-                        this.props.navigation.goBack();
+                        this.props.navigation.navigate('Home');
                     }}
                     title={this.getLocalizedTitle()}
                 />
@@ -1061,7 +1061,7 @@ class StandEyes extends Component {
                                 action={true}
                                 rounded={true}
                                 title={this.getButtonTitle()}
-                                onPress={() => this.actionRecordingFor10()}
+                                onPress={() => this.actionRecordingFor20()}
                             />
                         )}
                     </View>

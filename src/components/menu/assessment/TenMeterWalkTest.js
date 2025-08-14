@@ -202,6 +202,7 @@ class TenMeterWalkTest extends Component {
                 Alert.alert('Warning!', 'Please check your Bluetooth connection.');
                 return;
             }
+            // console.log('DEBUGGING TESTING MODE: Bluetooth check disabled');
 
             const start = new Date();
             this.readInterval = setInterval(() => {
@@ -246,7 +247,7 @@ class TenMeterWalkTest extends Component {
             <View style={styles.container}>
                 <HeaderFix
                     icon_left="left"
-                    onpress_left={() => this.props.navigation.goBack()}
+                    onpress_left={() => this.props.navigation.navigate('Home')}
                     title={getLocalizedText(this.props.lang, langAssessment.tenMeterWalkTest)}
                     rightText={getLocalizedText(this.props.lang, langAssessment.finish)}
                     onpress_right={() => Alert.alert(getLocalizedText(this.props.lang, langAssessment.testComplete))}
