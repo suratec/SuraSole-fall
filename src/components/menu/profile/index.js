@@ -10,32 +10,25 @@ import {
   Platform,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {connect} from 'react-redux';
 
 import HeaderFix from '../../common/HeaderFix';
 import AlertFix from '../../common/AlertsFix';
 import CardProfile from '../profile/card_profile';
+import NotesPage from './notes';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '../../../config/Api';
 
 import UI from '../../../config/styles/CommonStyles';
 
 import Lang from '../../../assets/language/menu/lang_profile';
-import LanguagePickerFix from '../../common/LanguagePickerFix';
-import {getLocalizedText} from '../../../assets/language/langUtils';
 import LangModal from './lang_model';
-import NotesPage from './notes';
-import * as ImagePicker from 'react-native-image-picker';
+import LangAlert from '../../../assets/language/alert/lang_alert';
 
-const options = {
-  title: 'Select Picture',
-  quality: 0.4,
-  storageOptions: {
-    skipBackup: true,
-    path: 'images',
-  },
-};
+import ImagePicker from 'react-native-image-crop-picker';
+// import FabChatbot from '../../common/FabChatbot';
 
 const screenWidth = Math.round(Dimensions.get('window').width) * 0.35;
 
@@ -54,37 +47,194 @@ class index extends Component {
     img_path: '',
     onModal: false,
     loading: false,
+    id_facebook: '',
+    newProfileImage: null, // for holding selected image before upload
     showNotes: false,
+    hasUnsavedChanges: false,
+    originalData: {}, // Store original data for comparison
   };
 
-  handleOpenNotes = () => {
-    this.setState({ showNotes: true });
+  componentDidMount = async () => {
+    let user = this.props.user;
+    const userData = {
+      id: user.role === 'mod_employee' ? user.id_employee : user.id_customer,
+      fname: user.fname?.toString() || '',
+      lname: user.lname?.toString() || '',
+      email: user.email || '',
+      sex: user.sex === null ? 0 : parseInt(user.sex),
+      heigth: user.height == null ? '0' : user.height.toString(),
+      weigth: user.weight == null ? '0' : user.weight.toString(),
+      age: user.age == null ? '0' : user.age.toString(),
+      tel: user.telephone == null ? '0' : user.telephone.toString(),
+      id_facebook: user.id_facebook == null ? '' : user.id_facebook.toString(),
+      img_path: user.image || (user.role === 'mod_employee' ? 'doctor.png' : 'user.png'),
+    };
+
+    this.setState({
+      ...userData,
+      originalData: { ...userData }, // Store original data
+    });
   };
 
-  handleCloseNotes = () => {
-    this.setState({ showNotes: false });
+
+  // Utility to get localized text
+  getLocalizedText = (textObject) => {
+    const langKey = ['eng', 'thai', 'japanese'][this.props.lang] || 'eng';
+    return textObject[langKey] || textObject.eng || '';
   };
 
-  getImageURI = (img_path) => {
-    if (!img_path) return null;
-    return img_path.startsWith('http')
-        ? img_path
-        : `https://api1.suratec.co.th/pic/${img_path}`;
+  // Check if there are unsaved changes
+  checkUnsavedChanges = () => {
+    const current = {
+      fname: this.state.fname,
+      lname: this.state.lname,
+      weigth: this.state.weigth,
+      heigth: this.state.heigth,
+      age: this.state.age,
+      sex: this.state.sex,
+    };
+
+    const original = this.state.originalData;
+
+    return (
+        current.fname !== original.fname ||
+        current.lname !== original.lname ||
+        current.weigth !== original.weigth ||
+        current.heigth !== original.heigth ||
+        current.age !== original.age ||
+        current.sex !== original.sex ||
+        this.state.newProfileImage !== null
+    );
   };
 
-  // Toggle language selection modal visibility
-  toggleModal = () => {
-    this.setState({ onModal: !this.state.onModal });
+  editprofilePicture = () => {
+    ImagePicker.openPicker({
+      width: 300,
+      height: 300,
+      cropping: true,
+      compressImageQuality: 0.8,
+      mediaType: 'photo',
+    })
+        .then(image => {
+          this.setState({
+            newProfileImage: {
+              uri: image.path,
+              type: image.mime,
+              name: `profile_${Date.now()}.jpg`,
+            },
+            img_path: image.path, // local preview
+            hasUnsavedChanges: true,
+          });
+        })
+        .catch(err => {
+          console.log('Image pick canceled or failed:', err);
+        });
   };
 
-  // Handle language selection
-  actionLang = (selectedLang) => {
-    this.props.edit_Lang(selectedLang);  // Update the language in Redux
-    this.setState({ onModal: false });  // Close the modal after selecting the language
+  validateInputs = () => {
+    const { fname, lname, age, weigth, heigth } = this.state;
+
+    if (!fname.trim() || !lname.trim()) {
+      Alert.alert(
+          this.getLocalizedText(Lang.alertErrorTitle),
+          this.getLocalizedText(Lang.requiredField)
+      );
+      return false;
+    }
+
+    const ageNum = parseInt(age);
+    if (ageNum < 1 || ageNum > 120) {
+      Alert.alert(
+          this.getLocalizedText(Lang.alertErrorTitle),
+          this.getLocalizedText(Lang.invalidAge)
+      );
+      return false;
+    }
+
+    const weightNum = parseInt(weigth);
+    if (weightNum < 1 || weightNum > 500) {
+      Alert.alert(
+          this.getLocalizedText(Lang.alertErrorTitle),
+          this.getLocalizedText(Lang.invalidWeight)
+      );
+      return false;
+    }
+
+    const heightNum = parseInt(heigth);
+    if (heightNum < 50 || heightNum > 300) {
+      Alert.alert(
+          this.getLocalizedText(Lang.alertErrorTitle),
+          this.getLocalizedText(Lang.invalidHeight)
+      );
+      return false;
+    }
+
+    return true;
   };
 
-  actionUpdate = () => {
-    this.setState({loading: true});
+  actionUpdate = async () => {
+    if (!this.validateInputs()) {
+      return;
+    }
+
+    Alert.alert(
+        this.getLocalizedText(Lang.alertWarningTitle),
+        this.getLocalizedText(Lang.confirmUpdate),
+        [
+          {
+            text: this.getLocalizedText(Lang.cancelBtn),
+            style: 'cancel',
+          },
+          {
+            text: this.getLocalizedText(Lang.confirmBtn),
+            onPress: () => this.performUpdate(),
+          },
+        ]
+    );
+  };
+
+  performUpdate = async () => {
+    this.setState({ loading: true });
+
+    // Upload image first if new one selected
+    if (this.state.newProfileImage) {
+      const data = new FormData();
+      data.append('id', this.state.id);
+      data.append('type', this.props.user.role);
+      data.append('image', this.state.newProfileImage);
+
+      try {
+        const res = await fetch(`${API}/profile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'multipart/form-data' },
+          body: data,
+        });
+        const result = await res.json();
+
+        if (result.status === 'สำเร็จ') {
+          const user = { ...this.props.user, image: result.data };
+          this.setState({ img_path: result.data });
+          this.props.updatePath(user);
+        } else {
+          Alert.alert(
+              this.getLocalizedText(Lang.alertErrorTitle),
+              this.getLocalizedText(Lang.imageUploadFailed)
+          );
+          this.setState({ loading: false });
+          return;
+        }
+      } catch (err) {
+        console.error(err);
+        Alert.alert(
+            this.getLocalizedText(Lang.alertErrorTitle),
+            this.getLocalizedText(Lang.networkError)
+        );
+        this.setState({ loading: false });
+        return;
+      }
+    }
+
+    // Update other profile info
     const body = {
       id: this.state.id,
       fname: this.state.fname,
@@ -96,215 +246,115 @@ class index extends Component {
       weight: this.state.weigth,
       telephone: this.state.tel,
       height: this.state.heigth,
-      congenital_disease_flg: '1', // set ไว้รู้จะใส่อะไร
-      congenital_disease: 'ความดัน', // set ไว้รู้จะใส่อะไร
-      emergency_contract: '150 ถ.ศรีธานี', // set ไว้รู้จะใส่อะไร
+      congenital_disease_flg: '1',
+      congenital_disease: 'ความดัน',
+      emergency_contract: '150 ถ.ศรีธานี',
     };
 
-    fetch(`${API}/updata-profile`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
-        .then(res => res.json())
-        .then(res => {
-          this.setState({loading: false});
-          console.log(res);
-
-          if (res.message == 'บันทึกไม่สำเร็จ') {
-            AlertFix.alertBasic(
-                getLocalizedText(this.props.lang, Lang.alertErrorTitle),
-                getLocalizedText(this.props.lang, Lang.cannotEditAlert),
-            );
-          } else {
-            AlertFix.alertBasic(
-                getLocalizedText(this.props.lang, Lang.alertSuccessTitle),
-                getLocalizedText(this.props.lang, Lang.successTitleContentAlert),
-            );
-            let actualUser = res.customer_info;
-            actualUser.role = this.props.user.role;
-            this.props.addUser({user: actualUser, token: this.props.token});
-
-            this.props.navigation.goBack();
-          }
-        })
-        .catch(error => {
-          this.setState({loading: false});
-          console.log(error);
-        });
-  };
-
-  componentDidMount = async () => {
-    let user = this.props.user;
-    console.log(user, 'userfff');
-    this.setState({
-      id:
-          this.props.user.role == 'mod_employee'
-              ? user.id_employee
-              : user.id_customer,
-      fname: user.fname.toString(),
-      lname: user.lname.toString(),
-      email: user.email,
-      sex: user.sex === null ? 0 : parseInt(user.sex),
-      heigth: user.height == null ? '0' : user.height.toString(),
-      weigth: user.weight == null ? '0' : user.weight.toString(),
-      age: user.age == null ? '0' : user.age.toString(),
-      tel: user.telephone == null ? '0' : user.telephone.toString(),
-    });
-
-    let img = this.props.user.image;
-    if (this.props.user.image === '' || this.props.user.image === undefined) {
-      if (this.props.user.role == 'mod_employee') {
-        img = 'doctor.png';
-      } else {
-        img = 'user.png';
-      }
-    } else {
-      img = this.props.user.image;
-    }
-    this.setState({img_path: img});
-  };
-
-  editprofilePicture = () => {
-    this.setState({loading: true});
-    console.log('Edit Profile Picture Called');
-
-    ImagePicker.launchImageLibrary(options, async (response) => {
-      console.log('Image Picker Response:', response);
-
-      if (!response || response.didCancel) {
-        console.log('User cancelled image selection');
-        this.setState({loading: false});
-        return;
-      }
-
-      if (response.errorCode) {
-        console.log('Image Picker Error:', response.errorMessage);
-        this.setState({loading: false});
-        return;
-      }
-
-      const image = response.assets?.[0];
-      if (!image) {
-        console.log('No image asset found in response');
-        this.setState({loading: false});
-        return;
-      }
-
-      const { uri, fileName, type } = image;
-
-      const data = new FormData();
-      data.append('id', this.state.id);
-      data.append('type', this.props.user.role);
-      data.append('image', {
-        uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
-        name: fileName,
-        type: type,
+    try {
+      const res = await fetch(`${API}/updata-profile`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
       });
 
-      // Log form data
-      console.log('Uploading image with data:');
-      console.log('ID:', this.state.id);
-      console.log('TYPE:', this.props.user.role);
-      console.log('FILE:', { uri, name: fileName, type });
+      const result = await res.json();
+      this.setState({ loading: false });
 
-      try {
-        const res = await fetch(`${API}/profile`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          body: data,
-        });
-
-        const json = await res.json();
-        console.log('Upload Response:', json);
-
-        if (json.status === 'สำเร็จ') {
-          let updatedUser = { ...this.props.user, image: json.data };
-          this.setState({ img_path: json.data });
-          this.props.updatePath(updatedUser);
-          AlertFix.alertBasic(
-              getLocalizedText(this.props.lang, Lang.alertSuccessTitle),
-              getLocalizedText(this.props.lang, Lang.successTitleContentAlert)
-          );
-        } else {
-          AlertFix.alertBasic(
-              getLocalizedText(this.props.lang, Lang.alertErrorTitle),
-              getLocalizedText(this.props.lang, Lang.cannotEditAlert)
-          );
-        }
-      } catch (err) {
-        console.log('Upload Error:', err);
-        AlertFix.alertBasic(
-            getLocalizedText(this.props.lang, Lang.alertErrorTitle),
-            getLocalizedText(this.props.lang, Lang.cannotEditAlert)
+      if (result.message === 'บันทึกไม่สำเร็จ') {
+        Alert.alert(
+            this.getLocalizedText(Lang.alertErrorTitle),
+            this.getLocalizedText(Lang.profileUpdateFailed)
         );
-      } finally {
-        this.setState({ loading: false });
+      } else {
+        Alert.alert(
+            this.getLocalizedText(Lang.alertSuccessTitle),
+            this.getLocalizedText(Lang.profileUpdateSuccess),
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  const updatedUser = result.customer_info;
+                  updatedUser.role = this.props.user.role;
+                  this.props.addUser({ user: updatedUser, token: this.props.token });
+
+                  // Update original data to reset unsaved changes flag
+                  const newOriginalData = {
+                    fname: this.state.fname,
+                    lname: this.state.lname,
+                    weigth: this.state.weigth,
+                    heigth: this.state.heigth,
+                    age: this.state.age,
+                    sex: this.state.sex,
+                  };
+                  this.setState({
+                    originalData: newOriginalData,
+                    newProfileImage: null,
+                    hasUnsavedChanges: false,
+                  });
+
+                  this.props.navigation.goBack();
+                },
+              },
+            ]
+        );
       }
+    } catch (error) {
+      this.setState({ loading: false });
+      console.log(error);
+      Alert.alert(
+          this.getLocalizedText(Lang.alertErrorTitle),
+          this.getLocalizedText(Lang.networkError)
+      );
+    }
+  };
+
+  validateNumber(key, value) {
+    let parsed = parseInt(value);
+    this.setState({
+      [key]: value === '' ? '' : isNaN(parsed) ? '0' : parsed.toString(),
+      hasUnsavedChanges: true,
+    });
+  }
+
+  handleInputChange = (key, value) => {
+    this.setState({
+      [key]: value,
+      hasUnsavedChanges: true,
     });
   };
 
+  actionLang = () => {
+    // Cycle language: 0 (English) -> 1 (Thai) -> 2 (Japanese) -> 0
+    const newLang = (this.props.lang + 1) % 3;
+    this.props.edit_Lang(newLang);
+    AsyncStorage.setItem('lang', JSON.stringify(newLang));
+    this.setState({ onModal: false });
+  };
 
-  validateNumber(key, value) {
-    var temp = value;
-    var value = parseInt(value);
-    var data = {};
-    console.log(value);
-    if (temp == '') {
-      console.log('temp');
-      data[key] = temp;
-      this.setState(data);
-    } else if (!isNaN(value)) {
-      console.log('not NaN');
-      data[key] = value.toString();
-      this.setState(data);
-    } else if (isNaN(value)) {
-      console.log('isNaN');
-      data[key] = (0).toString();
-      this.setState(data);
-    }
-  }
+  handleOpenNotes = () => {
+    this.setState({ showNotes: true });
+  };
 
-  validateNumber(key, value) {
-    var temp = value;
-    var value = parseInt(value);
-    var data = {};
-    console.log(value);
-    if (temp == '') {
-      console.log('temp');
-      data[key] = temp;
-      this.setState(data);
-    } else if (!isNaN(value)) {
-      console.log('not NaN');
-      data[key] = value.toString();
-      this.setState(data);
-    } else if (isNaN(value)) {
-      console.log('isNaN');
-      data[key] = (0).toString();
-      this.setState(data);
-    }
-  }
+  handleCloseNotes = () => {
+    this.setState({ showNotes: false });
+  };
 
   render() {
+    const {img_path, loading, showNotes} = this.state;
 
-    const {img_path, loading, showNotes} = this.state;  // Add showNotes here
-    console.log('props.user.image:', this.props.user.image);
-    console.log('state.img_path:', this.state.img_path);
-
-    // Add this entire block
     if (showNotes) {
+      // user_id: prefer id_customer, fallback to id
       const userId = this.props.user?.id_customer || this.props.user?.id;
       return (
           <View style={{ flex: 1, backgroundColor: '#fff' }}>
             <HeaderFix
                 icon_left={'left'}
                 onpress_left={this.handleCloseNotes}
-                title={getLocalizedText(this.props.lang, { eng: 'Medical Records', thai: 'บันทึกทางการแพทย์', japanese: '医療記録' })}
+                title={this.getLocalizedText(Lang.notesBtn)}
             />
             <NotesPage navigation={this.props.navigation} userId={userId} />
           </View>
@@ -312,29 +362,38 @@ class index extends Component {
     }
 
     return (
-        <ScrollView style={{flex: 1}}>
-          <HeaderFix
-              icon_left={'left'}
-              onpress_left={() => {
-                this.props.navigation.goBack();
-              }}
-              title={getLocalizedText(this.props.lang, Lang.editProfile)}
-              // icon_rigth={'ellipsis-v'}
-              // iconType={'FontAwesome5'}
-              // onpress_rigth={() => {
-              //   this.setState({onModal: true});
-              // }}
-          />
+        <View style={{flex: 1, backgroundColor: '#fff'}}>
+          <ScrollView style={{flex: 1}}>
+            <HeaderFix
+                icon_left={'left'}
+                onpress_left={() => {
+                  if (this.checkUnsavedChanges()) {
+                    Alert.alert(
+                        this.getLocalizedText(Lang.alertWarningTitle),
+                        this.getLocalizedText(Lang.unsavedChanges),
+                        [
+                          {
+                            text: this.getLocalizedText(Lang.cancelBtn),
+                            style: 'cancel',
+                          },
+                          {
+                            text: this.getLocalizedText(Lang.confirmBtn),
+                            onPress: () => {
+                              this.props.navigation.navigate('Home');
+                            },
+                          },
+                        ]
+                    );
+                  } else {
+                    this.props.navigation.navigate('Home');
+                  }
+                }}
+                title={this.getLocalizedText(Lang.editProfileTitle)}
+            />
 
-          <View>
-            {/* {loading &&
-                     <View style={{position:'absolute', flex:1, flexDirection:'row', justifyContent:'center', top:'45%', left:'45%', zIndex:999}}>
-                        <ActivityIndicator size="large" />
-                    </View>
-                  } */}
             <TouchableOpacity
                 style={{alignItems: 'center', paddingTop: 16}}
-                onPress={() => this.editprofilePicture()}>
+                onPress={this.editprofilePicture}>
               <View style={{width: screenWidth, height: screenWidth, padding: 5}}>
                 <Image
                     style={{
@@ -342,15 +401,7 @@ class index extends Component {
                       height: screenWidth,
                       borderRadius: screenWidth / 2,
                     }}
-                    source={{
-                      uri: this.getImageURI(this.state.img_path),
-                    }}
-                    onError={(e) => {
-                      console.log('Image failed to load:', e.nativeEvent);
-                    }}
-                    onLoad={() => {
-                      console.log('Image loaded successfully');
-                    }}
+                    source={{ uri: img_path }}
                 />
                 <View
                     style={{
@@ -377,78 +428,95 @@ class index extends Component {
 
             <CardProfile
                 lang={this.props.lang}
-                labelFirstName={getLocalizedText(this.props.lang, Lang.firstNamelabel)}
+                labelFirstName={this.getLocalizedText(Lang.firstNamelabel)}
                 inputValueFirstName={this.state.fname}
-                inputFirstName={txt => {
-                  this.setState({fname: txt});
-                }}
-                labelLastName={getLocalizedText(this.props.lang, Lang.LastNamelabel)}
+                inputFirstName={txt => this.handleInputChange('fname', txt)}
+                labelLastName={this.getLocalizedText(Lang.LastNamelabel)}
                 inputValueLastName={this.state.lname}
-                inputLastName={txt => {
-                  this.setState({lname: txt});
-                }}
-                labelGender={getLocalizedText(this.props.lang, Lang.genderlabel)}
+                inputLastName={txt => this.handleInputChange('lname', txt)}
+                labelGender={this.getLocalizedText(Lang.genderlabel)}
                 inputValueGender={this.state.sex}
-                inputGender={txt => {
-                  this.setState({sex: txt});
-                }}
-                labelWeigth={getLocalizedText(this.props.lang, Lang.weightLabel)}
+                inputGender={txt => this.handleInputChange('sex', txt)}
+                labelWeigth={this.getLocalizedText(Lang.weightLabel)}
                 inputValueWeigth={this.state.weigth}
-                inputWeigth={txt => {
-                  this.validateNumber('weigth', txt);
-                }}
-                labelHeight={getLocalizedText(this.props.lang, Lang.heigthLabel)}
+                inputWeigth={txt => this.validateNumber('weigth', txt)}
+                labelHeight={this.getLocalizedText(Lang.heigthLabel)}
                 inputValueHeight={this.state.heigth}
-                inputHeigth={txt => {
-                  this.validateNumber('heigth', txt);
-                }}
-                labelAge={getLocalizedText(this.props.lang, Lang.ageLabel)}
+                inputHeigth={txt => this.validateNumber('heigth', txt)}
+                labelAge={this.getLocalizedText(Lang.ageLabel)}
                 inputValueAge={this.state.age}
-                inputAge={txt => {
-                  this.validateNumber('age', txt);
-                }}
+                inputAge={txt => this.validateNumber('age', txt)}
                 type={this.props.user.role}
-                onUpdate={() => this.actionUpdate()}
-                onNotes={() => this.handleOpenNotes()}  // 🆕 Add this line
+                onUpdate={this.actionUpdate}
             />
 
-            <LangModal
-                title="Select Language"
-                modalVisible={this.state.onModal}
-                onModalClosed={() => this.setState({ onModal: false })}
-                labelBtn="Select"
-                onLang={this.toggleModal}
-                onSelectLang={this.actionLang}
-            />
-          </View>
-        </ScrollView>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 4, marginBottom: 12 }}>
+              <TouchableOpacity
+                  style={{
+                    backgroundColor: '#00c3cc',
+                    borderRadius: 20,
+                    paddingVertical: 10,
+                    paddingHorizontal: 32,
+                    marginRight: 8,
+                    opacity: loading ? 0.7 : 1,
+                  }}
+                  onPress={this.actionUpdate}
+                  disabled={loading}
+              >
+                <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
+                  {loading ? this.getLocalizedText(Lang.updating) : this.getLocalizedText(Lang.updateBtn)}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                  style={{
+                    backgroundColor: '#bdbdbd',
+                    borderRadius: 20,
+                    paddingVertical: 10,
+                    paddingHorizontal: 32,
+                    marginLeft: 8
+                  }}
+                  onPress={this.handleOpenNotes}
+              >
+                <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
+                  {this.getLocalizedText(Lang.notesBtn)}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+          {/*<FabChatbot onPress={() => this.props.navigation.navigate('Chatbot')} />*/}
+          {loading && (
+              <View style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+              }}>
+                <ActivityIndicator size="large" color="#00c3cc" />
+                <Text style={{ color: '#fff', marginTop: 10, fontSize: 16 }}>
+                  {this.getLocalizedText(Lang.updating)}
+                </Text>
+              </View>
+          )}
+        </View>
     );
   }
 }
 
-const mapStateToProps = state => {
-  return {
-    token: state.token,
-    user: state.user,
-    lang: state.lang,
-  };
-};
+const mapStateToProps = state => ({
+  token: state.token,
+  user: state.user,
+  lang: state.lang,
+});
 
-const mapDispatchToProps = dispatch => {
-  return {
-    addUser: user => {
-      return dispatch({type: 'ADD_USERINFO', payload: user});
-    },
-    resetUser: () => {
-      return dispatch({type: 'RESET_USERINFO'});
-    },
-    edit_Lang: data => {
-      return dispatch({type: 'EDIT_LANG', payload: data});
-    },
-    updatePath: path => {
-      return dispatch({type: 'EDIT_PROFILE_PATH', payload: path});
-    },
-  };
-};
+const mapDispatchToProps = dispatch => ({
+  addUser: user => dispatch({ type: 'ADD_USERINFO', payload: user }),
+  resetUser: () => dispatch({ type: 'RESET_USERINFO' }),
+  edit_Lang: data => dispatch({ type: 'EDIT_LANG', payload: data }),
+  updatePath: path => dispatch({ type: 'EDIT_PROFILE_PATH', payload: path }),
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(index);
