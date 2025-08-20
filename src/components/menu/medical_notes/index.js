@@ -702,6 +702,24 @@ render() {
                             {this.renderMovementDisorderRow(getLocalizedText(this.props.lang, Lang.ankle) || 'Ankle', 'ankleLeft', 'ankleRight')}
                             {this.renderMovementDisorderRow(getLocalizedText(this.props.lang, Lang.knee) || 'Knee', 'kneeLeft', 'kneeRight')}
                             {this.renderMovementDisorderRow(getLocalizedText(this.props.lang, Lang.hip) || 'Hip', 'hipLeft', 'hipRight')}
+                            <View style={styles.conditionContainer}>
+                                <View style={[styles.conditionMainRow, { marginBottom: 4 }]}>
+                                    <Text style={styles.conditionTitle}>
+                                        {getLocalizedText(this.props.lang, Lang.none) || 'None'}
+                                    </Text>
+                                    <TouchableOpacity
+                                        style={[styles.customCheckbox, movementDisorders.movementDisorderNone && styles.customCheckboxChecked]}
+                                        onPress={() => this.handleNoneOptionToggle(
+                                            'movementDisorders',
+                                            'movementDisorderNone',
+                                            ['ankle', 'knee', 'hip'],
+                                            ['ankleLeft', 'ankleRight', 'kneeLeft', 'kneeRight', 'hipLeft', 'hipRight']
+                                        )}
+                                    >
+                                        {movementDisorders.movementDisorderNone && <Text style={styles.checkmark}>✓</Text>}
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
                             <TextInput
                                 style={styles.textInput}
                                 value={movementDisorders.otherInjuries}
@@ -776,10 +794,10 @@ const styles = {
     checkmark: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', },
     conditionTitle: { fontSize: 16, color: '#333333', fontWeight: '500', flex: 1, fontFamily: 'System', },
     subOptionsContainer: {
-        flexDirection: 'row', flexWrap: 'wrap', marginLeft: 36,
-        justifyContent: 'flex-start', width: '92%', gap: 8
+        flexDirection: 'row', flexWrap: 'wrap', marginLeft: 16,
+        justifyContent: 'flex-start', width: '100%', gap: 2
     },
-    subOptionButton: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E0E0E0', backgroundColor: '#F8F8F8', minWidth: '32%', alignItems: 'center', marginBottom: 8, marginRight: 8 },
+    subOptionButton: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E0E0E0', backgroundColor: '#F8F8F8',  alignItems: 'center', marginBottom: 8, marginRight: 8 },
     subOptionSelected: { backgroundColor: UI.color_Gradient[1], borderColor: UI.color_Gradient[1], },
     subOptionText: { fontSize: 12, color: '#666666', fontFamily: 'System', },
     subOptionTextSelected: { color: '#FFFFFF', },
