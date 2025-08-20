@@ -94,6 +94,7 @@ class index extends React.PureComponent {
     isConnected: true,
     peripherals: new Map(),
     notiAlarm: 0,
+    shoeSize:0,
   };
 
   calMeasurePressure = value => {
@@ -484,6 +485,7 @@ class index extends React.PureComponent {
                 product_number: this.props.productNumber,
                 bluetooth_left_id: this.props.leftDevice,
                 bluetooth_right_id: this.props.rightDevice,
+                shoe_size:  this.state.shoeSize,
               };
               fetch(`${API}/addjson`, {
                 method: 'POST',

@@ -490,7 +490,7 @@ class index extends Component {
                     bluetooth_left_id: this.props.leftDevice,
                     bluetooth_right_id: this.props.rightDevice,
                     shoe_size: this.state.shoeSize,
-                    leg_type: 'D'
+                    leg_type: ''
                   };
                   fetch(`${API}/addjson`, {
                     method: 'POST',

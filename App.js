@@ -56,7 +56,7 @@ import Tryf from './src/components/screnns/Try/Tryf';
 import Legs from './src/components/screnns/Try/Legs';
 import MonofilamentNew from './src/components/screnns/Try/MonofilamentNew';
 import PatientList from './src/components/screnns/Try/PatientList';
-
+import MedicalNotes from './src/components/menu/medical_notes/index';
 // FAB Component
 import DraggableFAB from './src/components/common/DraggableFAB';
 
@@ -127,6 +127,14 @@ const AppStack = createStackNavigator(
         ShoeRecommend: withFAB(ShoeRecommendScreen),
         CartScreen: withFAB(CartScreen),
         Profile: withFAB(ProfileScreen),
+        // ADD MEDICAL NOTES HERE WITH REDUX CONNECTION
+        MedicalNotes: withFAB((props) => {
+            const { useSelector } = require('react-redux');
+            const token = useSelector(state => state?.token);
+            const user = useSelector(state => state?.user);
+            const lang = useSelector(state => state?.lang);
+            return <MedicalNotes {...props} token={token} user={user} lang={lang} />;
+        }),
         FootsBalance: withFAB(FootsBalanceScreen),
         Try: withFAB(Tryf),
         MonofilamentNew: withFAB(MonofilamentNew),
