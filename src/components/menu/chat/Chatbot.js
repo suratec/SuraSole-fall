@@ -13,6 +13,7 @@ import HeaderFix from '../../common/HeaderFix';
 import Toast from 'react-native-simple-toast';
 import langChatbot from '../../../assets/language/menu/lang_chatbot';
 import {getLocalizedText} from '../../../assets/language/langUtils';
+import RNFS from 'react-native-fs';
 
 const { width } = Dimensions.get('window');
 const audioRecorderPlayer = new AudioRecorderPlayer();
@@ -47,6 +48,34 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
             console.log('📦 FormData -', pair[0], ':', pair[1]);
         }
     };
+
+    const guessFileMeta = (path) => {
+        const lower = path.toLowerCase();
+        if (lower.endsWith('.m4a')) return { name: 'voice.m4a', type: 'audio/m4a' };
+        if (lower.endsWith('.mp4')) return { name: 'voice.mp4', type: 'audio/mp4' };
+        if (lower.endsWith('.aac')) return { name: 'voice.aac', type: 'audio/aac' };
+        if (lower.endsWith('.wav')) return { name: 'voice.wav', type: 'audio/wav' };
+        // Fallback: most mobile recorders = AAC in M4A/MP4
+        return { name: 'voice.m4a', type: 'audio/m4a' };
+    };
+
+
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    async function ensureNonEmpty(path) {
+        // Normalize URI → absolute file path for RNFS.stat
+        const abs = path.startsWith('file://') ? path.replace('file://', '') : path;
+
+        for (let i = 0; i < 5; i++) {
+            try {
+                const stat = await RNFS.stat(abs);
+                if (stat.isFile() && Number(stat.size) > 0) return true;
+            } catch {}
+            await sleep(120); // brief backoff; total ~600ms
+        }
+        return false;
+    }
+
 
     const scrollToEnd = () => {
         scrollRef.current?.scrollToEnd({ animated: true });
@@ -215,7 +244,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
 
             const res = await fetch('https://app.surasole.com/api/voice-chat/', {
                 method: 'POST',
-                headers: { 'Content-Type': 'multipart/form-data' },
+                // headers: { 'Content-Type': 'multipart/form-data' },
                 body: formData,
             });
 
@@ -305,10 +334,19 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                 return;
             }
 
+            const ready = await ensureNonEmpty(filePath);
+            if (!ready) {
+                Toast.show('Audio not ready. Please try again.');
+                return;
+            }
+
             addMessage('user', '🎤 Voice message sent');
 
             const auth = getAuthFormData();
             if (!auth) return;
+
+            const uri = Platform.OS === 'android' ? (filePath.startsWith('file://') ? filePath : 'file://' + filePath) : filePath;
+            const meta = guessFileMeta(filePath);
 
             const formData = new FormData();
             formData.append('audio_file', {
@@ -316,6 +354,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                 name: 'voice.mp4',
                 type: 'audio/mp4',
             });
+            formData.append('audio_file', { uri, ...meta });
             formData.append('security_token', auth.token);
             formData.append('user_id', auth.userId);
 
