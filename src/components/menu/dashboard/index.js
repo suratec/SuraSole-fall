@@ -315,7 +315,7 @@ class index extends Component {
 
                 // ✅ EXTRACT SERVER TIME FROM WORKING API
                 if (user_details && user_details.created_at) {
-                    const serverDateTime = moment(user_details.created_at).format('DD/MM/YYYY HH:mm:ss');
+                    const serverDateTime = moment(user_details.created_at).format('DD/MM/YYYY');
                     console.log('🕐 ✅ Server time extracted from get_user_details:', serverDateTime);
                     this.setState({ currentDateTime: serverDateTime });
                 } else {
@@ -641,7 +641,7 @@ class index extends Component {
                 <ScrollView contentContainerStyle={{ paddingBottom: 50 }}>
                   <View style={{ flex: 1, paddingTop: 8 }}>
                       <Text style={{ fontSize: 16, textAlign: 'right', marginRight: 10, color:'#005C51', fontWeight: 'bold' }}>
-                          {this.state.currentDateTime || moment().format('DD/MM/YYYY HH:mm:ss')}
+                          {this.state.currentDateTime || moment().format('DD/MM/YYYY')}
                       </Text>
 
                       {dataType === 2 && (
