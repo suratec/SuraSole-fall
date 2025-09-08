@@ -53,6 +53,11 @@ const TIMER_BIG = 1;
 const TIMER = 100;
 const Duration = 1500;
 
+function parseSizeFromPeripheralName(name = '') {
+  const m = String(name).match(/(\d+(?:\.5)?)\s*[LR]\s*$/i);
+  return m ? m[1] : null;
+}
+
 class index extends Component {
   leftPhase = 0;
   rightPhase = 0;
@@ -391,6 +396,7 @@ class index extends Component {
                     product_number: this.props.productNumber,
                     bluetooth_left_id: this.props.leftDevice,
                     bluetooth_right_id: this.props.rightDevice,
+                    shoe_size: this.state.shoeSize,
                   };
                   fetch(`${API}/addjson`, {
                     method: 'POST',

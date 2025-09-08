@@ -53,6 +53,10 @@ const TIMER = 100;
 const TIMER_BIG = 1;
 const Duration = 1500;
 
+function parseSizeFromPeripheralName(name = '') {
+  const m = name.match(/(\d+(?:\.5)?)\s*[LR]\s*$/i);
+  return m ? m[1] : null;
+}
 class index extends Component {
   leftSwingTime = 0;
   rightSwingTime = 0;
@@ -199,9 +203,12 @@ class index extends Component {
               }
               if (peripheral.name[peripheral.name.length - 1] === 'L') {
                 this.props.addLeftDevice(peripheral.id);
-                this.setState({ shoeSize: peripheral.name[peripheral.name.length - 3] + peripheral.name[peripheral.name.length - 2] })
+                const sz = parseSizeFromPeripheralName(peripheral.name);
+                if (sz && !this.state.shoeSize) this.setState({ shoeSize: sz });
               } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
                 this.props.addRightDevice(peripheral.id);
+                const sz = parseSizeFromPeripheralName(peripheral.name);
+                if (sz && !this.state.shoeSize) this.setState({ shoeSize: sz });
               }
 
               setTimeout(() => {
