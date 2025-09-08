@@ -10,10 +10,11 @@ import {
     TextInput,
     ScrollView,
     useWindowDimensions,
+    BackHandler, // ← added (built-in)
 } from 'react-native';
 import HeaderFix from '../../common/HeaderFix';
 import shoeLang from '../../../assets/language/menu/lang_shoe';
-import {getLocalizedText} from "../../../assets/language/langUtils";
+import { getLocalizedText } from '../../../assets/language/langUtils';
 import { connect } from 'react-redux';
 
 export default connect(state => ({ lang: state.lang }))(function ShoeRecommendScreen({ navigation, lang }) {
@@ -31,20 +32,38 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
     const [sortAscending, setSortAscending] = useState(true);
     const [searchText, setSearchText] = useState('');
 
+    // Fetch catalog
     useEffect(() => {
         fetch('https://api1.suratec.co.th/shoe-insoles')
             .then(res => res.json())
             .then(data => {
-                if (data.status === 'OK') {
+                if (data?.status === 'OK' && Array.isArray(data.data)) {
+                    // Optional: peek at structure
+                    // console.log('Shoe[0]:', data.data[0]);
                     setShoes(data.data);
                     setFilteredShoes(data.data);
                 }
+            })
+            .catch(() => {
+                // fail silently (UI still usable)
             });
     }, []);
 
+    // Apply filters / search / sort
     useEffect(() => {
         applyFilters();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filters, searchText, sortAscending]);
+
+    // Android hardware back → behave like header back
+    useEffect(() => {
+        const onBackPress = () => {
+            navigation.goBack();
+            return true; // prevent app exit
+        };
+        BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [navigation]);
 
     const applyFilters = () => {
         let result = [...shoes];
@@ -56,17 +75,14 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
         if (filters.type.length > 0)
             result = result.filter(item => filters.type.includes(item.producttype));
 
-        // if (filters.subgroup) result = result.filter(item => item.sub_group === filters.subgroup);
-        // if (filters.type) result = result.filter(item => item.producttype === filters.type);
-
         if (searchText)
             result = result.filter(item =>
-                item.product_name.toLowerCase().includes(searchText.toLowerCase())
+                (item.product_name || '').toLowerCase().includes(searchText.toLowerCase())
             );
 
         result.sort((a, b) => {
-            const priceA = parseFloat(a.price);
-            const priceB = parseFloat(b.price);
+            const priceA = parseFloat(a.price ?? 0);
+            const priceB = parseFloat(b.price ?? 0);
             return sortAscending ? priceA - priceB : priceB - priceA;
         });
 
@@ -90,7 +106,11 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                 onPress={() => toggleSelect(item.product_name)}
             >
                 <Image source={{ uri: item.image_url }} style={styles.image} resizeMode="contain" />
-                {selected && <View style={styles.check}><Text style={styles.checkText}>✓</Text></View>}
+                {selected && (
+                    <View style={styles.check}>
+                        <Text style={styles.checkText}>✓</Text>
+                    </View>
+                )}
                 <Text style={styles.name}>{item.product_name}</Text>
                 <Text style={styles.price}>฿{item.price}</Text>
             </TouchableOpacity>
@@ -100,7 +120,7 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
     return (
         <View style={styles.container}>
             <HeaderFix
-                icon_left={'left'}
+                icon_left="left"
                 onpress_left={() => navigation.goBack()}
                 title={getLocalizedText(lang, shoeLang.title)}
             />
@@ -113,15 +133,23 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                     style={styles.searchInput}
                     placeholderTextColor="#999"
                 />
-                <TouchableOpacity onPress={() => {
-                    setPendingFilters(filters);
-                    setFilterVisible(true);
-                }} style={styles.sortBtn}>
+                <TouchableOpacity
+                    onPress={() => {
+                        setPendingFilters(filters);
+                        setFilterVisible(true);
+                    }}
+                    style={styles.sortBtn}
+                >
                     <Text style={styles.sortText}>{getLocalizedText(lang, shoeLang.filter)}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setSortAscending(!sortAscending)} style={styles.sortBtn}>
+                <TouchableOpacity
+                    onPress={() => setSortAscending(!sortAscending)}
+                    style={styles.sortBtn}
+                >
                     <Text style={styles.sortText}>
-                        {sortAscending ? (`⬆️ ${getLocalizedText(lang, shoeLang.price)}`) : (`⬇️ ${getLocalizedText(lang, shoeLang.price)}`)}
+                        {sortAscending
+                            ? `⬆️ ${getLocalizedText(lang, shoeLang.price)}`
+                            : `⬇️ ${getLocalizedText(lang, shoeLang.price)}`}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -150,10 +178,17 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
             </TouchableOpacity>
 
             {/* Filter Modal */}
-            <Modal visible={filterVisible} animationType="slide" transparent onRequestClose={() => setFilterVisible(false)}      >
+            <Modal
+                visible={filterVisible}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setFilterVisible(false)}
+            >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modal}>
-                        <Text style={styles.modalTitle}>{getLocalizedText(lang, shoeLang.filterOptions)}</Text>
+                        <Text style={styles.modalTitle}>
+                            {getLocalizedText(lang, shoeLang.filterOptions)}
+                        </Text>
                         <ScrollView contentContainerStyle={styles.modalContent}>
                             {['group', 'subgroup', 'type'].map((key, index) => (
                                 <View key={index} style={styles.filterSection}>
@@ -208,7 +243,9 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                                 onPress={() => setPendingFilters({ group: [], subgroup: [], type: [] })}
                                 style={[styles.closeBtn, { backgroundColor: '#ccc' }]}
                             >
-                                <Text style={styles.closeText}>{getLocalizedText(lang, shoeLang.reset)}</Text>
+                                <Text style={styles.closeText}>
+                                    {getLocalizedText(lang, shoeLang.reset)}
+                                </Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -218,7 +255,9 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                                 }}
                                 style={styles.closeBtn}
                             >
-                                <Text style={styles.closeText}>{getLocalizedText(lang, shoeLang.apply)}</Text>
+                                <Text style={styles.closeText}>
+                                    {getLocalizedText(lang, shoeLang.apply)}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -404,11 +443,9 @@ const styles = StyleSheet.create({
         transform: [{ translateY: -10 }],
         padding: 8,
     },
-
     backText: {
         fontSize: 30,
         color: '#fff',
         fontWeight: 'bold',
     },
-
 });

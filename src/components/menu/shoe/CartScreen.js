@@ -12,15 +12,17 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
+    ActivityIndicator, // ← built-in; safe to add
 } from 'react-native';
 import HeaderFix from '../../common/HeaderFix';
 import shoeLang from '../../../assets/language/menu/lang_shoe';
-import {getLocalizedText} from "../../../assets/language/langUtils";
+import { getLocalizedText } from '../../../assets/language/langUtils';
 import { connect } from 'react-redux';
 
 const UK_SIZES = ['5', '6', '7', '8', '9', '10', '11', '12'];
 
-const CartScreen = ({ route, navigation, lang }) => {
+const CartScreen = ({ route, navigation, lang, user }) => {
+    // Your original param access (v4 style)
     const selectedShoes = navigation.getParam('selectedShoes', []);
 
     const [cartItems, setCartItems] = useState(
@@ -34,6 +36,79 @@ const CartScreen = ({ route, navigation, lang }) => {
     const [sizeModal, setSizeModal] = useState({ visible: false, index: null });
     const [note, setNote] = useState('');
     const [showPopup, setShowPopup] = useState(false);
+
+    // New states for backend-like workflow (mirrors your friend's code)
+    const [cartId, setCartId] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isCreatingCart, setIsCreatingCart] = useState(false);
+
+    // --------- Inline API stubs (replace with real fetch/cartApi later) ---------
+    // These return "OK" so your UI works even without a backend.
+    const apiCreateCart = async (customerId, doctorId, hospitalId, memo) => {
+        // TODO: replace with real API call (or cartApi.createCart)
+        return new Promise((resolve) =>
+            setTimeout(() => resolve({ status: 'OK', cart_id: `LOCAL-${Date.now()}` }), 600)
+        );
+    };
+
+    const apiAddItemToCart = async (cid, productId, price, qty, size) => {
+        // TODO: replace with real API call (or cartApi.addItemToCart)
+        return new Promise((resolve) =>
+            setTimeout(() => resolve({ status: 'OK' }), 250)
+        );
+    };
+
+    const apiConfirmOrder = async (cid, customerId, doctorId, hospitalId, totalPrice, memo) => {
+        // TODO: replace with real API call (or cartApi.confirmOrder)
+        return new Promise((resolve) =>
+            setTimeout(() => resolve({ status: 'OK' }), 500)
+        );
+    };
+    // ---------------------------------------------------------------------------
+
+    // Android hardware back — close size modal first, else go back
+    useEffect(() => {
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+            if (sizeModal.visible) {
+                setSizeModal({ visible: false, index: null });
+                return true;
+            }
+            if (navigation?.canGoBack()) {
+                navigation.goBack();
+                return true;
+            }
+            return false;
+        });
+        return () => backHandler.remove();
+    }, [navigation, sizeModal]);
+
+    // Create cart on mount
+    useEffect(() => {
+        const createCart = async () => {
+            setIsCreatingCart(true);
+            try {
+                const customerId = user?.id;
+                const doctorId = user?.doctor_id;
+                const hospitalId = user?.hospital_id;
+                const memo = 'Shoe order from mobile app';
+
+                const response = await apiCreateCart(customerId, doctorId, hospitalId, memo);
+                if ((response.status === 'OK' || response.status === 'success') && response.cart_id) {
+                    setCartId(response.cart_id);
+                } else {
+                    Alert.alert('Error', 'Failed to create cart');
+                }
+            } catch (err) {
+                console.error('Error creating cart:', err);
+                Alert.alert('Error', 'Failed to create cart. Please try again.');
+            } finally {
+                setIsCreatingCart(false);
+            }
+        };
+
+        createCart();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // run once
 
     const updateSize = (size) => {
         const updated = [...cartItems];
@@ -60,7 +135,7 @@ const CartScreen = ({ route, navigation, lang }) => {
     const calculateTotal = () =>
         cartItems.reduce((sum, item) => sum + (parseFloat(item.price || 0) * item.quantity), 0);
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         const missingSize = cartItems.some((item) => !item.size);
         if (missingSize) {
             Alert.alert(
@@ -69,17 +144,69 @@ const CartScreen = ({ route, navigation, lang }) => {
             );
             return;
         }
-        setShowPopup(true);
-        setTimeout(() => {
-            setShowPopup(false);
-            navigation.navigate('Home');
-        }, 2000);
-    };
 
+        if (!cartId) {
+            Alert.alert('Error', 'Cart not created yet. Please wait...');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            // Add items
+            for (const item of cartItems) {
+                // Use a sensible product id if missing
+                let productId = item.id || item.product_id; // fallback
+                const priceNum = parseFloat(item.price || 0);
+
+                const res = await apiAddItemToCart(
+                    cartId,
+                    productId,
+                    priceNum,
+                    item.quantity,
+                    item.size
+                );
+
+                if (res.status !== 'OK' && res.status !== 'success') {
+                    throw new Error(`Failed to add item ${item.product_name || productId} to cart`);
+                }
+            }
+
+            // Confirm order
+            const totalPrice = calculateTotal();
+            const customerId = user?.id;
+            const doctorId = user?.doctor_id ;
+            const hospitalId = user?.hospital_id;
+            const memo = note || 'Shoe order from mobile app';
+
+            const confirmRes = await apiConfirmOrder(
+                cartId,
+                customerId,
+                doctorId,
+                hospitalId,
+                totalPrice,
+                memo
+            );
+
+            if (confirmRes.status === 'OK' || confirmRes.status === 'success') {
+                setShowPopup(true);
+                setTimeout(() => {
+                    setShowPopup(false);
+                    navigation.navigate('Home');
+                }, 2000);
+            } else {
+                throw new Error('Failed to confirm order');
+            }
+        } catch (err) {
+            console.error('Error processing order:', err);
+            Alert.alert('Error', 'Failed to process order. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const renderItem = ({ item, index }) => (
         <View style={styles.rowCard}>
-            {/* PRODUCT section */}
+            {/* PRODUCT */}
             <View style={[styles.column, { flex: 2, flexDirection: 'row', alignItems: 'center' }]}>
                 <Image source={{ uri: item.image_url }} style={styles.image} />
                 <View style={styles.itemDetails}>
@@ -89,18 +216,20 @@ const CartScreen = ({ route, navigation, lang }) => {
                         style={styles.sizeBox}
                     >
                         <Text style={{ fontSize: 13, color: item.size ? '#000' : '#888' }}>
-                            {item.size ? `${getLocalizedText(lang, shoeLang.uk)} ${item.size}` : getLocalizedText(lang, shoeLang.selectSize)}
+                            {item.size
+                                ? `${getLocalizedText(lang, shoeLang.uk)} ${item.size}`
+                                : getLocalizedText(lang, shoeLang.selectSize)}
                         </Text>
                     </TouchableOpacity>
                 </View>
             </View>
 
-            {/* PRICE section */}
+            {/* PRICE */}
             <View style={styles.column}>
                 <Text style={styles.price}>{item.price} THB</Text>
             </View>
 
-            {/* QTY section */}
+            {/* QTY */}
             <View style={[styles.column, styles.qtyControls]}>
                 <TouchableOpacity onPress={() => updateQuantity(index, -1)} style={styles.qtyBtn}>
                     <Text style={styles.qtySymbol}>-</Text>
@@ -111,8 +240,8 @@ const CartScreen = ({ route, navigation, lang }) => {
                 </TouchableOpacity>
             </View>
 
-            {/* REMOVE section */}
-            <View style={styles.column}>
+            {/* REMOVE */}
+            <View className={styles.column}>
                 <TouchableOpacity onPress={() => removeItem(index)} style={styles.deleteBtn}>
                     <Text style={styles.deleteText}>🗑️</Text>
                 </TouchableOpacity>
@@ -120,61 +249,96 @@ const CartScreen = ({ route, navigation, lang }) => {
         </View>
     );
 
-
-
     return (
         <KeyboardAvoidingView
             behavior={Platform.select({ ios: 'padding', android: undefined })}
             style={styles.container}
         >
-            <HeaderFix icon_left="left" onpress_left={() => navigation.goBack()} title={getLocalizedText(lang, shoeLang.cart)} />
+            <HeaderFix
+                icon_left="left"
+                onpress_left={() => navigation.goBack()}
+                title={getLocalizedText(lang, shoeLang.cart)}
+            />
 
             <View style={styles.tableHeader}>
-                <Text style={[styles.headerText, { flex: 2 }]}>{getLocalizedText(lang, shoeLang.product)}</Text>
+                <Text style={[styles.headerText, { flex: 2 }]}>
+                    {getLocalizedText(lang, shoeLang.product)}
+                </Text>
                 <Text style={styles.headerText}>{getLocalizedText(lang, shoeLang.price)}</Text>
                 <Text style={styles.headerText}>{getLocalizedText(lang, shoeLang.qty)}</Text>
                 <Text style={styles.headerText}>{getLocalizedText(lang, shoeLang.remove)}</Text>
             </View>
 
-            <FlatList
-                data={cartItems}
-                keyExtractor={(item, i) => item.product_name + i}
-                renderItem={renderItem}
-                ListFooterComponent={
-                    cartItems.length > 0 ? (
-                        <View style={styles.noteSection}>
-                            <Text style={styles.noteLabel}>{getLocalizedText(lang, shoeLang.addNote)}</Text>
-                            <TextInput
-                                style={styles.noteInput}
-                                placeholder={getLocalizedText(lang, shoeLang.notePlaceholder)}
-                                placeholderTextColor="#aaa"
-                                value={note}
-                                onChangeText={setNote}
-                            />
-                            <Text style={styles.total}>{getLocalizedText(lang, shoeLang.total)}: ฿{calculateTotal().toFixed(2)}</Text>
-                        </View>
-                    ) : null
-                }
-                contentContainerStyle={{ paddingBottom: 140 }}
-            />
+            {isCreatingCart ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#00c3cc" />
+                    <Text style={styles.loadingText}>Creating cart...</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={cartItems}
+                    keyExtractor={(item, i) => item.product_name + i}
+                    renderItem={renderItem}
+                    ListFooterComponent={
+                        cartItems.length > 0 ? (
+                            <View style={styles.noteSection}>
+                                <Text style={styles.noteLabel}>
+                                    {getLocalizedText(lang, shoeLang.addNote)}
+                                </Text>
+                                <TextInput
+                                    style={styles.noteInput}
+                                    placeholder={getLocalizedText(lang, shoeLang.notePlaceholder)}
+                                    placeholderTextColor="#aaa"
+                                    value={note}
+                                    onChangeText={setNote}
+                                />
+                                <Text style={styles.total}>
+                                    {getLocalizedText(lang, shoeLang.total)}: ฿
+                                    {calculateTotal().toFixed(2)}
+                                </Text>
+                            </View>
+                        ) : null
+                    }
+                    contentContainerStyle={{ paddingBottom: 140 }}
+                />
+            )}
 
             {cartItems.length > 0 && (
-                <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-                    <Text style={styles.confirmText}>{getLocalizedText(lang, shoeLang.confirm)}</Text>
+                <TouchableOpacity
+                    style={[styles.confirmBtn, (isLoading || isCreatingCart) && { backgroundColor: '#ccc' }]}
+                    onPress={handleConfirm}
+                    disabled={isLoading || isCreatingCart}
+                >
+                    {isLoading || isCreatingCart ? (
+                        <ActivityIndicator color="#fff" />
+                    ) : (
+                        <Text style={styles.confirmText}>
+                            {getLocalizedText(lang, shoeLang.confirm)}
+                        </Text>
+                    )}
                 </TouchableOpacity>
             )}
 
             {/* Size Modal */}
-            <Modal transparent visible={sizeModal.visible} animationType="slide" onRequestClose={() => setSizeModal({ visible: false, index: null })}>
+            <Modal
+                transparent
+                visible={sizeModal.visible}
+                animationType="slide"
+                onRequestClose={() => setSizeModal({ visible: false, index: null })}
+            >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalBox}>
                         {UK_SIZES.map((size) => (
                             <TouchableOpacity key={size} onPress={() => updateSize(size)} style={styles.modalItem}>
-                                <Text style={styles.modalItemText}>{getLocalizedText(lang, shoeLang.uk)} {size}</Text>
+                                <Text style={styles.modalItemText}>
+                                    {getLocalizedText(lang, shoeLang.uk)} {size}
+                                </Text>
                             </TouchableOpacity>
                         ))}
                         <TouchableOpacity onPress={() => setSizeModal({ visible: false, index: null })}>
-                            <Text style={[styles.modalItemText, { color: 'red', marginTop: 10 }]}>{getLocalizedText(lang, shoeLang.cancel)}</Text>
+                            <Text style={[styles.modalItemText, { color: 'red', marginTop: 10 }]}>
+                                {getLocalizedText(lang, shoeLang.cancel)}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -184,7 +348,9 @@ const CartScreen = ({ route, navigation, lang }) => {
             <Modal transparent visible={showPopup} animationType="fade">
                 <View style={styles.popupOverlay}>
                     <View style={styles.popupBox}>
-                        <Text style={styles.popupText}>{getLocalizedText(lang, shoeLang.orderConfirmed)}</Text>
+                        <Text style={styles.popupText}>
+                            {getLocalizedText(lang, shoeLang.orderConfirmed)} 🎉
+                        </Text>
                     </View>
                 </View>
             </Modal>
@@ -227,9 +393,7 @@ const styles = StyleSheet.create({
         borderRadius: 6,
         marginRight: 10,
     },
-    details: {
-        flex: 2,
-    },
+    details: { flex: 2 },
     name: { fontSize: 14, fontWeight: 'bold', color: '#222' },
     group: { fontSize: 12, color: '#555', marginVertical: 4 },
     sizeBox: {
@@ -243,177 +407,17 @@ const styles = StyleSheet.create({
         backgroundColor: '#f9f9f9',
     },
 
-    actions: {
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    price: {
-        fontSize: 13,
-        color: '#00a0a8',
-        fontWeight: '600',
-    },
-    qtyControls: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 6,
-    },
-    qtyBtn: {
-        backgroundColor: '#00c3cc',
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 4,
-    },
-    qtySymbol: {
-        fontSize: 14,
-        color: '#fff',
-        fontWeight: 'bold',
-    },
-    qtyText: {
-        marginHorizontal: 8,
-        fontSize: 14,
-        color: '#333',
-    },
-    deleteBtn: { marginTop: 2 },
+    actions: { alignItems: 'center', justifyContent: 'space-between' },
+    price: { fontSize: 13, color: '#00a0a8', fontWeight: '600', marginStart: 10, marginEnd: -15 },
+
+    qtyControls: { flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginStart: 30 },
+    qtyBtn: { backgroundColor: '#00c3cc', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+    qtySymbol: { fontSize: 14, color: '#fff', fontWeight: 'bold' },
+    qtyText: { marginHorizontal: 3, fontSize: 14, color: '#333' },
+
+    deleteBtn: { marginTop: 4, marginEnd: -20 },
     deleteText: { fontSize: 18, color: '#cc0000' },
 
-    noteSection: {
-        marginHorizontal: 16,
-        marginTop: 20,
-    },
-    noteLabel: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#444',
-        marginBottom: 6,
-    },
-    noteInput: {
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        fontSize: 13,
-    },
-    total: {
-        textAlign: 'right',
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#007B7F',
-        marginTop: 12,
-    },
-
-    confirmBtn: {
-        position: 'absolute',
-        bottom: 20,
-        left: 20,
-        right: 20,
-        backgroundColor: '#00c3cc',
-        paddingVertical: 14,
-        borderRadius: 30,
-        alignItems: 'center',
-    },
-    confirmText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 18,
-    },
-
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: '#00000080',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalBox: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        width: '80%',
-    },
-    modalItem: {
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderColor: '#eee',
-    },
-    modalItemText: {
-        fontSize: 17,
-        textAlign: 'center',
-        color: '#333',
-    },
-
-    popupOverlay: {
-        flex: 1,
-        backgroundColor: '#00000088',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    popupBox: {
-        backgroundColor: '#00c3cc',
-        padding: 30,
-        borderRadius: 20,
-    },
-    popupText: {
-        fontSize: 20,
-        color: '#fff',
-        fontWeight: 'bold',
-    },
-    itemDetails: {
-        flex: 1,
-        justifyContent: 'center',
-        zIndex:10,
-        marginEnd:-10
-    },
-
-    rightSection: {
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginLeft: 10,
-    },
-
-    price: {
-        fontSize: 13,
-        color: '#00a0a8',
-        fontWeight: '600',
-        marginStart:10,
-        marginEnd:-15
-    },
-
-    qtyControls: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 4,
-        marginStart:30
-    },
-
-    qtyBtn: {
-        backgroundColor: '#00c3cc',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
-    },
-
-    qtySymbol: {
-        fontSize: 14,
-        color: '#fff',
-        fontWeight: 'bold',
-    },
-
-    qtyText: {
-        marginHorizontal: 3,
-        fontSize: 14,
-        color: '#333',
-    },
-
-    deleteBtn: {
-        marginTop: 4,
-        marginEnd:-20
-    },
-
-    deleteText: {
-        fontSize: 18,
-        color: '#cc0000',
-    },
     rowCard: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -425,19 +429,63 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
 
-    column: {
+    column: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+    itemDetails: { flex: 1, justifyContent: 'center', zIndex: 10, marginEnd: -10 },
+
+    loadingContainer: {
         flex: 1,
-        alignItems: 'center',
         justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 50,
     },
+    loadingText: { marginTop: 10, fontSize: 16, color: '#666' },
 
-    image: {
-        width: 50,
-        height: 50,
-        borderRadius: 6,
-        marginRight: 8,
+    noteSection: { marginHorizontal: 16, marginTop: 20 },
+    noteLabel: { fontSize: 14, fontWeight: '500', color: '#444', marginBottom: 6 },
+    noteInput: {
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 13,
     },
+    total: { textAlign: 'right', fontSize: 16, fontWeight: 'bold', color: '#007B7F', marginTop: 12 },
 
+    confirmBtn: {
+        position: 'absolute',
+        bottom: 20,
+        left: 20,
+        right: 20,
+        backgroundColor: '#00c3cc',
+        paddingVertical: 14,
+        borderRadius: 30,
+        alignItems: 'center',
+    },
+    confirmText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
+
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: '#00000080',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalBox: { backgroundColor: '#fff', borderRadius: 16, padding: 20, width: '80%' },
+    modalItem: { paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' },
+    modalItemText: { fontSize: 17, textAlign: 'center', color: '#333' },
+
+    popupOverlay: {
+        flex: 1,
+        backgroundColor: '#00000088',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    popupBox: { backgroundColor: '#00c3cc', padding: 30, borderRadius: 20 },
+    popupText: { fontSize: 20, color: '#fff', fontWeight: 'bold' },
+
+    image: { width: 50, height: 50, borderRadius: 6, marginRight: 8 },
 });
 
-export default connect(state => ({ lang: state.lang }))(CartScreen);
+export default connect((state) => ({ lang: state.lang, user: state.user }))(CartScreen);
