@@ -56,6 +56,15 @@ if (this.state.switch) {
 
 */
 
+
+// put near the top of the file (below constants is fine)
+function parseSizeFromPeripheralName(name = '') {
+  // capture 9, 10, 10.5, etc. right before trailing L/R
+  const m = name.match(/(\d+(?:\.5)?)\s*[LR]\s*$/i);
+  return m ? m[1] : null;
+}
+
+
 class index extends Component {
   leftSwingTime = 0;
   rightSwingTime = 0;
@@ -90,6 +99,7 @@ class index extends Component {
     rstage: 0,
     isConnected: true,
     peripherals: new Map(),
+    shoeSize: 0 ,
   };
 
   componentDidMount = () => {
@@ -146,9 +156,14 @@ class index extends Component {
               }
               if (peripheral.name[peripheral.name.length - 1] === 'L') {
                 this.props.addLeftDevice(peripheral.id);
+                const size = parseSizeFromPeripheralName(peripheral.name);
+                if (size && !this.state.shoeSize) this.setState({ shoeSize: size });
               } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
                 this.props.addRightDevice(peripheral.id);
+                const size = parseSizeFromPeripheralName(peripheral.name);
+                if (size && !this.state.shoeSize) this.setState({ shoeSize: size });
               }
+
               console.log('Connected to ' + peripheral.id);
 
               setTimeout(() => {
@@ -345,6 +360,7 @@ class index extends Component {
                     product_number: this.props.productNumber,
                     bluetooth_left_id: this.props.leftDevice,
                     bluetooth_right_id: this.props.rightDevice,
+                    shoe_size: this.state.shoeSize,
                   };
                   fetch(`${API}/addjson`, {
                     method: 'POST',
