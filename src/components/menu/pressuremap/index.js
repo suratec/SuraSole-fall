@@ -292,6 +292,7 @@ class index extends React.PureComponent {
             }
             if (peripheral.name[peripheral.name.length - 1] === 'L') {
               this.props.addLeftDevice(peripheral.id);
+              this.setState({shoeSize:peripheral.name[peripheral.name.length - 3] + peripheral.name[peripheral.name.length - 2]})
             } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
               this.props.addRightDevice(peripheral.id);
             }
