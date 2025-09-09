@@ -602,55 +602,72 @@ class StandEyes extends Component {
         }, 1000);
     };
 
-    sendDataToSetverCalibration = legValue => {
-        this.state.isConnected == false
-            ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-                console.log('WiFi is not connect');
-                res.forEach(r => {
-                    console.log(r.path);
-                });
-            })
-            : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-                res.forEach(r => {
-                    console.log(r.path, 'path');
-                    RNFS.readFile(r.path)
-                        .then(text => {
-                            let data = JSON.parse(
-                                '[' + text.substring(0, text.length - 1) + ']',
-                            );
-                            var content = {
-                                data: data,
-                                id_customer: data[0].id_customer,
-                                id_device: '',
-                                type: 1, // for medical
-                                product_number: this.props.productNumber,
-                                bluetooth_left_id: this.props.leftDevice,
-                                bluetooth_right_id: this.props.rightDevice,
-                                shoe_size: this.state.shoeSize,
-                                leg_type: legValue,
-                            };
-                            fetch(`${API}/addjson`, {
-                                method: 'POST',
-                                headers: {
-                                    Accept: 'application/json',
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify(content),
-                            })
-                                .then(resp => resp.json())
-                                .then(resp => {
-                                    console.log(resp, content, 'response');
-                                    if (resp.status != 'ผิดพลาด') {
-                                        console.log(`Clear : ${r.path}`);
-                                        RNFS.unlink(r.path);
-                                    }
-                                });
-                        })
-                        .catch(e => {});
-                });
-            });
-        // alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+    sendDataToSetverCalibration = async (legValue) => {
+        const dir = `${RNFS.CachesDirectoryPath}/suratechM/`;
+
+        try {
+            const online = this.state.isConnected;
+            const files = await RNFS.readDir(dir).catch(() => []);
+            console.log('Uploader online?', online, 'pending files:', files.length);
+
+            if (!online || files.length === 0) return;
+
+            for (const r of files) {
+                try {
+                    const raw = await RNFS.readFile(r.path, 'utf8');
+                    const trimmed = raw.replace(/,\s*$/, '');
+                    if (!trimmed) { console.log('Empty file, skipping', r.path); continue; }
+
+                    let data;
+                    try {
+                        data = JSON.parse(`[${trimmed}]`);
+                    } catch (e) {
+                        console.log('JSON parse error for', r.path, e);
+                        continue;
+                    }
+                    if (!Array.isArray(data) || data.length === 0) {
+                        console.log('No samples in', r.path);
+                        continue;
+                    }
+
+                    const payload = {
+                        data,
+                        id_customer: data[0]?.id_customer || this.props.user?.id_customer || '',
+                        id_device: '',
+                        type: 1,
+                        product_number: this.props.productNumber || '',
+                        bluetooth_left_id: this.props.leftDevice || '',
+                        bluetooth_right_id: this.props.rightDevice || '',
+                        shoe_size: this.state.shoeSize || 0,
+                        leg_type: legValue,
+                    };
+
+                    // sanity log
+                    console.log('POST /addjson len=', data.length, 'leg=', legValue, 'file=', r.path);
+
+                    const res = await fetch(`${API}/addjson`, {
+                        method: 'POST',
+                        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const body = await res.json().catch(() => ({}));
+                    if (body.status !== 'ผิดพลาด') {
+                        console.log('Upload success, deleting', r.path);
+                        await RNFS.unlink(r.path);
+                    } else {
+                        console.log('Server reported error:', body);
+                    }
+                } catch (err) {
+                    console.log('Upload attempt failed for', r.path, err);
+                }
+            }
+        } catch (outer) {
+            console.log('sendDataToSetverCalibration fatal:', outer);
+        }
     };
+
 
     sendDataToSetver = () => {
         this.state.isConnected == false
