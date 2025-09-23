@@ -519,7 +519,10 @@ class index extends Component {
   render() {
     this.canVibration(this.state.shouldVibrate, this.state.switch);
     return (
-        <View style={styles.container}>
+        <ScrollView
+            style={{ flex: 1, backgroundColor: '#fff' }}
+            contentContainerStyle={{ flexGrow: 1 }}
+        >
           <HeaderFix
               icon_left={'left'}
               onpress_left={() => {
@@ -589,7 +592,7 @@ class index extends Component {
               />
             </View>
           </View>
-        </View>
+        </ScrollView>
     );
   }
 }
