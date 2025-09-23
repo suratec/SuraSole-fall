@@ -12,18 +12,24 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    ActivityIndicator, // ← built-in; safe to add
+    ActivityIndicator,
 } from 'react-native';
+import { connect } from 'react-redux';
 import HeaderFix from '../../common/HeaderFix';
 import shoeLang from '../../../assets/language/menu/lang_shoe';
 import { getLocalizedText } from '../../../assets/language/langUtils';
-import { connect } from 'react-redux';
 
 const UK_SIZES = ['5', '6', '7', '8', '9', '10', '11', '12'];
 
-const CartScreen = ({ route, navigation, lang, user }) => {
-    // Your original param access (v4 style)
-    const selectedShoes = navigation.getParam('selectedShoes', []);
+const CartScreen = ({ navigation, lang, user }) => {
+    // v4-safe param access (with fallback for route.params if ever present)
+    const getParam = (key, def = null) => {
+        if (typeof navigation?.getParam === 'function') return navigation.getParam(key, def);
+        return navigation?.state?.params?.[key] ?? def; // fallback
+    };
+
+    const selectedShoes = getParam('selectedShoes', []) || [];
+    const patient = getParam('patient', null);
 
     const [cartItems, setCartItems] = useState(
         selectedShoes.map((item) => ({
@@ -37,49 +43,41 @@ const CartScreen = ({ route, navigation, lang, user }) => {
     const [note, setNote] = useState('');
     const [showPopup, setShowPopup] = useState(false);
 
-    // New states for backend-like workflow (mirrors your friend's code)
     const [cartId, setCartId] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isCreatingCart, setIsCreatingCart] = useState(false);
 
-    // --------- Inline API stubs (replace with real fetch/cartApi later) ---------
-    // These return "OK" so your UI works even without a backend.
+    // --------- Inline API stubs (replace with real service later) ---------
     const apiCreateCart = async (customerId, doctorId, hospitalId, memo) => {
-        // TODO: replace with real API call (or cartApi.createCart)
+        // Simulate network call
         return new Promise((resolve) =>
             setTimeout(() => resolve({ status: 'OK', cart_id: `LOCAL-${Date.now()}` }), 600)
         );
     };
 
     const apiAddItemToCart = async (cid, productId, price, qty, size) => {
-        // TODO: replace with real API call (or cartApi.addItemToCart)
-        return new Promise((resolve) =>
-            setTimeout(() => resolve({ status: 'OK' }), 250)
-        );
+        return new Promise((resolve) => setTimeout(() => resolve({ status: 'OK' }), 250));
     };
 
     const apiConfirmOrder = async (cid, customerId, doctorId, hospitalId, totalPrice, memo) => {
-        // TODO: replace with real API call (or cartApi.confirmOrder)
-        return new Promise((resolve) =>
-            setTimeout(() => resolve({ status: 'OK' }), 500)
-        );
+        return new Promise((resolve) => setTimeout(() => resolve({ status: 'OK' }), 500));
     };
-    // ---------------------------------------------------------------------------
+    // ----------------------------------------------------------------------
 
-    // Android hardware back — close size modal first, else go back
+    // Hardware back: close size modal first, else navigate back
     useEffect(() => {
-        const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        const handler = BackHandler.addEventListener('hardwareBackPress', () => {
             if (sizeModal.visible) {
                 setSizeModal({ visible: false, index: null });
                 return true;
             }
-            if (navigation?.canGoBack()) {
+            if (navigation?.canGoBack?.()) {
                 navigation.goBack();
                 return true;
             }
             return false;
         });
-        return () => backHandler.remove();
+        return () => handler.remove();
     }, [navigation, sizeModal]);
 
     // Create cart on mount
@@ -87,13 +85,21 @@ const CartScreen = ({ route, navigation, lang, user }) => {
         const createCart = async () => {
             setIsCreatingCart(true);
             try {
-                const customerId = user?.id;
-                const doctorId = user?.doctor_id;
-                const hospitalId = user?.hospital_id;
-                const memo = 'Shoe order from mobile app';
+                // Flexible identifier derivation to tolerate different user schemas
+                const customerId =
+                    // If a clinician is ordering on behalf of a patient, prefer patient id
+                    patient?.id_data_role ??
+                    user?.id_customer ??
+                    user?.id ?? // generic id fallback
+                    user?.id_data_role ??
+                    null;
+
+                const doctorId = user?.doctor_id ?? null;
+                const hospitalId = user?.hospital_id ?? null;
+                const memo = note || 'Shoe order from mobile app';
 
                 const response = await apiCreateCart(customerId, doctorId, hospitalId, memo);
-                if ((response.status === 'OK' || response.status === 'success') && response.cart_id) {
+                if ((response?.status === 'OK' || response?.status === 'success') && response?.cart_id) {
                     setCartId(response.cart_id);
                 } else {
                     Alert.alert('Error', 'Failed to create cart');
@@ -108,7 +114,7 @@ const CartScreen = ({ route, navigation, lang, user }) => {
 
         createCart();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // run once
+    }, []); // once
 
     const updateSize = (size) => {
         const updated = [...cartItems];
@@ -121,7 +127,7 @@ const CartScreen = ({ route, navigation, lang, user }) => {
 
     const updateQuantity = (index, delta) => {
         const updated = [...cartItems];
-        const newQty = updated[index].quantity + delta;
+        const newQty = (updated[index].quantity || 1) + delta;
         updated[index].quantity = newQty < 1 ? 1 : newQty;
         setCartItems(updated);
     };
@@ -133,7 +139,7 @@ const CartScreen = ({ route, navigation, lang, user }) => {
     };
 
     const calculateTotal = () =>
-        cartItems.reduce((sum, item) => sum + (parseFloat(item.price || 0) * item.quantity), 0);
+        cartItems.reduce((sum, item) => sum + ((parseFloat(item?.price ?? 0) || 0) * (item?.quantity || 1)), 0);
 
     const handleConfirm = async () => {
         const missingSize = cartItems.some((item) => !item.size);
@@ -154,28 +160,33 @@ const CartScreen = ({ route, navigation, lang, user }) => {
         try {
             // Add items
             for (const item of cartItems) {
-                // Use a sensible product id if missing
-                let productId = item.id || item.product_id; // fallback
-                const priceNum = parseFloat(item.price || 0);
+                // Try to pick product id from any known key; fallback to a test id
+                let productId = item?.id ?? item?.product_id ?? item?.productId ?? null;
+                if (!productId) {
+                    productId = 15; // fallback for testing until backend maps products
+                    console.warn(`No product_id for ${item?.product_name}; using default: ${productId}`);
+                }
 
-                const res = await apiAddItemToCart(
-                    cartId,
-                    productId,
-                    priceNum,
-                    item.quantity,
-                    item.size
-                );
+                const priceNum = parseFloat(item?.price ?? 0) || 0;
 
-                if (res.status !== 'OK' && res.status !== 'success') {
-                    throw new Error(`Failed to add item ${item.product_name || productId} to cart`);
+                const res = await apiAddItemToCart(cartId, productId, priceNum, item?.quantity || 1, item?.size);
+                if (res?.status !== 'OK' && res?.status !== 'success') {
+                    throw new Error(`Failed to add item ${item?.product_name || productId} to cart`);
                 }
             }
 
             // Confirm order
             const totalPrice = calculateTotal();
-            const customerId = user?.id;
-            const doctorId = user?.doctor_id ;
-            const hospitalId = user?.hospital_id;
+
+            const customerId =
+                patient?.id_data_role ??
+                user?.id_customer ??
+                user?.id ??
+                user?.id_data_role ??
+                null;
+
+            const doctorId = user?.doctor_id ?? null;
+            const hospitalId = user?.hospital_id ?? null;
             const memo = note || 'Shoe order from mobile app';
 
             const confirmRes = await apiConfirmOrder(
@@ -187,7 +198,7 @@ const CartScreen = ({ route, navigation, lang, user }) => {
                 memo
             );
 
-            if (confirmRes.status === 'OK' || confirmRes.status === 'success') {
+            if (confirmRes?.status === 'OK' || confirmRes?.status === 'success') {
                 setShowPopup(true);
                 setTimeout(() => {
                     setShowPopup(false);
@@ -208,15 +219,12 @@ const CartScreen = ({ route, navigation, lang, user }) => {
         <View style={styles.rowCard}>
             {/* PRODUCT */}
             <View style={[styles.column, { flex: 2, flexDirection: 'row', alignItems: 'center' }]}>
-                <Image source={{ uri: item.image_url }} style={styles.image} />
+                {!!item?.image_url && <Image source={{ uri: item.image_url }} style={styles.image} />}
                 <View style={styles.itemDetails}>
-                    <Text style={styles.name}>{item.product_name}</Text>
-                    <TouchableOpacity
-                        onPress={() => setSizeModal({ visible: true, index })}
-                        style={styles.sizeBox}
-                    >
-                        <Text style={{ fontSize: 13, color: item.size ? '#000' : '#888' }}>
-                            {item.size
+                    <Text style={styles.name}>{item?.product_name || '-'}</Text>
+                    <TouchableOpacity onPress={() => setSizeModal({ visible: true, index })} style={styles.sizeBox}>
+                        <Text style={{ fontSize: 13, color: item?.size ? '#000' : '#888' }}>
+                            {item?.size
                                 ? `${getLocalizedText(lang, shoeLang.uk)} ${item.size}`
                                 : getLocalizedText(lang, shoeLang.selectSize)}
                         </Text>
@@ -226,7 +234,10 @@ const CartScreen = ({ route, navigation, lang, user }) => {
 
             {/* PRICE */}
             <View style={styles.column}>
-                <Text style={styles.price}>{item.price} THB</Text>
+                <Text style={styles.price}>
+                    {(item?.price ?? '-')}{' '}
+                    THB
+                </Text>
             </View>
 
             {/* QTY */}
@@ -234,14 +245,14 @@ const CartScreen = ({ route, navigation, lang, user }) => {
                 <TouchableOpacity onPress={() => updateQuantity(index, -1)} style={styles.qtyBtn}>
                     <Text style={styles.qtySymbol}>-</Text>
                 </TouchableOpacity>
-                <Text style={styles.qtyText}>{item.quantity}</Text>
+                <Text style={styles.qtyText}>{item?.quantity || 1}</Text>
                 <TouchableOpacity onPress={() => updateQuantity(index, 1)} style={styles.qtyBtn}>
                     <Text style={styles.qtySymbol}>+</Text>
                 </TouchableOpacity>
             </View>
 
             {/* REMOVE */}
-            <View className={styles.column}>
+            <View style={styles.column}>
                 <TouchableOpacity onPress={() => removeItem(index)} style={styles.deleteBtn}>
                     <Text style={styles.deleteText}>🗑️</Text>
                 </TouchableOpacity>
@@ -272,12 +283,14 @@ const CartScreen = ({ route, navigation, lang, user }) => {
             {isCreatingCart ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#00c3cc" />
-                    <Text style={styles.loadingText}>Creating cart...</Text>
+                    <Text style={styles.loadingText}>
+                        {getLocalizedText(lang, shoeLang.creatingCart) || 'Creating cart...'}
+                    </Text>
                 </View>
             ) : (
                 <FlatList
                     data={cartItems}
-                    keyExtractor={(item, i) => item.product_name + i}
+                    keyExtractor={(item, i) => (item?.product_name ?? 'item') + i}
                     renderItem={renderItem}
                     ListFooterComponent={
                         cartItems.length > 0 ? (
@@ -293,8 +306,7 @@ const CartScreen = ({ route, navigation, lang, user }) => {
                                     onChangeText={setNote}
                                 />
                                 <Text style={styles.total}>
-                                    {getLocalizedText(lang, shoeLang.total)}: ฿
-                                    {calculateTotal().toFixed(2)}
+                                    {getLocalizedText(lang, shoeLang.total)}: ฿{calculateTotal().toFixed(2)}
                                 </Text>
                             </View>
                         ) : null
@@ -375,49 +387,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
     },
 
-    card: {
-        backgroundColor: '#fff',
-        marginHorizontal: 12,
-        marginTop: 10,
-        borderRadius: 12,
-        padding: 12,
-        elevation: 2,
-    },
-    row: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    image: {
-        width: 60,
-        height: 60,
-        borderRadius: 6,
-        marginRight: 10,
-    },
-    details: { flex: 2 },
-    name: { fontSize: 14, fontWeight: 'bold', color: '#222' },
-    group: { fontSize: 12, color: '#555', marginVertical: 4 },
-    sizeBox: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 6,
-        paddingVertical: 5,
-        paddingHorizontal: 12,
-        marginTop: 4,
-        alignSelf: 'flex-start',
-        backgroundColor: '#f9f9f9',
-    },
-
-    actions: { alignItems: 'center', justifyContent: 'space-between' },
-    price: { fontSize: 13, color: '#00a0a8', fontWeight: '600', marginStart: 10, marginEnd: -15 },
-
-    qtyControls: { flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginStart: 30 },
-    qtyBtn: { backgroundColor: '#00c3cc', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
-    qtySymbol: { fontSize: 14, color: '#fff', fontWeight: 'bold' },
-    qtyText: { marginHorizontal: 3, fontSize: 14, color: '#333' },
-
-    deleteBtn: { marginTop: 4, marginEnd: -20 },
-    deleteText: { fontSize: 18, color: '#cc0000' },
-
     rowCard: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -431,7 +400,36 @@ const styles = StyleSheet.create({
 
     column: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
+    image: { width: 50, height: 50, borderRadius: 6, marginRight: 8 },
+
     itemDetails: { flex: 1, justifyContent: 'center', zIndex: 10, marginEnd: -10 },
+
+    name: { fontSize: 14, fontWeight: 'bold', color: '#222' },
+
+    sizeBox: {
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 6,
+        paddingVertical: 5,
+        paddingHorizontal: 12,
+        marginTop: 4,
+        alignSelf: 'flex-start',
+        backgroundColor: '#f9f9f9',
+    },
+
+    price: { fontSize: 13, color: '#00a0a8', fontWeight: '600', marginStart: 10, marginEnd: -15 },
+
+    qtyControls: { flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginStart: 30 },
+
+    qtyBtn: { backgroundColor: '#00c3cc', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+
+    qtySymbol: { fontSize: 14, color: '#fff', fontWeight: 'bold' },
+
+    qtyText: { marginHorizontal: 3, fontSize: 14, color: '#333' },
+
+    deleteBtn: { marginTop: 4, marginEnd: -20 },
+
+    deleteText: { fontSize: 18, color: '#cc0000' },
 
     loadingContainer: {
         flex: 1,
@@ -451,6 +449,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 10,
         fontSize: 13,
+        color: '#000',
     },
     total: { textAlign: 'right', fontSize: 16, fontWeight: 'bold', color: '#007B7F', marginTop: 12 },
 
@@ -484,8 +483,6 @@ const styles = StyleSheet.create({
     },
     popupBox: { backgroundColor: '#00c3cc', padding: 30, borderRadius: 20 },
     popupText: { fontSize: 20, color: '#fff', fontWeight: 'bold' },
-
-    image: { width: 50, height: 50, borderRadius: 6, marginRight: 8 },
 });
 
 export default connect((state) => ({ lang: state.lang, user: state.user }))(CartScreen);

@@ -10,12 +10,12 @@ import {
     TextInput,
     ScrollView,
     useWindowDimensions,
-    BackHandler, // ← added (built-in)
+    BackHandler,
 } from 'react-native';
+import { connect } from 'react-redux';
 import HeaderFix from '../../common/HeaderFix';
 import shoeLang from '../../../assets/language/menu/lang_shoe';
 import { getLocalizedText } from '../../../assets/language/langUtils';
-import { connect } from 'react-redux';
 
 export default connect(state => ({ lang: state.lang }))(function ShoeRecommendScreen({ navigation, lang }) {
     const { width } = useWindowDimensions();
@@ -32,30 +32,31 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
     const [sortAscending, setSortAscending] = useState(true);
     const [searchText, setSearchText] = useState('');
 
-    // Fetch catalog
+    // Fetch catalog (silent failure keeps UI usable)
     useEffect(() => {
+        let isMounted = true;
         fetch('https://api1.suratec.co.th/shoe-insoles')
             .then(res => res.json())
             .then(data => {
-                if (data?.status === 'OK' && Array.isArray(data.data)) {
-                    // Optional: peek at structure
-                    // console.log('Shoe[0]:', data.data[0]);
+                if (!isMounted) return;
+                if (data?.status === 'OK' && Array.isArray(data?.data)) {
                     setShoes(data.data);
                     setFilteredShoes(data.data);
                 }
             })
             .catch(() => {
-                // fail silently (UI still usable)
+                // no-op
             });
+        return () => { isMounted = false; };
     }, []);
 
     // Apply filters / search / sort
     useEffect(() => {
         applyFilters();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filters, searchText, sortAscending]);
+    }, [filters, searchText, sortAscending, shoes]);
 
-    // Android hardware back → behave like header back
+    // Android hardware back -> behave like header back
     useEffect(() => {
         const onBackPress = () => {
             navigation.goBack();
@@ -66,23 +67,23 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
     }, [navigation]);
 
     const applyFilters = () => {
-        let result = [...shoes];
+        let result = Array.isArray(shoes) ? [...shoes] : [];
 
         if (filters.group.length > 0)
-            result = result.filter(item => filters.group.includes(item.product_group));
+            result = result.filter(item => filters.group.includes(item?.product_group));
         if (filters.subgroup.length > 0)
-            result = result.filter(item => filters.subgroup.includes(item.sub_group));
+            result = result.filter(item => filters.subgroup.includes(item?.sub_group));
         if (filters.type.length > 0)
-            result = result.filter(item => filters.type.includes(item.producttype));
+            result = result.filter(item => filters.type.includes(item?.producttype));
 
         if (searchText)
             result = result.filter(item =>
-                (item.product_name || '').toLowerCase().includes(searchText.toLowerCase())
+                (item?.product_name || '').toLowerCase().includes(searchText.toLowerCase())
             );
 
         result.sort((a, b) => {
-            const priceA = parseFloat(a.price ?? 0);
-            const priceB = parseFloat(b.price ?? 0);
+            const priceA = parseFloat(a?.price ?? 0) || 0;
+            const priceB = parseFloat(b?.price ?? 0) || 0;
             return sortAscending ? priceA - priceB : priceB - priceA;
         });
 
@@ -96,25 +97,35 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
     };
 
     const uniqueValues = (key) =>
-        Array.from(new Set(shoes.map(item => item[key]).filter(Boolean)));
+        Array.from(new Set((shoes || []).map(item => item?.[key]).filter(Boolean)));
 
     const renderShoe = ({ item }) => {
-        const selected = selectedShoes.includes(item.product_name);
+        const selected = selectedShoes.includes(item?.product_name);
         return (
             <TouchableOpacity
                 style={[styles.item, { width: ITEM_WIDTH }, selected && styles.selected]}
-                onPress={() => toggleSelect(item.product_name)}
+                onPress={() => toggleSelect(item?.product_name)}
+                activeOpacity={0.8}
             >
-                <Image source={{ uri: item.image_url }} style={styles.image} resizeMode="contain" />
+                {!!item?.image_url && (
+                    <Image source={{ uri: item.image_url }} style={styles.image} resizeMode="contain" />
+                )}
                 {selected && (
                     <View style={styles.check}>
                         <Text style={styles.checkText}>✓</Text>
                     </View>
                 )}
-                <Text style={styles.name}>{item.product_name}</Text>
-                <Text style={styles.price}>฿{item.price}</Text>
+                <Text style={styles.name}>{item?.product_name ?? '-'}</Text>
+                <Text style={styles.price}>฿{item?.price ?? '-'}</Text>
             </TouchableOpacity>
         );
+    };
+
+    // v4-safe way to read a param (with fallbacks)
+    const getParam = (key, def = null) => {
+        if (typeof navigation?.getParam === 'function') return navigation.getParam(key, def);
+        // fallback for any custom injection
+        return navigation?.state?.params?.[key] ?? def;
     };
 
     return (
@@ -159,7 +170,7 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                 numColumns={NUM_COLUMNS}
                 data={filteredShoes}
                 renderItem={renderShoe}
-                keyExtractor={(item, index) => item.product_name + index}
+                keyExtractor={(item, index) => (item?.product_name ?? 'item') + index}
                 contentContainerStyle={styles.list}
             />
 
@@ -167,8 +178,12 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                 style={[styles.addButton, selectedShoes.length === 0 && { backgroundColor: '#ccc' }]}
                 onPress={() => {
                     if (selectedShoes.length > 0) {
+                        const patient = getParam('patient', null);
                         navigation.navigate('CartScreen', {
-                            selectedShoes: shoes.filter(shoe => selectedShoes.includes(shoe.product_name)),
+                            selectedShoes: (shoes || []).filter(shoe =>
+                                selectedShoes.includes(shoe?.product_name)
+                            ),
+                            patient, // pass through if present
                         });
                     }
                 }}
@@ -208,7 +223,7 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                                                     : 'producttype'
                                         ).map(value => (
                                             <TouchableOpacity
-                                                key={value}
+                                                key={String(value)}
                                                 onPress={() =>
                                                     setPendingFilters(prev => {
                                                         const isSelected = prev[key].includes(value);
@@ -229,7 +244,7 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                                                         pendingFilters[key].includes(value) && styles.activeTagText,
                                                     ]}
                                                 >
-                                                    {value}
+                                                    {String(value)}
                                                 </Text>
                                             </TouchableOpacity>
                                         ))}
@@ -414,7 +429,8 @@ const styles = StyleSheet.create({
     tagContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
+        // RN 0.72+ supports `gap`, but keep margin on tags for backward safety
+        // gap: 8,
     },
     filterTag: {
         backgroundColor: '#e0f7f9',
