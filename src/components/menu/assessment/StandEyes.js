@@ -1016,7 +1016,10 @@ class StandEyes extends Component {
         this.canVibration(this.state.shouldVibrate, this.state.switch);
 
         return (
-            <View styles={{flex: 1}}>
+            <ScrollView
+                style={{ flex: 1, backgroundColor: '#fff' }}
+                contentContainerStyle={{ flexGrow: 1 }}   // <- important for small screens
+            >
                 <HeaderFix
                     icon_left={'left'}
                     onpress_left={() => {
@@ -1083,7 +1086,7 @@ class StandEyes extends Component {
                         )}
                     </View>
                 </View>
-            </View>
+            </ScrollView>
         );
     }
 }
