@@ -37,6 +37,7 @@ class TenMeterWalkTest extends Component {
         this.round = Math.floor(1000 + Math.random() * 9000);
         this.lsensor = [0, 0, 0, 0, 0];
         this.rsensor = [0, 0, 0, 0, 0];
+        this.sampleSeq = 0;
     }
 
     async componentDidMount() {
@@ -101,42 +102,126 @@ class TenMeterWalkTest extends Component {
         );
     }
 
-    sendDataToServer = () => {
-        RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-            res.forEach(r => {
-                RNFS.readFile(r.path)
-                    .then(text => {
-                        const data = JSON.parse('[' + text.slice(0, -1) + ']');
-                        const content = {
-                            data,
-                            id_customer: this.props.user.id_customer,
-                            id_device: '',
-                            type: 1,
-                            product_number: this.props.productNumber,
-                            bluetooth_left_id: this.props.leftDevice,
-                            bluetooth_right_id: this.props.rightDevice,
-                            shoe_size: 0,
-                            leg_type: '10MWT',
-                        };
-                        fetch(`${API}/addjson`, {
-                            method: 'POST',
-                            headers: {
-                                Accept: 'application/json',
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(content),
-                        })
-                            .then(resp => resp.json())
-                            .then(resp => {
-                                if (resp.status !== 'ผิดพลาด') {
-                                    RNFS.unlink(r.path);
-                                }
+    sendDataToServer = async () => {
+        try {
+            const dir = `${RNFS.CachesDirectoryPath}/suratechM/`;
+            const files = await RNFS.readDir(dir);
+
+            // Sort files by name so older sessions upload first
+            const sortedFiles = files.sort((a, b) => a.name.localeCompare(b.name));
+
+            for (const file of sortedFiles) {
+                try {
+                    const text = await RNFS.readFile(file.path);
+
+                    if (!text || !text.trim()) {
+                        console.log("Skipping empty file:", file.path);
+                        continue;
+                    }
+
+                    // Clean trailing comma if present
+                    const trimmed = text.endsWith(",") ? text.slice(0, -1) : text;
+
+                    // Parse JSON and sort entries
+                    let data = [];
+                    try {
+                        data = JSON.parse(`[${trimmed}]`).sort((a, b) => {
+                            if (a.seq != null && b.seq != null) return a.seq - b.seq;
+                            return a.stamp - b.stamp;
+                        });
+                    } catch (parseErr) {
+                        console.error("JSON parse error in file:", file.path, parseErr);
+                        continue;
+                    }
+
+                    const content = {
+                        data,
+                        id_customer: this.props.user.id_customer,
+                        id_device: "",
+                        type: 1, // medical
+                        product_number: this.props.productNumber,
+                        bluetooth_left_id: this.props.leftDevice,
+                        bluetooth_right_id: this.props.rightDevice,
+                        shoe_size: 0,
+                        leg_type: "10MWT", // important: mark this as 10 Meter Walk Test
+                    };
+
+                    // 1) Upload raw record
+                    const response = await fetch(`${API}/addjson`, {
+                        method: "POST",
+                        headers: {
+                            Accept: "application/json",
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify(content),
+                    });
+
+                    // Defensive: server may return text or JSON
+                    const respText = await response.text();
+                    console.log("===========API Response (addjson)============");
+                    console.log(respText);
+
+                    let resp;
+                    try {
+                        resp = JSON.parse(respText);
+                    } catch {
+                        console.error("Server did not return JSON. Raw response:", respText);
+                        // Do not delete the file if backend didn’t accept it
+                        continue;
+                    }
+
+                    if (resp.status !== "ผิดพลาด") {
+                        // If upload is accepted, clear the local file
+                        console.log("Clearing file:", file.path);
+                        await RNFS.unlink(file.path);
+
+                        // 2) Trigger dashboard stat recompute (same as pressure map)
+                        try {
+                            const dashStatResp = await fetch(`${API}member/getUserDashboardStatic`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    id: this.props.user.id_customer,
+                                }),
                             });
-                    })
-                    .catch(e => console.error(e));
-            });
-        });
+
+                            console.log("===========API Response (getUserDashboardStatic)============");
+                            const dashStatJson = await dashStatResp.json();
+
+                            // 3) Update / persist user dash data (same as pressure map)
+                            const userDataResp = await fetch(`${API}member/get_user_data`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    id: this.props.user.id_customer,
+                                    ...dashStatJson,
+                                }),
+                            });
+
+                            console.log("===========API Response (get_user_data)============");
+                            // You only logged res in pressure map; here we read & log json safely
+                            const userDataJson = await userDataResp.json();
+                            console.log(userDataJson, "responseFromAPI (10MWT)");
+                        } catch (dashErr) {
+                            console.log("Dashboard update error (10MWT):", dashErr);
+                        }
+                    } else {
+                        // resp.status === 'ผิดพลาด' -> backend rejected; keep file for retry
+                        console.warn("addjson returned error status; keeping file:", file.path);
+                    }
+                } catch (fileErr) {
+                    console.error("Error handling file:", file.path, fileErr);
+                }
+            }
+
+            // Optional: mirror pressuremap’s alert UX (or use toast)
+            Alert.alert(getLocalizedText(this.props.lang, langAssessment.testComplete));
+        } catch (err) {
+            console.error("sendDataToServer error:", err);
+        }
     };
+
+
 
     handleStart = () => {
         const { rightDevice, leftDevice } = this.props;
@@ -202,14 +287,17 @@ class TenMeterWalkTest extends Component {
                 Alert.alert('Warning!', 'Please check your Bluetooth connection.');
                 return;
             }
+            this.sampleSeq = 0;
             // console.log('DEBUGGING TESTING MODE: Bluetooth check disabled');
 
             const start = new Date();
             this.readInterval = setInterval(() => {
                 const time = new Date();
+                const stamp = time.getTime();
                 const data = {
+                    seq: this.sampleSeq++,
                     stamp: time.getTime(),
-                    timestamp: time,
+                    timestamp: new Date(stamp).toISOString(),
                     duration: Math.floor((time - start) / 1000),
                     left: {
                         sensor: this.lsensor,
