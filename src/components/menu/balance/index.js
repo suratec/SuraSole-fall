@@ -1455,7 +1455,9 @@ const styles = StyleSheet.create({
   balanceGradeContainer: {
     marginVertical: 5, // Reduced spacing
     paddingHorizontal: 10, // Reduced width
-    paddingVertical: 8, // Reduced height
+    // paddingVertical: 8, // Reduced height
+    paddingTop: 8,
+    paddingBottom: 13,
     backgroundColor: '#ffffff',
     borderRadius: 10, // Smaller radius
     shadowColor: '#000',
