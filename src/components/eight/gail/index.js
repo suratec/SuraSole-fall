@@ -35,6 +35,7 @@ import LangHome from '../../../assets/language/screen/lang_home';
 import lang_gail from '../../../assets/language/menu/lang_gail'; // Import the language file
 import {set} from 'lodash';
 import {getLocalizedText} from "../../../assets/language/langUtils";
+import Lang_pressuremap from "../../../assets/language/menu/lang_pressuremap";
 
 var RNFS = require('react-native-fs');
 
@@ -522,6 +523,12 @@ class index extends Component {
         this.props.navigation.navigate('Dashboard');
     };
 
+    getButtonTitle = () => {
+        return this.state.textAction === 'Record'
+            ? getLocalizedText(this.props.lang, Lang_pressuremap.recordButton)
+            : getLocalizedText(this.props.lang, Lang_pressuremap.stopButton);
+    };
+
     render() {
         return (
             <ScrollView>
@@ -557,7 +564,7 @@ class index extends Component {
                     <ButtonFix
                         action={true}
                         rounded={true}
-                        title={this.state.textAction}
+                        title={this.getButtonTitle()}
                         onPress={() => this.actionRecording()}
                     />
                     {/* </Col> */}
