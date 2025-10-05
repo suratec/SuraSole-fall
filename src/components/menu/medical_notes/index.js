@@ -816,7 +816,7 @@ class MedicalNotes extends Component {
                                     [
                                         { label: getLocalizedText(this.props.lang, Lang.leftSide) || 'Left', key: 'caneSide', value: 'left', group: 'side' },
                                         { label: getLocalizedText(this.props.lang, Lang.rightSide) || 'Right', key: 'caneSide', value: 'right', group: 'side' },
-                                        { label: getLocalizedText(this.props.lang, Lang.both) || 'Both', key: 'caneSide', value: 'both', group: 'side' },
+                                        // { label: getLocalizedText(this.props.lang, Lang.both) || 'Both', key: 'caneSide', value: 'both', group: 'side' },
                                         { label: getLocalizedText(this.props.lang, Lang.lessThanOneYear) || '<1yr', key: 'caneDuration', value: '<1yr', group: 'duration' },
                                         { label: getLocalizedText(this.props.lang, Lang.moreThanOneYear) || '>1yr', key: 'caneDuration', value: '>1yr', group: 'duration' },
                                     ]
