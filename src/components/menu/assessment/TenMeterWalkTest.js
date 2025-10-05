@@ -31,6 +31,7 @@ class TenMeterWalkTest extends Component {
             isConnected: true,
             textAction: getLocalizedText(this.props.lang, langAssessment.startText),
             isRecording: false,
+            shoeSize: 0,
             // countDownTimer: 10,
         };
 
@@ -84,6 +85,14 @@ class TenMeterWalkTest extends Component {
         BleManager.connect(peripheral.id).then(() => {
             if (peripheral.name?.endsWith('L')) {
                 this.props.addLeftDevice(peripheral.id);
+                // Extract last two chars before trailing 'L' (e.g., "39L" → "39")
+                const name = peripheral.name || '';
+                if (name.length >= 3) {
+                    const sz = name[name.length - 3] + name[name.length - 2];
+                    this.setState({ shoeSize: sz });
+                    } else {
+                    this.setState({ shoeSize: 0 });
+                    }
             } else if (peripheral.name?.endsWith('R')) {
                 this.props.addRightDevice(peripheral.id);
             }
@@ -142,7 +151,7 @@ class TenMeterWalkTest extends Component {
                         product_number: this.props.productNumber,
                         bluetooth_left_id: this.props.leftDevice,
                         bluetooth_right_id: this.props.rightDevice,
-                        shoe_size: 0,
+                        shoe_size: this.state.shoeSize || 0,
                         leg_type: "10MWT", // important: mark this as 10 Meter Walk Test
                     };
 
