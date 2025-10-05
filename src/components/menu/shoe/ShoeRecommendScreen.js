@@ -16,6 +16,7 @@ import { connect } from 'react-redux';
 import HeaderFix from '../../common/HeaderFix';
 import shoeLang from '../../../assets/language/menu/lang_shoe';
 import { getLocalizedText } from '../../../assets/language/langUtils';
+import orderLang from '../../../assets/language/menu/lang_orders';
 
 export default connect(state => ({ lang: state.lang }))(function ShoeRecommendScreen({ navigation, lang }) {
     const { width } = useWindowDimensions();
@@ -134,6 +135,8 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                 icon_left="left"
                 onpress_left={() => navigation.goBack()}
                 title={getLocalizedText(lang, shoeLang.title)}
+                text_rigth={lang === 1 ? orderLang.title.thai : lang === 2 ? orderLang.title.jpn : orderLang.title.eng}
+                onpress_rigth={() => navigation.navigate('OrdersScreen')}
             />
 
             <View style={styles.searchSortRow}>

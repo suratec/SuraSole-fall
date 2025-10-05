@@ -40,6 +40,7 @@ import TenMeterWalkTest from './src/components/menu/assessment/TenMeterWalkTest'
 import Chatbot from './src/components/menu/chat/Chatbot';
 import ShoeRecommendScreen from './src/components/menu/shoe/ShoeRecommendScreen';
 import CartScreen from './src/components/menu/shoe/CartScreen';
+import OrdersScreen from './src/components/menu/orders/OrdersScreen';
 
 // Eight-Sensor Screens
 import PressureMapEightSensorScreen from './src/components/eight/pressuremap';
@@ -126,6 +127,7 @@ const AppStack = createStackNavigator(
         Dashboard: withFAB(DashboardScreen),
         ShoeRecommend: withFAB(ShoeRecommendScreen),
         CartScreen: withFAB(CartScreen),
+        OrdersScreen: withFAB(OrdersScreen),
         Profile: withFAB(ProfileScreen),
         // ADD MEDICAL NOTES HERE WITH REDUX CONNECTION
         MedicalNotes: withFAB((props) => {
