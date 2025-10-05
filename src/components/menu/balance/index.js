@@ -13,6 +13,7 @@ import {
   Alert,
   Dimensions,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -60,6 +61,7 @@ function parseSizeFromPeripheralName(name = '') {
 }
 
 class index extends Component {
+  sampleSeq = 0;
   leftSwingTime = 0;
   rightSwingTime = 0;
   leftStanceTime = 0;
@@ -436,6 +438,7 @@ class index extends Component {
       return;
     }
     if (this.state.textAction == 'Record') {
+      this.sampleSeq = 0;
       this.setState({textAction: 'Stop'});
       this.props.actionRecordingButton('Stop');
       let initTime = new Date();
@@ -461,7 +464,7 @@ class index extends Component {
           id_customer: this.props.user.id_customer,
         };
         try {
-          await await RNFS.appendFile(
+          await RNFS.appendFile(
               RNFS.CachesDirectoryPath +
               '/suratechM/' +
               this.start.getFullYear() +
@@ -510,6 +513,7 @@ class index extends Component {
       return;
     }
     if (this.state.textAction == getLocalizedText(this.props.lang, BalanceLang.recordButton)) {
+      this.sampleSeq = 0;
       this.setState({textAction: getLocalizedText(this.props.lang, BalanceLang.stopButton)});
       this.props.actionRecordingButton(getLocalizedText(this.props.lang, BalanceLang.stopButton));
       var initTime = new Date();
@@ -525,6 +529,7 @@ class index extends Component {
             var time = new Date();
             if(Math.floor((time - start) / 1000) < 11){
               var data = {
+                seq: this.sampleSeq++,
                 stamp: time.getTime(),
                 timestamp: time,
                 duration: Math.floor((time - start) / 1000),
@@ -593,104 +598,95 @@ class index extends Component {
   };
 
 
-  sendDataToSetverCalibration = (legValue) => {
-    this.state.isConnected == false
-        ?  RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-          console.log('WiFi is not connect');
-          res.forEach(r => {
-            console.log(r.path);
-          });
-        })
-        :  RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-          res.forEach(r => {
-            console.log(r.path,'path');
-            RNFS.readFile(r.path)
-                .then(  text => {
-                  let data = JSON.parse(
-                      '[' + text.substring(0, text.length - 1) + ']',
-                  );
-                  var content = {
-                    data: data,
-                    id_customer: data[0].id_customer,
-                    id_device: '',
-                    type: 1, // for medical
-                    product_number: this.props.productNumber,
-                    bluetooth_left_id: this.props.leftDevice,
-                    bluetooth_right_id: this.props.rightDevice,
-                    shoe_size: this.state.shoeSize,
-                    leg_type:legValue
-                  };
-                  fetch(`${API}/addjson`, {
-                    method: 'POST',
-                    headers: {
-                      Accept: 'application/json',
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(content),
-                  })
-                      .then(resp => resp.json())
-                      .then(resp => {
-                        console.log(resp,content,"response");
-                        if (resp.status != 'ผิดพลาด') {
-                          console.log(`Clear : ${r.path}`);
-                          RNFS.unlink(r.path);
-                        }
-                      });
-                })
-                .catch(e => { });
-          });
-        });
-    // alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
-  }
+  sendDataToSetverCalibration = async (legValue) => {
+     // legValue expected: 'L' | 'R' | 'S'
+        await this.uploadCachedFilesInOrder(legValue);
+    }
 
-  sendDataToSetver = () => {
-    this.state.isConnected == false
-        ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-          console.log('WiFi is not connect');
-          res.forEach(r => {
-            console.log(r.path);
-          });
-        })
-        : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-          res.forEach(r => {
-            console.log(r.path);
-            RNFS.readFile(r.path)
-                .then(text => {
-                  let data = JSON.parse(
-                      '[' + text.substring(0, text.length - 1) + ']',
-                  );
-                  var content = {
-                    data: data,
-                    id_customer: data[0].id_customer,
-                    id_device: '',
-                    type: 1, // for medical
-                    product_number: this.props.productNumber,
-                    bluetooth_left_id: this.props.leftDevice,
-                    bluetooth_right_id: this.props.rightDevice,
-                    shoe_size:  this.state.shoeSize,
-                    leg_type:''
-                  };
-                  fetch(`${API}/addjson`, {
-                    method: 'POST',
-                    headers: {
-                      Accept: 'application/json',
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(content),
-                  })
-                      .then(resp => resp.json())
-                      .then(resp => {
-                        console.log(resp,content,"response");
-                        if (resp.status != 'ผิดพลาด') {
-                          console.log(`Clear : ${r.path}`);
-                          RNFS.unlink(r.path);
-                        }
-                      });
-                })
-                .catch(e => {});
-          });
-        });
-    // alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+uploadCachedFilesInOrder = async (legType = '') => {
+    try {
+      const dir = `${RNFS.CachesDirectoryPath}/suratechM/`;
+      const files = await RNFS.readDir(dir).catch(() => []);
+      if (!files || !files.length) return;
+
+          // sort files lexicographically so older sessions go first
+              const sortedFiles = files.sort((a, b) => a.name.localeCompare(b.name));
+
+          for (const f of sortedFiles) {
+        try {
+          const raw = await RNFS.readFile(f.path);
+          if (!raw || !raw.trim()) {
+            console.log('Skipping empty file:', f.path);
+            continue;
+            }
+          // trim trailing comma
+              const trimmed = raw.endsWith(',') ? raw.slice(0, -1) : raw;
+
+              let data = [];
+          try {
+            data = JSON.parse(`[${trimmed}]`).sort((a, b) => {
+              if (a.seq != null && b.seq != null) return a.seq - b.seq;
+              return (a.stamp || 0) - (b.stamp || 0);
+              });
+            } catch (e) {
+            console.warn('JSON parse error for file:', f.path, e);
+            continue; // keep file for later/manual inspection
+            }
+
+              if (!data.length) {
+            console.log('No samples in file:', f.path);
+            await RNFS.unlink(f.path).catch(() => {});
+            continue;
+            }
+
+              const content = {
+                  data,
+              id_customer: data[0]?.id_customer ?? this.props.user.id_customer,
+              id_device: '',
+              type: 1, // medical
+              product_number: this.props.productNumber,
+              bluetooth_left_id: this.props.leftDevice,
+              bluetooth_right_id: this.props.rightDevice,
+               shoe_size: this.state.shoeSize || 0,
+              leg_type: legType, // '', 'L', 'R', 'S'
+              };
+
+               const resp = await fetch(`${API}/addjson`, {
+              method: 'POST',
+              headers: {
+            Accept: 'application/json',
+                'Content-Type': 'application/json',
+                },
+          body: JSON.stringify(content),
+              });
+
+               // server may reply text or JSON
+                  const text = await resp.text();
+          let json;
+          try {
+            json = JSON.parse(text);
+            } catch {
+            console.error('Non-JSON server response, keeping file:', f.path, text);
+            continue;
+            }
+
+              if (json.status !== 'ผิดพลาด') {
+            await RNFS.unlink(f.path).catch(() => {});
+            } else {
+            console.warn('Server returned error status; keeping file:', f.path);
+            }
+          } catch (e) {
+          console.error('Error uploading file:', f?.path, e);
+          }
+         }
+      } catch (e) {
+      console.error('uploadCachedFilesInOrder failed:', e);
+      }
+    };
+
+
+  sendDataToSetver = async () => {
+    await this.uploadCachedFilesInOrder(''); // normal balance session
   }
 
   actionUpdate = content => {
@@ -782,6 +778,7 @@ class index extends Component {
             var time = new Date();
             if(Math.floor((time - start) / 1000) < 6){
               var data = {
+                seq: this.sampleSeq++,
                 stamp: time.getTime(),
                 timestamp: time,
                 duration: Math.floor((time - start) / 1000),
