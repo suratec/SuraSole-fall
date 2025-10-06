@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     View,
     Text,
@@ -18,6 +19,7 @@ import { connect } from 'react-redux';
 import HeaderFix from '../../common/HeaderFix';
 import shoeLang from '../../../assets/language/menu/lang_shoe';
 import { getLocalizedText } from '../../../assets/language/langUtils';
+import cartApi from '../../../services/cartApi';
 
 const UK_SIZES = ['5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -46,23 +48,20 @@ const CartScreen = ({ navigation, lang, user }) => {
     const [cartId, setCartId] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isCreatingCart, setIsCreatingCart] = useState(false);
+    const [doctorInfo, setDoctorInfo] = useState(null);
 
-    // --------- Inline API stubs (replace with real service later) ---------
-    const apiCreateCart = async (customerId, doctorId, hospitalId, memo) => {
-        // Simulate network call
-        return new Promise((resolve) =>
-            setTimeout(() => resolve({ status: 'OK', cart_id: `LOCAL-${Date.now()}` }), 600)
-        );
-    };
-
-    const apiAddItemToCart = async (cid, productId, price, qty, size) => {
-        return new Promise((resolve) => setTimeout(() => resolve({ status: 'OK' }), 250));
-    };
-
-    const apiConfirmOrder = async (cid, customerId, doctorId, hospitalId, totalPrice, memo) => {
-        return new Promise((resolve) => setTimeout(() => resolve({ status: 'OK' }), 500));
-    };
-    // ----------------------------------------------------------------------
+    // Load doctor info (for doctor_id when clinician orders for a patient)
+    useEffect(() => {
+        const loadDoctor = async () => {
+            try {
+                const doctorUser = await AsyncStorage.getItem('doctor_user');
+                if (doctorUser) setDoctorInfo(JSON.parse(doctorUser));
+            } catch (e) {
+                console.warn('Failed to load doctor_user from storage', e);
+            }
+        };
+        loadDoctor();
+    }, []);
 
     // Hardware back: close size modal first, else navigate back
     useEffect(() => {
@@ -80,32 +79,36 @@ const CartScreen = ({ navigation, lang, user }) => {
         return () => handler.remove();
     }, [navigation, sizeModal]);
 
-    // Create cart on mount
+    // Create cart on mount (real backend call)
     useEffect(() => {
         const createCart = async () => {
             setIsCreatingCart(true);
             try {
-                // Flexible identifier derivation to tolerate different user schemas
+                // Prefer patient id if clinician ordering on behalf of a patient
                 const customerId =
-                    // If a clinician is ordering on behalf of a patient, prefer patient id
                     patient?.id_data_role ??
                     user?.id_customer ??
-                    user?.id ?? // generic id fallback
                     user?.id_data_role ??
+                    user?.id ??
                     null;
 
-                const doctorId = user?.doctor_id ?? null;
+                const doctorId = (doctorInfo?.doctor_id ?? user?.doctor_id) ?? 'null';
                 const hospitalId = user?.hospital_id ?? null;
-                const memo = note || 'Shoe order from mobile app';
 
-                const response = await apiCreateCart(customerId, doctorId, hospitalId, memo);
-                if ((response?.status === 'OK' || response?.status === 'success') && response?.cart_id) {
-                    setCartId(response.cart_id);
+                const res = await cartApi.createCart(
+                    customerId,
+                    doctorId,
+                    hospitalId,
+                    note || 'Shoe order from mobile app'
+                );
+
+                if ((res?.status === 'OK' || res?.status === 'success') && res?.cart_id) {
+                    setCartId(res.cart_id);
                 } else {
                     Alert.alert('Error', 'Failed to create cart');
                 }
-            } catch (err) {
-                console.error('Error creating cart:', err);
+            } catch (e) {
+                console.error('Error creating cart:', e);
                 Alert.alert('Error', 'Failed to create cart. Please try again.');
             } finally {
                 setIsCreatingCart(false);
@@ -114,7 +117,7 @@ const CartScreen = ({ navigation, lang, user }) => {
 
         createCart();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // once
+    }, [doctorInfo]); // run once; if doctorInfo loads async, this will still run correctly
 
     const updateSize = (size) => {
         const updated = [...cartItems];
@@ -139,7 +142,11 @@ const CartScreen = ({ navigation, lang, user }) => {
     };
 
     const calculateTotal = () =>
-        cartItems.reduce((sum, item) => sum + ((parseFloat(item?.price ?? 0) || 0) * (item?.quantity || 1)), 0);
+        cartItems.reduce(
+            (sum, item) =>
+                sum + ((parseFloat(item?.price ?? 0) || 0) * (item?.quantity || 1)),
+            0
+        );
 
     const handleConfirm = async () => {
         const missingSize = cartItems.some((item) => !item.size);
@@ -158,19 +165,27 @@ const CartScreen = ({ navigation, lang, user }) => {
 
         setIsLoading(true);
         try {
-            // Add items
+            // Add items to cart
             for (const item of cartItems) {
-                // Try to pick product id from any known key; fallback to a test id
-                let productId = item?.id ?? item?.product_id ?? item?.productId ?? null;
+                // Ensure we send a product_id the backend recognizes
+                let productId = item?.id ?? item?.product_id ?? item?.productId;
                 if (!productId) {
-                    productId = 15; // fallback for testing until backend maps products
+                    productId = 15; // TODO: replace with real product mapping
                     console.warn(`No product_id for ${item?.product_name}; using default: ${productId}`);
                 }
 
                 const priceNum = parseFloat(item?.price ?? 0) || 0;
 
-                const res = await apiAddItemToCart(cartId, productId, priceNum, item?.quantity || 1, item?.size);
-                if (res?.status !== 'OK' && res?.status !== 'success') {
+                const addRes = await cartApi.addItemToCart(
+                    cartId,
+                    productId,
+                    item?.product_name ?? '',
+                    priceNum,
+                    item?.quantity || 1,
+                    item?.size
+                );
+
+                if (addRes?.status !== 'OK' && addRes?.status !== 'success') {
                     throw new Error(`Failed to add item ${item?.product_name || productId} to cart`);
                 }
             }
@@ -181,15 +196,15 @@ const CartScreen = ({ navigation, lang, user }) => {
             const customerId =
                 patient?.id_data_role ??
                 user?.id_customer ??
-                user?.id ??
                 user?.id_data_role ??
+                user?.id ??
                 null;
 
-            const doctorId = user?.doctor_id ?? null;
+            const doctorId = (doctorInfo?.doctor_id ?? user?.doctor_id) ?? 'null';
             const hospitalId = user?.hospital_id ?? null;
             const memo = note || 'Shoe order from mobile app';
 
-            const confirmRes = await apiConfirmOrder(
+            const confirmRes = await cartApi.confirmOrder(
                 cartId,
                 customerId,
                 doctorId,

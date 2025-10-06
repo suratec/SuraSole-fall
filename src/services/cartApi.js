@@ -5,6 +5,7 @@ const cartApi = {
     // Create Cart
     createCart: async (idCustomer, doctorId, hospitalId, addNote) => {
         try {
+            console.log('Creating cart with:', { idCustomer, doctorId, hospitalId, addNote });
             const response = await fetch(`${BASE_URL}/cart/create`, {
                 method: 'POST',
                 headers: {
@@ -12,7 +13,7 @@ const cartApi = {
                 },
                 body: JSON.stringify({
                     id_customer: idCustomer,
-                    doctor_id: doctorId,
+                    doctor_id: doctorId || "null",
                     hospital_id: hospitalId,
                     add_note: addNote,
                 }),
@@ -31,7 +32,8 @@ const cartApi = {
     },
 
     // Add Item to Cart
-    addItemToCart: async (cartId, productId, price, quantity, size) => {
+    addItemToCart: async (cartId, productId, productName, price, quantity, size) => {
+        console.log('Adding item to cart with:', { cartId, productId, productName, price, quantity, size });
         try {
             const response = await fetch(`${BASE_URL}/cart/item/add`, {
                 method: 'POST',
@@ -41,6 +43,7 @@ const cartApi = {
                 body: JSON.stringify({
                     cart_id: cartId,
                     product_id: productId,
+                    product_name: productName,
                     price: price,
                     quantity: quantity,
                     size: size,
@@ -62,6 +65,7 @@ const cartApi = {
     // Confirm Order
     confirmOrder: async (cartId, customerId, doctorId, hospitalId, totalPrice, addNote) => {
         try {
+            console.log('Confirming order with bwahahahah:', { cartId, customerId, doctorId, hospitalId, totalPrice, addNote });
             const response = await fetch(`${BASE_URL}/order/confirm`, {
                 method: 'POST',
                 headers: {
@@ -70,7 +74,7 @@ const cartApi = {
                 body: JSON.stringify({
                     cart_id: cartId,
                     customer_id: customerId,
-                    doctor_id: doctorId,
+                    doctor_id: doctorId || "null",
                     hospital_id: hospitalId,
                     totalprice: totalPrice,
                     playback_type: "",
