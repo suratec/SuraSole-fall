@@ -77,6 +77,7 @@ class index extends React.PureComponent {
 
   ltime = new Date();
   rtime = new Date();
+  _isMounted = false; // Track if component is mounted to prevent race conditions
 
   state = {
     switch: false,
@@ -216,9 +217,37 @@ class index extends React.PureComponent {
   }
 
   async startReading() {
+    // Clear existing listener if any (prevent multiple listeners)
+    if (this.dataRecord) {
+      this.dataRecord.remove();
+    }
+    
+    // Clear existing interval if any (prevent multiple intervals when switching modules)
+    if (this.readInterval) {
+      clearInterval(this.readInterval);
+    }
+    
+    // Sync with Redux recording state when component comes into focus
+    if (typeof this.props.record !== 'undefined') {
+      if (this.props.record === 'Stop') {
+        this.setState({ textAction: 'Stop' });
+        // Don't auto-start recording, just sync the UI
+      } else {
+        this.setState({ textAction: 'Record' });
+      }
+    } else {
+      this.props.actionRecordingButton('Record');
+      this.setState({ textAction: 'Record' });
+    }
+    
     this.dataRecord = bleManagerEmitter.addListener(
       'BleManagerDidUpdateValueForCharacteristic',
       ({ value, peripheral, characteristic, service }) => {
+        // Safety check: Don't process if component is unmounted
+        if (!this._isMounted) {
+          return;
+        }
+        
         let time = new Date();
         if (peripheral === this.props.leftDevice) {
           let leftsensor = this.toDecimalArray(value);
@@ -292,7 +321,6 @@ class index extends React.PureComponent {
             }
             if (peripheral.name[peripheral.name.length - 1] === 'L') {
               this.props.addLeftDevice(peripheral.id);
-              this.setState({shoeSize:peripheral.name[peripheral.name.length - 3] + peripheral.name[peripheral.name.length - 2]})
             } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
               this.props.addRightDevice(peripheral.id);
             }
@@ -345,6 +373,8 @@ class index extends React.PureComponent {
   }
 
   componentDidMount = async () => {
+    this._isMounted = true; // Component is now mounted
+    
     leftData = this.findLeftContourArray(this.state.leftsensor);
     rightData = this.findRightContourArray(this.state.rightsensor);
 
@@ -366,11 +396,15 @@ class index extends React.PureComponent {
     noti !== null ? this.setState({ notiAlarm: parseInt(noti) }) : 100;
 
     this.retrieveConnected();
-    this.startReading();
+    // Small delay to ensure module is fully mounted
+    setTimeout(() => {
+      this.startReading();
+    }, 100);
     this.setState({ leftData, rightData });
   };
 
   componentWillUnmount = () => {
+    this._isMounted = false; // Component is unmounting
     console.log('============ componentWillUnmount ==============');
     clearInterval(this.readInterval);
     if (this.dataRecord) {

@@ -7,7 +7,6 @@ import {
   ScrollView,
   NativeModules,
   NativeEventEmitter,
-  Vibration,
   Alert,
   Platform,
   Toast,
@@ -35,7 +34,6 @@ import LangHome from '../../../assets/language/screen/lang_home';
 import lang_gail from '../../../assets/language/menu/lang_gail'; // Import the language file
 import { getLocalizedText } from '../../../assets/language/langUtils';
 import {set} from 'lodash';
-import Lang_pressuremap from "../../../assets/language/menu/lang_pressuremap";
 
 var RNFS = require('react-native-fs');
 
@@ -44,27 +42,6 @@ const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
 
 const TIMER = 100;
 const TIMER_BIG = 1;
-const Duration = 1500;
-
-/*
-code vibration
-
-if (this.state.switch) {
-      Vibration.vibrate(Duration);
-}else{
-  Vibration.cancel();
-}
-
-*/
-
-
-// put near the top of the file (below constants is fine)
-function parseSizeFromPeripheralName(name = '') {
-  // capture 9, 10, 10.5, etc. right before trailing L/R
-  const m = name.match(/(\d+(?:\.5)?)\s*[LR]\s*$/i);
-  return m ? m[1] : null;
-}
-
 
 class index extends Component {
   leftSwingTime = 0;
@@ -100,11 +77,16 @@ class index extends Component {
     rstage: 0,
     isConnected: true,
     peripherals: new Map(),
-    shoeSize: 0 ,
   };
 
   componentDidMount = () => {
     NetInfo.addEventListener(this.handleConnectivityChange);
+    const { navigation } = this.props;
+    this.focusListener = navigation.addListener('didFocus', () => {
+      this.retrieveConnected();
+      this.startReading();
+    });
+    
     this.retrieveConnected();
     this.startReading();
     // Set initial button text with proper translation
@@ -118,19 +100,13 @@ class index extends Component {
     if (this.dataRecord) {
       this.dataRecord.remove();
     }
+    if (this.focusListener) {
+      this.focusListener.remove();
+    }
   };
 
   calMeasurePressure = value => {
     return 2.206 * Math.exp(0.0068 * value);
-  };
-
-  measurePressure = sensor => {
-    for (let i = 0; i < sensor.length; i++) {
-      if (this.calMeasurePressure(sensor[i]) > 100) {
-        Vibration.vibrate(100);
-        return;
-      }
-    }
   };
 
   toDecimalArray(byteArray) {
@@ -147,51 +123,46 @@ class index extends Component {
         BleManager.disconnect(peripheral.id);
       } else {
         BleManager.connect(peripheral.id)
-            .then(() => {
-              let peripherals = this.state.peripherals;
-              let p = peripherals.get(peripheral.id);
-              if (p) {
-                p.connected = true;
-                peripherals.set(peripheral.id, p);
-                this.setState({peripherals});
-              }
-              if (peripheral.name[peripheral.name.length - 1] === 'L') {
-                this.props.addLeftDevice(peripheral.id);
-                const size = parseSizeFromPeripheralName(peripheral.name);
-                if (size && !this.state.shoeSize) this.setState({ shoeSize: size });
-              } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
-                this.props.addRightDevice(peripheral.id);
-                const size = parseSizeFromPeripheralName(peripheral.name);
-                if (size && !this.state.shoeSize) this.setState({ shoeSize: size });
-              }
+          .then(() => {
+            let peripherals = this.state.peripherals;
+            let p = peripherals.get(peripheral.id);
+            if (p) {
+              p.connected = true;
+              peripherals.set(peripheral.id, p);
+              this.setState({peripherals});
+            }
+            if (peripheral.name[peripheral.name.length - 1] === 'L') {
+              this.props.addLeftDevice(peripheral.id);
+            } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
+              this.props.addRightDevice(peripheral.id);
+            }
+            console.log('Connected to ' + peripheral.id);
 
-              console.log('Connected to ' + peripheral.id);
+            setTimeout(() => {
+              BleManager.retrieveServices(peripheral.id).then(
+                peripheralInfo => {
+                  console.log(peripheralInfo);
 
-              setTimeout(() => {
-                BleManager.retrieveServices(peripheral.id).then(
-                    peripheralInfo => {
-                      console.log(peripheralInfo);
-
-                      var service;
-                      var bakeCharacteristic;
-                      var crustCharacteristic;
-                      if (Platform.OS === 'android') {
-                        service = '0000FFE0-0000-1000-8000-00805F9B34FB';
-                        bakeCharacteristic = '0000FFE1-0000-1000-8000-00805F9B34FB';
-                        crustCharacteristic =
-                            '0000FFE1-0000-1000-8000-00805F9B34FB';
-                      } else {
-                        service = 'FFE0';
-                        bakeCharacteristic = 'FFE1';
-                        crustCharacteristic = 'FFE1';
-                      }
-                    },
-                );
-              }, 900);
-            })
-            .catch(error => {
-              console.log('Connection error', error);
-            });
+                  var service;
+                  var bakeCharacteristic;
+                  var crustCharacteristic;
+                  if (Platform.OS === 'android') {
+                    service = '0000FFE0-0000-1000-8000-00805F9B34FB';
+                    bakeCharacteristic = '0000FFE1-0000-1000-8000-00805F9B34FB';
+                    crustCharacteristic =
+                      '0000FFE1-0000-1000-8000-00805F9B34FB';
+                  } else {
+                    service = 'FFE0';
+                    bakeCharacteristic = 'FFE1';
+                    crustCharacteristic = 'FFE1';
+                  }
+                },
+              );
+            }, 900);
+          })
+          .catch(error => {
+            console.log('Connection error', error);
+          });
       }
     }
   }
@@ -214,9 +185,23 @@ class index extends Component {
   }
 
   async startReading() {
+    // Clear existing listener if any (prevent multiple listeners)
+    if (this.dataRecord) {
+      this.dataRecord.remove();
+    }
+    
+    // Clear existing interval if any (prevent multiple intervals when switching modules)
+    if (this.readInterval) {
+      clearInterval(this.readInterval);
+    }
+    
+    // Sync with Redux recording state when component comes into focus
     if (typeof this.props.record !== 'undefined') {
       if (this.props.record === 'Stop') {
-        this.actionRecording();
+        this.setState({textAction: getLocalizedText(this.props.lang, lang_gail.stopButton)});
+        // Don't auto-start recording, just sync the UI
+      } else {
+        this.setState({textAction: getLocalizedText(this.props.lang, lang_gail.recordButton)});
       }
     } else {
       this.props.actionRecordingButton('Record');
@@ -224,26 +209,26 @@ class index extends Component {
     }
 
     this.dataRecord = bleManagerEmitter.addListener(
-        'BleManagerDidUpdateValueForCharacteristic',
-        ({value, peripheral, characteristic, service}) => {
-          let time = new Date();
-          if (peripheral === this.props.rightDevice) {
-            let sensor = this.toDecimalArray(value);
-            this.recordData(sensor, 'R');
-            if (time - this.rtime > 333) {
-              this.setState({rsensor: sensor});
-              this.rtime = time;
-            }
+      'BleManagerDidUpdateValueForCharacteristic',
+      ({value, peripheral, characteristic, service}) => {
+        let time = new Date();
+        if (peripheral === this.props.rightDevice) {
+          let sensor = this.toDecimalArray(value);
+          this.recordData(sensor, 'R');
+          if (time - this.rtime > 333) {
+            this.setState({rsensor: sensor});
+            this.rtime = time;
           }
-          if (peripheral === this.props.leftDevice) {
-            let sensor = this.toDecimalArray(value);
-            this.recordData(sensor, 'L');
-            if (time - this.ltime > 333) {
-              this.setState({lsensor: sensor});
-              this.ltime = time;
-            }
+        }
+        if (peripheral === this.props.leftDevice) {
+          let sensor = this.toDecimalArray(value);
+          this.recordData(sensor, 'L');
+          if (time - this.ltime > 333) {
+            this.setState({lsensor: sensor});
+            this.ltime = time;
           }
-        },
+        }
+      },
     );
   }
 
@@ -252,10 +237,6 @@ class index extends Component {
       this.lsensor = data;
     } else {
       this.rsensor = data;
-    }
-
-    if (this.props.noti === true) {
-      this.measurePressure(data);
     }
   }
 
@@ -270,15 +251,15 @@ class index extends Component {
     ) {
       Alert.alert(getLocalizedText(this.props.lang, Lang.warning),
           getLocalizedText(this.props.lang, Lang.bluetoothAlert), [
-            {
-              text: 'OK',
-              onPress: () => {
-                this.props.navigation.navigate('Device', {
-                  name: getLocalizedText(this.props.lang, LangHome.addDeviceButton),
-                });
-              },
-            },
-          ]);
+        {
+          text: 'OK',
+          onPress: () => {
+            this.props.navigation.navigate('Device', {
+              name: getLocalizedText(this.props.lang, LangHome.addDeviceButton),
+            });
+          },
+        },
+      ]);
       return;
     }
     if (this.state.textAction === getLocalizedText(this.props.lang, lang_gail.recordButton)) {
@@ -308,24 +289,24 @@ class index extends Component {
         };
         try {
           await RNFS.appendFile(
-              RNFS.CachesDirectoryPath +
+            RNFS.CachesDirectoryPath +
               '/suratechM/' +
               this.start.getFullYear() +
               this.start.getMonth() +
               this.start.getDate() +
               this.round,
-              JSON.stringify(data) + ',',
+            JSON.stringify(data) + ',',
           );
         } catch {
           await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
           await RNFS.appendFile(
-              RNFS.CachesDirectoryPath +
+            RNFS.CachesDirectoryPath +
               '/suratechM/' +
               this.start.getFullYear() +
               this.start.getMonth() +
               this.start.getDate() +
               this.round,
-              JSON.stringify(data) + ',',
+            JSON.stringify(data) + ',',
           );
         }
       }, 100);
@@ -339,92 +320,92 @@ class index extends Component {
 
   sendDataToSetver() {
     this.state.isConnected == false
-        ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
+      ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
           console.log('WiFi is not connect');
           res.forEach(r => {
             console.log(r.path);
           });
         })
-        : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
+      : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
           res.forEach(r => {
             console.log(r.path);
             RNFS.readFile(r.path)
-                .then(text => {
-                  let data = JSON.parse(
-                      '[' + text.substring(0, text.length - 1) + ']',
-                  );
-                  var content = {
-                    data: data,
-                    id_customer: data[0].id_customer,
-                    id_device: '',
-                    type: 1, // for medical
-                    product_number: this.props.productNumber,
-                    bluetooth_left_id: this.props.leftDevice,
-                    bluetooth_right_id: this.props.rightDevice,
-                    shoe_size: this.state.shoeSize,
-                  };
-                  fetch(`${API}/addjson`, {
-                    method: 'POST',
-                    headers: {
-                      Accept: 'application/json',
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(content),
-                  })
-                      .then(resp => resp.json())
-                      .then(resp => {
-                        if (resp.status != 'ผิดพลาด') {
-                          console.log(`Clear : ${r.path}`);
-                          RNFS.unlink(r.path);
+              .then(text => {
+                let data = JSON.parse(
+                  '[' + text.substring(0, text.length - 1) + ']',
+                );
+                var content = {
+                  data: data,
+                  id_customer: data[0].id_customer,
+                  id_device: '',
+                  type: 1, // for medical
+                  product_number: this.props.productNumber,
+                  bluetooth_left_id: this.props.leftDevice,
+                  bluetooth_right_id: this.props.rightDevice,
+                  shoe_size:  this.state.shoeSize,
+                };
+                fetch(`${API}/addjson`, {
+                  method: 'POST',
+                  headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(content),
+                })
+                  .then(resp => resp.json())
+                  .then(resp => {
+                    if (resp.status != 'ผิดพลาด') {
+                      console.log(`Clear : ${r.path}`);
+                      RNFS.unlink(r.path);
 
-                          fetch(`${API}member/getUserDashboardStatic`, {
+                      fetch(`${API}member/getUserDashboardStatic`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          id: this.props.user.id_customer,
+                          // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
+                        }),
+                      })
+                      .then(resp1 => {
+                            console.log('============API Response============');
+                            return  resp1.json();
+                          })
+                        .then(resp1 => {
+                          
+                          fetch(`${API}member/get_user_data`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               id: this.props.user.id_customer,
+                              ...resp1
                               // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
                             }),
                           })
-                              .then(resp1 => {
-                                console.log('============API Response============');
-                                return  resp1.json();
-                              })
-                              .then(resp1 => {
+                            .then(res => {
+                              console.log('============API Response============');
+                              return console.log(res), res.json();
+                            })
+                            .then(res => {
+                              console.log(res, 'responseFromAPU');
 
-                                    fetch(`${API}member/get_user_data`, {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({
-                                        id: this.props.user.id_customer,
-                                        ...resp1
-                                        // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
-                                      }),
-                                    })
-                                        .then(res => {
-                                          console.log('============API Response============');
-                                          return console.log(res), res.json();
-                                        })
-                                        .then(res => {
-                                          console.log(res, 'responseFromAPU');
-
-                                        })
-                                        .catch(err => {
-                                          console.log(err);
-                                          this.setState({ isLoading: false });
-                                          Toast.show('Something went wrong. Please Try again!!!');
-                                        });
-                                  }
-
-                              )
-                              .catch(err => {
-                                console.log(err);
-                                this.setState({ isLoading: false });
-                                Toast.show('Something went wrong. Please Try again!!!');
-                              });
+                            })
+                            .catch(err => {
+                              console.log(err);
+                              this.setState({ isLoading: false });
+                              Toast.show('Something went wrong. Please Try again!!!');
+                            });
                         }
-                      });
-                })
-                .catch(e => {});
+
+                        )
+                        .catch(err => {
+                          console.log(err);
+                          this.setState({ isLoading: false });
+                          Toast.show('Something went wrong. Please Try again!!!');
+                        });
+                    }
+                  });
+              })
+              .catch(e => {});
           });
         });
     alert(getLocalizedText(this.props.lang, Lang.alert));
@@ -455,89 +436,83 @@ class index extends Component {
       },
       body: JSON.stringify(content),
     })
-        .then(res => res.json())
-        .then(res => {
-          console.log('res => ');
-          console.log(res);
-          if (res.status === 'สำเร็จ') {
-            AlertFix.alertBasic(
-                getLocalizedText(this.props.lang, Lang.successTitle),
-                getLocalizedText(this.props.lang, Lang.successBody),
-            );
-            deleteFile(this.fileStamp_n);
-          } else {
-            AlertFix.alertBasic(
-                getLocalizedText(this.props.lang, Lang.errorTitle),
-                getLocalizedText(this.props.lang, Lang.errorBody1),
-            );
-          }
-        })
-        .catch(error => {
+      .then(res => res.json())
+      .then(res => {
+        console.log('res => ');
+        console.log(res);
+        if (res.status === 'สำเร็จ') {
+          AlertFix.alertBasic(
+              getLocalizedText(this.props.lang, Lang.successTitle),
+              getLocalizedText(this.props.lang, Lang.successBody),
+          );
+          deleteFile(this.fileStamp_n);
+        } else {
           AlertFix.alertBasic(
               getLocalizedText(this.props.lang, Lang.errorTitle),
-              getLocalizedText(this.props.lang, Lang.errorBody2),
+              getLocalizedText(this.props.lang, Lang.errorBody1),
           );
-        });
+        }
+      })
+      .catch(error => {
+        AlertFix.alertBasic(
+            getLocalizedText(this.props.lang, Lang.errorTitle),
+            getLocalizedText(this.props.lang, Lang.errorBody2),
+        );
+      });
   };
 
   actionDashboard = () => {
     this.props.navigation.navigate('Dashboard');
   };
 
-  getButtonTitle = () => {
-    return this.state.textAction === 'Record'
-        ? getLocalizedText(this.props.lang, lang_gail.recordButton)
-        : getLocalizedText(this.props.lang, lang_gail.stopButton);
-  };
-
   render() {
     return (
-        <ScrollView>
-          <HeaderFix
-              icon_left={'left'}
-              onpress_left={() => {
-                this.props.navigation.goBack();
-              }}
-              title={this.props.navigation.getParam('name', '')}
+      <ScrollView>
+        <HeaderFix
+          icon_left={'left'}
+          onpress_left={() => {
+            this.props.navigation.goBack();
+          }}
+          title={this.props.navigation.getParam('name', '')}
+        />
+        
+        {/* Add smaller spacer to push chart slightly higher */}
+        <View style={{ height: 40 }} />
+        
+        <Chart 
+          lsensor={this.state.lsensor} 
+          rsensor={this.state.rsensor}
+          // Pass translations to Chart component
+          foreFootText={getLocalizedText(this.props.lang, lang_gail.foreFootText)}
+          midFootText={getLocalizedText(this.props.lang, lang_gail.midFootText)}
+          heelText={getLocalizedText(this.props.lang, lang_gail.heelText)}
+          entireFootText={getLocalizedText(this.props.lang, lang_gail.entireFootText)}
+          rightSideText={getLocalizedText(this.props.lang, lang_gail.rightSideText)}
+          leftSideText={getLocalizedText(this.props.lang, lang_gail.leftSideText)}
+          // Add text color props for left and right foot labels
+          textColor="#000000" // Black color for general text
+          footTextColor="#000000" // Specifically for left foot and right foot text
+        />
+
+        <Grid
+          style={{padding: 15, justifyContent: 'center', alignItems: 'center'}}>
+          {/* <Col> */}
+          <ButtonFix
+            action={true}
+            rounded={true}
+            title={this.state.textAction}
+            onPress={() => this.actionRecording()}
           />
-
-          {/* Add smaller spacer to push chart slightly higher */}
-          <View style={{ height: 40 }} />
-
-          <Chart
-              lsensor={this.state.lsensor}
-              rsensor={this.state.rsensor}
-              // Pass translations to Chart component
-              foreFootText={getLocalizedText(this.props.lang, lang_gail.foreFootText)}
-              midFootText={getLocalizedText(this.props.lang, lang_gail.midFootText)}
-              heelText={getLocalizedText(this.props.lang, lang_gail.heelText)}
-              entireFootText={getLocalizedText(this.props.lang, lang_gail.entireFootText)}
-              rightSideText={getLocalizedText(this.props.lang, lang_gail.rightSideText)}
-              leftSideText={getLocalizedText(this.props.lang, lang_gail.leftSideText)}
-              // Add text color props for left and right foot labels
-              textColor="#000000" // Black color for general text
-              footTextColor="#000000" // Specifically for left foot and right foot text
-          />
-
-          <Grid
-              style={{padding: 15, justifyContent: 'center', alignItems: 'center'}}>
-            {/* <Col> */}
-            <ButtonFix
-                action={true}
-                rounded={true}
-                title={this.getButtonTitle()}
-                onPress={() => this.actionRecording()}
-            />
-            {/* </Col> */}
-            {/* <Col>
+          {/* </Col> */}
+          {/* <Col>
             <ButtonFix
               rounded={true}
               title={'Dashboard 8'}
               onPress={() => this.actionDashboard()}
             />
           </Col> */}
-          </Grid>
-        </ScrollView>
+        </Grid>
+      </ScrollView>
     );
   }
 }
@@ -549,7 +524,6 @@ const mapStateToProps = state => {
     leftDevice: state.leftDevice,
     lang: state.lang,
     record: state.record,
-    noti: state.noti,
     productNumber: state.productNumber,
   };
 };
@@ -567,9 +541,6 @@ const mapDisPatchToProps = dispatch => {
     },
     actionRecordingButton: data => {
       return dispatch({type: 'ACTION_BUTTON_RECORD', payload: data});
-    },
-    actionNotificationButton: data => {
-      return dispatch({type: 'ACTION_BUTTON_NOTIFICATION', payload: data});
     },
   };
 };

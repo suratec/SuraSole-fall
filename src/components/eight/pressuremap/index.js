@@ -94,7 +94,7 @@ class index extends React.PureComponent {
     isConnected: true,
     peripherals: new Map(),
     notiAlarm: 0,
-    shoeSize: 0,
+    shoeSize:0,
   };
 
   calMeasurePressure = value => {
@@ -216,6 +216,29 @@ class index extends React.PureComponent {
   }
 
   async startReading() {
+    // Clear existing listener if any (prevent multiple listeners)
+    if (this.dataRecord) {
+      this.dataRecord.remove();
+    }
+    
+    // Clear existing interval if any (prevent multiple intervals when switching modules)
+    if (this.readInterval) {
+      clearInterval(this.readInterval);
+    }
+    
+    // Sync with Redux recording state - don't auto-start recording
+    if (typeof this.props.record !== 'undefined') {
+      if (this.props.record === 'Stop') {
+        this.setState({ textAction: 'Stop' });
+        // Don't auto-start recording, just sync the UI
+      } else {
+        this.setState({ textAction: 'Record' });
+      }
+    } else {
+      this.props.actionRecordingButton('Record');
+      this.setState({ textAction: 'Record' });
+    }
+    
     this.dataRecord = bleManagerEmitter.addListener(
       'BleManagerDidUpdateValueForCharacteristic',
       ({value, peripheral, characteristic, service}) => {
@@ -224,10 +247,10 @@ class index extends React.PureComponent {
           let leftsensor = this.toDecimalArray(value);
           this.recordData(leftsensor, 'L');
           if (time - this.ltime > 250) {
-            let shouldVibrate = this.shouldBeVibration(leftsensor);
+            // Vibration function removed - not needed for this component
             let leftData = this.findLeftContourArray(leftsensor);
             this.leftPhase = leftsensor.reduce((a, b) => a + b, 0);
-            this.setState({leftsensor, shouldVibrate, leftData});
+            this.setState({leftsensor, leftData});
             this.ltime = time;
           }
         }
@@ -235,10 +258,10 @@ class index extends React.PureComponent {
           let rightsensor = this.toDecimalArray(value);
           this.recordData(rightsensor, 'R');
           if (time - this.rtime > 250) {
-            let shouldVibrate = this.shouldBeVibration(rightsensor);
+            // Vibration function removed - not needed for this component
             let rightData = this.findRightContourArray(rightsensor);
             this.rightPhase = rightsensor.reduce((a, b) => a + b, 0);
-            this.setState({rightsensor, shouldVibrate, rightData});
+            this.setState({rightsensor, rightData});
             this.rtime = time;
           }
         }
@@ -262,14 +285,7 @@ class index extends React.PureComponent {
     return (5.6 * 10 ** -4 * Math.exp(value / 53.36) + 6.72) / 0.796;
   };
 
-  shouldBeVibration = sensor => {
-    for (let i = 0; i < sensor.length; i++) {
-      if (this.toKilo(sensor[i]) > this.props.user.weight * 0.2) {
-        return true;
-      }
-    }
-    return false;
-  };
+  // shouldBeVibration function removed - not needed for this component
 
   handleConnectivityChange = status => {
     this.setState({isConnected: status.isConnected});
@@ -292,7 +308,6 @@ class index extends React.PureComponent {
             }
             if (peripheral.name[peripheral.name.length - 1] === 'L') {
               this.props.addLeftDevice(peripheral.id);
-              this.setState({shoeSize:peripheral.name[peripheral.name.length - 3] + peripheral.name[peripheral.name.length - 2]})
             } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
               this.props.addRightDevice(peripheral.id);
             }
@@ -350,16 +365,6 @@ class index extends React.PureComponent {
 
     // checkInternet
     NetInfo.addEventListener(this.handleConnectivityChange);
-
-    // checkButtonRecord
-    if (typeof this.props.record !== 'undefined') {
-      if (this.props.record === 'Stop') {
-        this.actionRecording();
-      }
-    } else {
-      this.props.actionRecordingButton('Record');
-      this.setState({textAction: 'Record'});
-    }
 
     // notiAlarm
     let noti = await AsyncStorage.getItem('notiSetting');
@@ -486,7 +491,7 @@ class index extends React.PureComponent {
                   product_number: this.props.productNumber,
                   bluetooth_left_id: this.props.leftDevice,
                   bluetooth_right_id: this.props.rightDevice,
-                  shoe_size: this.state.shoeSize,
+                  shoe_size:  this.state.shoeSize,
                 };
                 fetch(`${API}/addjson`, {
                   method: 'POST',
