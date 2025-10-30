@@ -20,9 +20,9 @@ const error = {
 const formSubmitSuccess = {eng: 'Form Submitted Successfully', thai: 'ส่งแบบฟอร์มสำเร็จแล้ว', japanese: 'フォームが正常に送信されました'}
 const formSubmitFail = {eng: 'Something went wrong.', thai: 'มีบางอย่างผิดพลาด', japanese: '何か問題が発生しました。'}
 const submissionFailed = {eng: 'Submission Failed', thai: 'การส่งล้มเหลว', japanese: '送信に失敗しました'}
-const fallPast12Months = {eng: 'FALL PAST 12 MONTHS?', thai: 'ผ่านไป 12 เดือนแล้ว?', japanese: '12 か月を過ぎても落ちませんか?'}
+const fallPast12Months = {eng: 'FALL PAST 12 MONTHS?', thai: 'ภายใน 12 เดือนที่ผ่านมา เคยหกล้มหรือไม่', japanese: '12 か月を過ぎても落ちませんか?'}
 const Yes = {eng: 'YES', thai: 'ใช่', japanese: 'はい'}
-const No = {eng: 'NO', thai: 'เลขที่', japanese: 'いいえ'}
+const No = {eng: 'NO', thai: 'ไม่ใช่', japanese: 'いいえ'}
 const submit = {eng: 'Submit', thai: 'ส่ง', japanese: '提出する'}
 const assessFallSeverity = {
     eng: 'Assess Fall Severity :',
