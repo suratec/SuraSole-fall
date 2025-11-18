@@ -83,6 +83,7 @@ class index extends Component {
 
   state = {
     textAction: getLocalizedText(this.props.lang, BalanceLang.recordButton),
+    isRecording: false,
     rightsensor: [0, 0, 0, 0, 0, 0, 0, 0],
     rstage: 0,
     leftsensor: [0, 0, 0, 0, 0, 0, 0, 0],
@@ -153,6 +154,17 @@ class index extends Component {
       }
     }
     this.setState({shouldVibrate: false});
+  };
+
+  getRecordButtonLabel = () => {
+    const { isRecording } = this.state;
+  
+    // Define appropriate keys in BalanceLang: recordButton & stopButton
+    const labelKey = isRecording
+      ? BalanceLang.stopButton   // e.g. { eng: 'Stop', thai: 'หยุด', ... }
+      : BalanceLang.recordButton; // e.g. { eng: 'Record', thai: 'บันทึก', ... }
+  
+    return getLocalizedText(this.props.lang, labelKey);
   };
 
   componentWillUnmount = () => {
@@ -294,82 +306,168 @@ class index extends Component {
   };
 
   actionRecording = async () => {
-    if (
-        typeof this.props.rightDevice === 'undefined' &&
-        typeof this.props.leftDevice === 'undefined'
-    ) {
-      Alert.alert(
-          getLocalizedText(this.props.lang, BalanceLang.warning),
-          getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert),
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                this.props.navigation.navigate('Device', {
-                  name: this.props.lang
-                      ? LangHome.addDeviceButton.thai
-                      : LangHome.addDeviceButton.eng,
-                });
-              },
-            },
-          ]);
-      return;
-    }
-    if (this.state.textAction == 'Record') {
-      this.setState({textAction: 'Stop'});
-      this.props.actionRecordingButton('Stop');
-      let initTime = new Date();
-      this.start = initTime;
-      this.lastLtime = initTime;
-      this.lastRtime = initTime;
-      this.readInterval = setInterval(async () => {
-        time = new Date();
-        data = {
-          stamp: time.getTime(),
-          timestamp: time,
-          duration: Math.floor((time - this.start) / 1000),
-          left: {
-            sensor: this.lsensor,
-            swing: this.leftSwingTime,
-            stance: this.leftStanceTime,
+  if (
+    typeof this.props.rightDevice === 'undefined' &&
+    typeof this.props.leftDevice === 'undefined'
+  ) {
+    Alert.alert(
+      getLocalizedText(this.props.lang, BalanceLang.warning),
+      getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert),
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            this.props.navigation.navigate('Device', {
+              name: this.props.lang
+                ? LangHome.addDeviceButton.thai
+                : LangHome.addDeviceButton.eng,
+            });
           },
-          right: {
-            sensor: this.rsensor,
-            swing: this.rightSwingTime,
-            stance: this.rightStanceTime,
-          },
-          id_customer: this.props.user.id_customer,
-        };
-        try {
-          await await RNFS.appendFile(
-              RNFS.CachesDirectoryPath +
-              '/suratechM/' +
-              this.start.getFullYear() +
-              this.start.getMonth() +
-              this.start.getDate() +
-              this.round,
-              JSON.stringify(data) + ',',
-          );
-        } catch {
-          await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
-          await RNFS.appendFile(
-              RNFS.CachesDirectoryPath +
-              '/suratechM/' +
-              this.start.getFullYear() +
-              this.start.getMonth() +
-              this.start.getDate() +
-              this.round,
-              JSON.stringify(data) + ',',
-          );
-        }
-      }, 100);
-    } else {
-      this.setState({textAction: 'Record'});
-      this.props.actionRecordingButton('Record');
-      clearInterval(this.readInterval);
-      this.sendDataToSetver();
-    }
-  };
+        },
+      ],
+    );
+    return;
+  }
+
+  const { isRecording } = this.state;
+
+  if (!isRecording) {
+    // START recording
+    this.setState({ isRecording: true });
+    this.props.actionRecordingButton('Stop');
+
+    let initTime = new Date();
+    this.start = initTime;
+    this.lastLtime = initTime;
+    this.lastRtime = initTime;
+
+    this.readInterval = setInterval(async () => {
+      const time = new Date();
+      const data = {
+        stamp: time.getTime(),
+        timestamp: time,
+        duration: Math.floor((time - this.start) / 1000),
+        left: {
+          sensor: this.lsensor,
+          swing: this.leftSwingTime,
+          stance: this.leftStanceTime,
+        },
+        right: {
+          sensor: this.rsensor,
+          swing: this.rightSwingTime,
+          stance: this.rightStanceTime,
+        },
+        id_customer: this.props.user.id_customer,
+      };
+      try {
+        await RNFS.appendFile(
+          RNFS.CachesDirectoryPath +
+            '/suratechM/' +
+            this.start.getFullYear() +
+            this.start.getMonth() +
+            this.start.getDate() +
+            this.round,
+          JSON.stringify(data) + ',',
+        );
+      } catch {
+        await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
+        await RNFS.appendFile(
+          RNFS.CachesDirectoryPath +
+            '/suratechM/' +
+            this.start.getFullYear() +
+            this.start.getMonth() +
+            this.start.getDate() +
+            this.round,
+          JSON.stringify(data) + ',',
+        );
+      }
+    }, 100);
+  } else {
+    // STOP recording
+    this.setState({ isRecording: false });
+    this.props.actionRecordingButton('Record');
+    clearInterval(this.readInterval);
+    this.sendDataToSetver();
+  }
+};
+
+  // actionRecording = async () => {
+  //   if (
+  //       typeof this.props.rightDevice === 'undefined' &&
+  //       typeof this.props.leftDevice === 'undefined'
+  //   ) {
+  //     Alert.alert(
+  //         getLocalizedText(this.props.lang, BalanceLang.warning),
+  //         getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert),
+  //         [
+  //           {
+  //             text: 'OK',
+  //             onPress: () => {
+  //               this.props.navigation.navigate('Device', {
+  //                 name: this.props.lang
+  //                     ? LangHome.addDeviceButton.thai
+  //                     : LangHome.addDeviceButton.eng,
+  //               });
+  //             },
+  //           },
+  //         ]);
+  //     return;
+  //   }
+  //   if (this.state.textAction == 'Record') {
+  //     this.setState({textAction: 'Stop'});
+  //     this.props.actionRecordingButton('Stop');
+  //     let initTime = new Date();
+  //     this.start = initTime;
+  //     this.lastLtime = initTime;
+  //     this.lastRtime = initTime;
+  //     this.readInterval = setInterval(async () => {
+  //       time = new Date();
+  //       data = {
+  //         stamp: time.getTime(),
+  //         timestamp: time,
+  //         duration: Math.floor((time - this.start) / 1000),
+  //         left: {
+  //           sensor: this.lsensor,
+  //           swing: this.leftSwingTime,
+  //           stance: this.leftStanceTime,
+  //         },
+  //         right: {
+  //           sensor: this.rsensor,
+  //           swing: this.rightSwingTime,
+  //           stance: this.rightStanceTime,
+  //         },
+  //         id_customer: this.props.user.id_customer,
+  //       };
+  //       try {
+  //         await await RNFS.appendFile(
+  //             RNFS.CachesDirectoryPath +
+  //             '/suratechM/' +
+  //             this.start.getFullYear() +
+  //             this.start.getMonth() +
+  //             this.start.getDate() +
+  //             this.round,
+  //             JSON.stringify(data) + ',',
+  //         );
+  //       } catch {
+  //         await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
+  //         await RNFS.appendFile(
+  //             RNFS.CachesDirectoryPath +
+  //             '/suratechM/' +
+  //             this.start.getFullYear() +
+  //             this.start.getMonth() +
+  //             this.start.getDate() +
+  //             this.round,
+  //             JSON.stringify(data) + ',',
+  //         );
+  //       }
+  //     }, 100);
+  //   } else {
+  //     this.setState({textAction: 'Record'});
+  //     this.props.actionRecordingButton('Record');
+  //     clearInterval(this.readInterval);
+  //     this.sendDataToSetver();
+  //   }
+  // };
 
   sendDataToSetver() {
     this.state.isConnected == false
@@ -586,7 +684,7 @@ class index extends Component {
               <ButtonFix
                   action={true}
                   rounded={true}
-                  title={this.state.textAction}
+                  title={this.getRecordButtonLabel()}
                   onPress={() => this.actionRecording()}
               />
             </View>
