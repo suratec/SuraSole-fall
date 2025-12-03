@@ -222,8 +222,22 @@ export default function ExerciseWorkOut({ navigation, route }) {
     );
 
     const embedUrl =
-      selectedExercise.embedUrl ||
-      buildEmbedUrl(selectedExercise.videoId || extractYoutubeId(selectedExercise.originalUrl));
+  // New-style data (from ExerciseWorkOut's own fetch)
+  selectedExercise.embedUrl ||
+
+  // Legacy data (from LowRiskExercise / ModerateRiskExercise)
+  selectedExercise.video ||
+
+  // Fallback: try to reconstruct from IDs/URLs
+  buildEmbedUrl(
+    selectedExercise.videoId ||
+    extractYoutubeId(
+      selectedExercise.originalUrl ||
+      selectedExercise.youtube_url ||
+      ''
+    )
+  );
+
 
     return (
       <View style={{ flex: 1 }}>

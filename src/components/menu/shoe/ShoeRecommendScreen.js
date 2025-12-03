@@ -137,6 +137,7 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                 title={getLocalizedText(lang, shoeLang.title)}
                 text_rigth={lang === 1 ? orderLang.title.thai : lang === 2 ? orderLang.title.jpn : orderLang.title.eng}
                 onpress_rigth={() => navigation.navigate('OrdersScreen')}
+                rightPill
             />
 
             <View style={styles.searchSortRow}>

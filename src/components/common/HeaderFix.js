@@ -53,25 +53,59 @@ export default class HeaderFix extends Component {
             </TouchableOpacity>
 
             <Right style={{ flex: 2, marginRight: 10 }}>
-              {this.props.text_rigth ? (
-                  <TouchableOpacity onPress={this.props.onpress_rigth}>
-                    <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 16 }}>{this.props.text_rigth}</Text>
-                  </TouchableOpacity>
-              ) : this.props.icon_rigth ? (
-                  <TouchableOpacity onPress={this.props.onpress_rigth}>
-                    {this.props.iconType ? (
-                        // <Icon type={this.props.iconType} name={this.props.icon_rigth} style={{ color: '#ffffff' }} />
-                        <Image source={require('../../assets/image/more.png')} tintColor={"#fff"} style={{ width: 18, height: 18, marginLeft: 10 }} />
-                    ) : (
-                        <Icon name={this.props.icon_rigth} style={{ color: '#ffffff' }} />
-                    )
-                    }
+  {this.props.text_rigth ? (
+    <TouchableOpacity
+      onPress={this.props.onpress_rigth}
+      activeOpacity={0.8}
+      style={this.props.rightPill ? styles.rightPillContainer : null}
+    >
+      <Text style={this.props.rightPill ? styles.rightPillText : styles.textRight}>
+        {this.props.text_rigth}
+      </Text>
+    </TouchableOpacity>
+  ) : this.props.icon_rigth ? (
+    <TouchableOpacity onPress={this.props.onpress_rigth}>
+      {this.props.iconType ? (
+        <Image
+          source={require('../../assets/image/more.png')}
+          tintColor={'#fff'}
+          style={{ width: 18, height: 18, marginLeft: 10 }}
+        />
+      ) : (
+        <Icon name={this.props.icon_rigth} style={{ color: '#ffffff' }} />
+      )}
+    </TouchableOpacity>
+  ) : null}
+</Right>
 
-                  </TouchableOpacity>
-              ) : null}
-            </Right>
           </Header>
         </View>
     );
   }
 }
+
+const styles = StyleSheet.create({
+  // default text style (matches current inline style)
+  textRight: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+
+  // container for pill button on the right
+  rightPillContainer: {
+    backgroundColor: '#ffffff',      // white pill on teal header
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,               // pill shape
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // text inside the pill
+  rightPillText: {
+    color: UI.color_Gradient[1],     // same teal as header
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+});
