@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   // container for pill button on the right
   rightPillContainer: {
     backgroundColor: '#ffffff',      // white pill on teal header
-    paddingHorizontal: 14,
+    paddingHorizontal: 6,
     paddingVertical: 6,
     borderRadius: 999,               // pill shape
     justifyContent: 'center',
@@ -106,6 +106,6 @@ const styles = StyleSheet.create({
   rightPillText: {
     color: UI.color_Gradient[1],     // same teal as header
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 12,
   },
 });
