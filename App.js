@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, Image, Dimensions, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { createAppContainer, createSwitchNavigator } from 'react-navigation';
 import { createStackNavigator } from 'react-navigation-stack';
 import { ModalPortal } from 'react-native-modals';
 import { Root } from 'native-base';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/lib/integration/react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import configureStore from './src/Store';
 
 // Auth Screens
@@ -61,7 +63,7 @@ import MedicalNotes from './src/components/menu/medical_notes/index';
 // FAB Component
 import DraggableFAB from './src/components/common/DraggableFAB';
 
-console.disableYellowBox = true;
+
 
 const { store, persister } = configureStore();
 
@@ -200,12 +202,16 @@ const Main = createAppContainer(
 
 // 6. Root Component with Redux & Modal
 export default () => (
-    <Provider store={store}>
-        <PersistGate persistor={persister} loading={null}>
-            <Root>
-                <ModalPortal />
-                <Main />
-            </Root>
-        </PersistGate>
-    </Provider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+            <Provider store={store}>
+                <PersistGate persistor={persister} loading={null}>
+                    <Root>
+                        <ModalPortal />
+                        <Main />
+                    </Root>
+                </PersistGate>
+            </Provider>
+        </SafeAreaProvider>
+    </GestureHandlerRootView>
 );

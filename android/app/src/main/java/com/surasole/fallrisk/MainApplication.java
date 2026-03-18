@@ -7,11 +7,9 @@ import com.facebook.react.ReactNativeHost;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
 import com.facebook.react.defaults.DefaultReactNativeHost;
+import com.facebook.react.soloader.OpenSourceMergedSoMapping;
 import com.facebook.soloader.SoLoader;
 import java.util.List;
-import com.zoontek.rnpermissions.RNPermissionsPackage;
-//import com.heanoria.library.reactnative.locationenabler.RNAndroidLocationEnablerPackage;
-import com.dieam.reactnativepushnotification.ReactNativePushNotificationPackage; // <--- Import Package
 
 public class MainApplication extends Application implements ReactApplication {
 
@@ -55,12 +53,15 @@ public class MainApplication extends Application implements ReactApplication {
   @Override
   public void onCreate() {
     super.onCreate();
-    SoLoader.init(this, /* native exopackage */ false);
+    try {
+      SoLoader.init(this, OpenSourceMergedSoMapping.INSTANCE);
+    } catch (Exception e) {
+      SoLoader.init(this, /* native exopackage */ false);
+    }
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       // If you opted-in for the New Architecture, we load the native entry point for
       // this app.
-      DefaultNewArchitectureEntryPoint.load();
+      DefaultNewArchitectureEntryPoint.load(true, true, false);
     }
-    ReactNativeFlipper.initializeFlipper(this, getReactNativeHost().getReactInstanceManager());
   }
 }

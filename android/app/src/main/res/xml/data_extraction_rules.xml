@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- TODO: Use <include> and <exclude> to customize what data is backed up to the cloud.
+             See https://developer.android.com/guide/topics/data/autobackup#UsingDataExtractionRules -->
+    </cloud-backup>
+    <device-transfer>
+        <!-- TODO: Use <include> and <exclude> to customize what data is transferred to another device. -->
+    </device-transfer>
+</data-extraction-rules>

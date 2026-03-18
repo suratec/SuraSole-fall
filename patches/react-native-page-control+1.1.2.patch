@@ -1,0 +1,15 @@
+diff --git a/node_modules/react-native-page-control/PageControl.js b/node_modules/react-native-page-control/PageControl.js
+index 7155640..82b5ff9 100644
+--- a/node_modules/react-native-page-control/PageControl.js
++++ b/node_modules/react-native-page-control/PageControl.js
+@@ -13,8 +13,8 @@ var PageControl = createReactClass({
+         pageIndicatorTintColor: PropTypes.string,
+         currentPageIndicatorTintColor: PropTypes.string,
+         indicatorSize: PropTypes.object,
+-        indicatorStyle: ViewPropTypes.style,
+-        currentIndicatorStyle: ViewPropTypes.style,
++        indicatorStyle: (ViewPropTypes || {}).style,
++        currentIndicatorStyle: (ViewPropTypes || {}).style,
+         onPageIndicatorPress: PropTypes.func
+     },
+ 
