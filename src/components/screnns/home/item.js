@@ -1,8 +1,7 @@
 //5.11.2562
 
 import React, {Component} from 'react';
-import {TouchableOpacity, Text as RNText, View} from 'react-native';
-import {Body, Card, CardItem, Icon, Right, Left, Thumbnail} from 'native-base';
+import {TouchableOpacity, Text as RNText, View, Image} from 'react-native';
 import UI from '../../../config/styles/CommonStyles';
 import Text from '../../common/TextFix';
 

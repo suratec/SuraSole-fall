@@ -18,7 +18,7 @@ import {
   BackHandler,
   Alert,
 } from 'react-native';
-import {NavigationEvents} from 'react-navigation';
+// import {NavigationEvents} from 'react-navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-simple-toast';
 import UI from '../../../config/styles/CommonStyles';
@@ -105,10 +105,24 @@ class index extends Component {
     }
   };
 
+
+  // Force reload comment
   async componentDidMount() {
     console.log('HOME !!!');
     console.log(this.props.user);
     console.log(this.state, 'here we go');
+    
+    this.focusListener = this.props.navigation.addListener('focus', async () => {
+      // Update screen dimensions when focusing - with safety check
+      const currentDimensions = Dimensions.get('window');
+      if (currentDimensions?.width && currentDimensions?.height) {
+        this.setState({ screenData: currentDimensions });
+      }
+
+      const backup = await AsyncStorage.getItem('doctor_user');
+      this.setState({ showExitIcon: !!backup });
+      console.log('[Home] Exit Icon:', !!backup);
+    });
 
     // Listen for orientation changes with proper event handling
     const dimensionSubscription = Dimensions.addEventListener('change', this.updateScreenData);
@@ -162,6 +176,9 @@ class index extends Component {
   }
 
   componentWillUnmount() {
+    if (this.focusListener) {
+      this.focusListener();
+    }
     BackHandler.removeEventListener('hardwareBackPress', this.handleBackButtonClick);
 
     // Clean up dimension listener properly
@@ -172,7 +189,7 @@ class index extends Component {
 
   handleBackButtonClick = async () => {
     try {
-      const parent = this.props.navigation.dangerouslyGetParent();
+      const parent = this.props.navigation.getParent();
 
       if (!parent || parent.state.index === 0) {
         Alert.alert(
@@ -374,19 +391,7 @@ class index extends Component {
 
     return (
         <View style={{backgroundColor: 'white', flex: 1}}>
-          <NavigationEvents
-              onDidFocus={async () => {
-                // Update screen dimensions when focusing - with safety check
-                const currentDimensions = Dimensions.get('window');
-                if (currentDimensions?.width && currentDimensions?.height) {
-                  this.setState({ screenData: currentDimensions });
-                }
-
-                const backup = await AsyncStorage.getItem('doctor_user');
-                this.setState({ showExitIcon: !!backup });
-                console.log('[Home] Exit Icon:', !!backup);
-              }}
-          />
+          {/* NavigationEvents moved to componentDidMount listener */}
 
           {this.popup()}
 

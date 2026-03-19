@@ -1,5 +1,4 @@
 const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
-const exclusionList = require('metro-config/src/defaults/exclusionList');
 
 /**
  * Metro configuration
@@ -26,7 +25,7 @@ const config = {
     assetExts: assetExts.filter(ext => ext !== 'svg'),
     sourceExts: [...sourceExts, 'svg'],
     assetRegistryPath: 'react-native/Libraries/Image/AssetRegistry',
-    blockList: exclusionList([/.*\\node_modules\\.*\\android\\build\\.*/]),
+    blockList: [/node_modules\/.*\/android\/build\/.*/, /#current-cloud-backend\/.*/],
   },
 };
 

@@ -1,7 +1,7 @@
 //5.11.62
 
 import React, {Component} from 'react';
-import {NavigationActions} from 'react-navigation';
+// import {NavigationActions} from 'react-navigation';
 import {
   View,
   ScrollView,
@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {Card} from 'native-base';
+import {Card} from '../../../common/NativeBaseShim';
 import {Col, Grid} from 'react-native-easy-grid';
 import {connect} from 'react-redux';
 
@@ -623,7 +623,7 @@ class index extends Component {
           <HeaderFix
               icon_left={'left'}
               onpress_left={() => {
-                this.props.navigation.dispatch(NavigationActions.back());
+                this.props.navigation.goBack();
               }}
               title={getLocalizedText(this.props.lang, BalanceLang.rightFootBalance)}
           />

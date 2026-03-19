@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { Platform, StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
-import { Container, Header, Content, Body, Card, CardItem, Icon, Right } from 'native-base';
+import { Container, Header, Content, Body, Card, CardItem, Icon, Right } from 'NativeBaseShim';
 import UI from '../../config/styles/CommonStyles'
 export default class CardsFix extends Component {
     render() {

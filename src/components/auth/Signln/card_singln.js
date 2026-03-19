@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import { View, TouchableOpacity } from 'react-native'
-import { Card, CardItem, Right } from 'native-base';
+import { Card, CardItem, Right } from '../../common/NativeBaseShim';
 
 import Text from '../../common/TextFix';
 import ButtonFix from '../../common/ButtonFix'

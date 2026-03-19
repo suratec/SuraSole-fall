@@ -7,6 +7,9 @@ import com.facebook.react.ReactNativeHost;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
 import com.facebook.react.defaults.DefaultReactNativeHost;
+import com.facebook.react.ReactHost;
+import com.facebook.react.defaults.DefaultReactHost;
+import com.facebook.react.runtime.JSRuntimeFactory;
 import com.facebook.react.soloader.OpenSourceMergedSoMapping;
 import com.facebook.soloader.SoLoader;
 import java.util.List;
@@ -36,18 +39,23 @@ public class MainApplication extends Application implements ReactApplication {
 
     @Override
     protected boolean isNewArchEnabled() {
-      return BuildConfig.IS_NEW_ARCHITECTURE_ENABLED;
+      return true;
     }
 
     @Override
-    protected Boolean isHermesEnabled() {
-      return BuildConfig.IS_HERMES_ENABLED;
+    protected boolean isHermesEnabled() {
+      return true;
     }
   };
 
   @Override
   public ReactNativeHost getReactNativeHost() {
     return mReactNativeHost;
+  }
+
+  @Override
+  public ReactHost getReactHost() {
+    return DefaultReactHost.getDefaultReactHost(this.getApplicationContext(), mReactNativeHost, null);
   }
 
   @Override
@@ -60,8 +68,7 @@ public class MainApplication extends Application implements ReactApplication {
     }
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       // If you opted-in for the New Architecture, we load the native entry point for
-      // this app.
-      DefaultNewArchitectureEntryPoint.load(true, true, false);
+      DefaultNewArchitectureEntryPoint.load();
     }
   }
 }

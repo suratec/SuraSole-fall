@@ -9,14 +9,14 @@ import {
   Text as RNText,
 } from 'react-native';
 import Items from './item';
-import { Body, Card, CardItem, Icon, Right, Left, Thumbnail } from 'native-base';
+import { Body, Card, CardItem, Icon, Right, Left, Thumbnail } from '../../common/NativeBaseShim';
 import Lang from '../../../assets/language/screen/lang_home';
 import { getLocalizedText } from '../../../assets/language/langUtils';
 import UI from '../../../config/styles/CommonStyles';
 import Text from '../../common/TextFix';
 import { connect } from 'react-redux';
 const { height: D_HEIGHT, width: D_WIDTH } = Dimensions.get('window');
-import { withNavigation } from 'react-navigation';
+// import { withNavigation } from 'react-navigation';
 
 
 class listItem extends Component {
@@ -187,5 +187,4 @@ const mapStateToProps = state => {
   };
 };
 
-// export default connect(mapStateToProps)(listItem);
-export default withNavigation(connect(mapStateToProps)(listItem));
+export default connect(mapStateToProps)(listItem);

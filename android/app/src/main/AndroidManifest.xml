@@ -18,11 +18,13 @@
     <uses-permission
             android:name="android.permission.READ_EXTERNAL_STORAGE"
             android:maxSdkVersion="32"
+            tools:replace="android:maxSdkVersion"
             tools:ignore="ScopedStorage" />
 
     <uses-permission
             android:name="android.permission.WRITE_EXTERNAL_STORAGE"
             android:maxSdkVersion="32"
+            tools:replace="android:maxSdkVersion"
             tools:ignore="ScopedStorage" />
 
     <!-- ─────────── Camera / Audio ─────────── -->
@@ -59,34 +61,9 @@
             tools:ignore="DataExtractionRules">
 
         <!-- Facebook SDK, Push-notification metadata, etc. unchanged  -->
-        <meta-data android:name="com.facebook.sdk.ApplicationId"
-                   android:value="@string/facebook_app_id"/>
+        <!-- Facebook SDK settings removed -->
 
-        <meta-data android:name="com.dieam.reactnativepushnotification.notification_foreground"
-                   android:value="false"/>
-        <meta-data android:name="com.dieam.reactnativepushnotification.notification_color"
-                   android:resource="@color/white"/>
-
-        <receiver android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationActions" />
-
-        <receiver android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationPublisher" />
-
-        <receiver android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationBootEventReceiver"
-                  android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
-            </intent-filter>
-        </receiver>
-
-        <service
-                android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationListenerService"
-                android:exported="false" >
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
+        <!-- Push notifications (Handled by Notifee and Firebase) -->
 
         <activity
                 android:name=".MainActivity"

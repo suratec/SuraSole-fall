@@ -2,7 +2,7 @@
 import React, { Component } from 'react'
 import { View, Switch } from 'react-native'
 import Text from './TextFix'
-import { Card } from 'native-base';
+import { Card } from 'NativeBaseShim';
 
 export default class NotificationsFix extends Component {
     render() {

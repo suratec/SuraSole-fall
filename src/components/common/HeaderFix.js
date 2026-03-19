@@ -9,7 +9,7 @@ import {
   Icon,
   Button,
   Title,
-} from 'native-base';
+} from 'NativeBaseShim';
 import UI from '../../config/styles/CommonStyles';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';

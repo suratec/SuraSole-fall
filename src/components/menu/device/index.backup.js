@@ -21,9 +21,9 @@ import {
 } from 'react-native';
 import HeaderFix from '../../common/HeaderFix';
 import Toast from 'react-native-simple-toast';
-import { ActionSheet } from 'native-base';
+import { ActionSheet } from '../../common/NativeBaseShim';
 import BleManager from 'react-native-ble-manager';
-import { Card, CardItem, Icon } from 'native-base';
+import { Card, CardItem, Icon } from '../../common/NativeBaseShim';
 import UI from '../../../config/styles/CommonStyles';
 import { connect } from 'react-redux';
 import Lang from '../../../assets/language/menu/lang_device';

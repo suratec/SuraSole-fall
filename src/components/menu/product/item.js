@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import {Image} from 'react-native';
-import {Body, Card, CardItem, Thumbnail} from 'native-base';
+import {Body, Card, CardItem, Thumbnail} from '../../common/NativeBaseShim';
 import UI from '../../../config/styles/CommonStyles';
 import Text from '../../common/TextFix';
 

@@ -5,13 +5,12 @@ buildscript {
         googlePlayServicesVersion = "+"
         firebaseMessagingVersion = "21.1.0"
 
-        buildToolsVersion = "34.0.0"
         minSdkVersion = 24
         compileSdkVersion = 35
         targetSdkVersion = 35
 
         ndkVersion = "26.1.10909125"
-        kotlinVersion = "2.0.21"
+        kotlinVersion = "2.1.10"
     }
     repositories {
         google()
@@ -35,3 +34,28 @@ allprojects {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+allprojects {
+    tasks.configureEach { task ->
+        if (task.name.contains("buildCMake") || task.name.contains("generateJsonModel")) {
+            task.doFirst {
+                def cacheDir = new File(System.getProperty("user.home"), ".gradle/caches/8.13/transforms")
+                if (cacheDir.exists()) {
+                    cacheDir.eachFileRecurse { file ->
+                        if (file.name == "graphicsConversions.h" && file.path.contains("prefab") && file.path.contains("reactnative")) {
+                            def content = file.text
+                            if (content.contains("std::format")) {
+                                println "Patching ${file.path}..."
+                                content = content.replace("std::format(\"{}%\", dimension.value)", "std::to_string(dimension.value) + \"%\"")
+                                if (!content.contains("#include <string>")) {
+                                    content = content.replace("#include <array>", "#include <array>\n#include <string>")
+                                }
+                                file.text = content
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

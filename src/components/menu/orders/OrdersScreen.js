@@ -2,11 +2,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, BackHandler } from 'react-native';
 import { connect } from 'react-redux';
-import { withNavigationFocus } from 'react-navigation'; // <-- v4 focus HOC
+import { useIsFocused } from '@react-navigation/native';
 import HeaderFix from '../../common/HeaderFix'; // <-- adjust path if needed
 import orderLang from '../../../assets/language/menu/lang_orders'; // <-- adjust path if needed
 
-function OrdersScreen({ navigation, lang, user, isFocused }) {
+function OrdersScreen({ navigation, lang, user }) {
+    const isFocused = useIsFocused();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -146,7 +147,7 @@ function OrdersScreen({ navigation, lang, user, isFocused }) {
 // HOC order: withNavigationFocus first, then connect
 export default connect(
     state => ({ lang: state.lang, user: state.user })
-)(withNavigationFocus(OrdersScreen));
+)(OrdersScreen);
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f0faff' },

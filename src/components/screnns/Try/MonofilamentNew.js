@@ -7,13 +7,13 @@ import CheckBox from '@react-native-community/checkbox';
 import { connect } from 'react-redux';
 import { Snackbar } from 'react-native-paper';
 import PageControl from 'react-native-page-control';
-import { getStatusBarHeight } from 'react-native-iphone-x-helper';
+
 
 import ROOT_API, { IMAGE_URL } from '../../../config/Api'
 import UI from '../../../config/styles/CommonStyles';
 import axios from 'axios';
 import Modal from "react-native-modal";
-import { Icon } from 'native-base';
+import { Icon } from '../../common/NativeBaseShim';
 import { StatusBar } from 'react-native';
 
 const windowWidth = Dimensions.get('window').width;

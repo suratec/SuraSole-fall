@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import { View, TouchableOpacity } from 'react-native'
-import { Card, CardItem, Right, Left, Radio } from 'native-base';
+import { Card, CardItem, Right, Left, Radio } from '../../common/NativeBaseShim';
 import { Col, Row, Grid } from 'react-native-easy-grid';
 
 import RadioForm, { RadioButton, RadioButtonInput, RadioButtonLabel } from 'react-native-simple-radio-button';

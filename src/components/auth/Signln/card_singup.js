@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import { View , TouchableOpacity} from 'react-native'
-import { Card } from 'native-base';
+import { Card } from '../../common/NativeBaseShim';
 
 import Text from '../../common/TextFix';
 

@@ -11,7 +11,7 @@ import {
   Platform,
   Toast,
 } from 'react-native';
-import {Card} from 'native-base';
+import {Card} from '../../common/NativeBaseShim';
 import {Col, Grid} from 'react-native-easy-grid';
 import {connect} from 'react-redux';
 import {

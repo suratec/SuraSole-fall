@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import {Card, TabHeading} from 'native-base';
+import {Card, TabHeading} from '../../common/NativeBaseShim';
 import {Col, Grid} from 'react-native-easy-grid';
 import {connect} from 'react-redux';
 import {

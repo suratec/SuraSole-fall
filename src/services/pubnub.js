@@ -1,6 +1,5 @@
 import PubNubReact from 'pubnub-react';
-import PushNotificationIOS from "@react-native-community/push-notification-ios";
-var PushNotification = require("react-native-push-notification");
+
 
 const pubnub = PubNubReact;
 
@@ -16,7 +15,7 @@ const intializePubnub = () => {
   return config;
 }
 
-const publishMessage = (data: any) => {
+const publishMessage = (data) => {
   pubnub.publish({
     message: data.message,
     channel: data.channel,
@@ -24,7 +23,7 @@ const publishMessage = (data: any) => {
     storeInHistory: true,
     ttl: 0
   }, 
-    (status: any, response: any) => {
+    (status, response) => {
       if (status.error) {
           console.log(status)
       } else {
@@ -34,8 +33,8 @@ const publishMessage = (data: any) => {
   );
 }
 
-const pubnubHistory = (data: any) => {
-  pubnub.history(data.historyConfig, (status: any, response: any) => {
+const pubnubHistory = (data) => {
+  pubnub.history(data.historyConfig, (status, response) => {
     if (status.error === true) {
       console.error(status)
     } else { }

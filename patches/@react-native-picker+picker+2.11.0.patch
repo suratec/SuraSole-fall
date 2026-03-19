@@ -1,0 +1,57 @@
+diff --git a/node_modules/@react-native-picker/picker/android/src/main/jni/RNCAndroidDialogPickerMeasurementsManager.h b/node_modules/@react-native-picker/picker/android/src/main/jni/RNCAndroidDialogPickerMeasurementsManager.h
+index cc8708d..59d9383 100644
+--- a/node_modules/@react-native-picker/picker/android/src/main/jni/RNCAndroidDialogPickerMeasurementsManager.h
++++ b/node_modules/@react-native-picker/picker/android/src/main/jni/RNCAndroidDialogPickerMeasurementsManager.h
+@@ -1,5 +1,6 @@
+ #pragma once
+ 
++#include <memory>
+ #include <react/renderer/components/rnpicker/Props.h>
+ #include <react/renderer/core/ConcreteComponentDescriptor.h>
+ #include <react/renderer/core/LayoutConstraints.h>
+@@ -12,7 +13,7 @@ namespace facebook::react {
+ class RNCAndroidDialogPickerMeasurementsManager {
+  public:
+   RNCAndroidDialogPickerMeasurementsManager(
+-      const ContextContainer::Shared& contextContainer)
++      const std::shared_ptr<const ContextContainer>& contextContainer)
+       : contextContainer_(contextContainer) {}
+ 
+   Size measure(
+@@ -22,6 +23,6 @@ class RNCAndroidDialogPickerMeasurementsManager {
+       RNCAndroidDialogPickerState state) const;
+ 
+  private:
+-  const ContextContainer::Shared contextContainer_;
++  const std::shared_ptr<const ContextContainer> contextContainer_;
+ };
+ } // namespace facebook::react
+diff --git a/node_modules/@react-native-picker/picker/android/src/main/jni/RNCAndroidDropdownPickerMeasurementsManager.h b/node_modules/@react-native-picker/picker/android/src/main/jni/RNCAndroidDropdownPickerMeasurementsManager.h
+index 07eb7fe..bd84f44 100644
+--- a/node_modules/@react-native-picker/picker/android/src/main/jni/RNCAndroidDropdownPickerMeasurementsManager.h
++++ b/node_modules/@react-native-picker/picker/android/src/main/jni/RNCAndroidDropdownPickerMeasurementsManager.h
+@@ -1,5 +1,6 @@
+ #pragma once
+ 
++#include <memory>
+ #include <react/renderer/components/rnpicker/Props.h>
+ #include <react/renderer/core/ConcreteComponentDescriptor.h>
+ #include <react/renderer/core/LayoutConstraints.h>
+@@ -12,7 +13,7 @@ namespace facebook::react {
+ class RNCAndroidDropdownPickerMeasurementsManager {
+  public:
+   RNCAndroidDropdownPickerMeasurementsManager(
+-      const ContextContainer::Shared& contextContainer)
++      const std::shared_ptr<const ContextContainer>& contextContainer)
+       : contextContainer_(contextContainer) {}
+ 
+   Size measure(
+@@ -22,7 +23,7 @@ class RNCAndroidDropdownPickerMeasurementsManager {
+       RNCAndroidDropdownPickerState state) const;
+ 
+  private:
+-  const ContextContainer::Shared contextContainer_;
++  const std::shared_ptr<const ContextContainer> contextContainer_;
+ };
+ 
+ } // namespace facebook::react

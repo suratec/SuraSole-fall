@@ -38,7 +38,7 @@ import {
   deleteFile,
   readFile,
 } from '../../../FileManager';
-import {TabHeading} from 'native-base';
+import {TabHeading} from '../../common/NativeBaseShim';
 
 import BalanceLang from '../../../assets/language/menu/lang_balance';
 import Lang from '../../../assets/language/menu/lang_record';

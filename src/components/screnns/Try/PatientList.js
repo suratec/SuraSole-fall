@@ -4,7 +4,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import UI from '../../../config/styles/CommonStyles';
 import { connect } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NavigationActions } from 'react-navigation';
+// import { NavigationActions } from 'react-navigation';
 import langPatientList from '../../../assets/language/auth/lang_patientList';
 import {getLocalizedText} from '../../../assets/language/langUtils';
 
@@ -205,7 +205,7 @@ const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPa
         await clearExitFlag();
         addUser({ user: null, token: null });
         setImpersonation(false);
-        navigation.dispatch(NavigationActions.navigate({ routeName: 'Auth' }));
+        navigation.navigate('Auth');
     };
 
 

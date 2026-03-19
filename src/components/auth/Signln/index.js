@@ -4,8 +4,7 @@ import {
   StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Modal
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AccessToken, LoginManager } from 'react-native-fbsdk';
-import { NavigationActions } from 'react-navigation';
+// import { NavigationActions } from 'react-navigation';
 import LinearGradient from 'react-native-linear-gradient';
 
 import AlertFix from '../../common/AlertsFix';
@@ -110,11 +109,7 @@ class SignIn extends Component {
       console.log('SECURITY TOKEN:', data.data);
 
       if (userInfo.role === 'mod_employee') {
-        const jumpToPatientList = NavigationActions.navigate({
-          routeName: 'App',
-          action: NavigationActions.navigate({ routeName: 'PatientList' }),
-        });
-        this.props.navigation.dispatch(jumpToPatientList);
+        this.props.navigation.navigate('App', { screen: 'PatientList' });
       } else if (userInfo.role === 'mod_customer') {
         this.props.navigation.navigate('App');
       } else {
@@ -235,6 +230,25 @@ class SignIn extends Component {
                 >
                   <Text style={styles.buttonText}>
                     {getLocalizedText(lang, Lang.signIn)}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Account Actions */}
+                <TouchableOpacity
+                    style={{ marginTop: 24, alignItems: 'center' }}
+                    onPress={() => this.props.navigation.navigate('Register')}
+                >
+                  <Text style={{ color: '#00B3B3', fontWeight: '600', fontSize: 15 }}>
+                    {getLocalizedText(lang, Lang.labelSignUp)}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={{ marginTop: 16, alignItems: 'center' }}
+                    onPress={() => this.props.navigation.navigate('ForgetPass')}
+                >
+                  <Text style={{ color: '#888', fontSize: 13 }}>
+                    {getLocalizedText(lang, Lang.labelForgot)}
                   </Text>
                 </TouchableOpacity>
               </View>

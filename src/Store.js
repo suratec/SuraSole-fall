@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import Reducer from './Reducer';
 
-configureStore = (initialState = {}) => {
+const configureStore = (initialState = {}) => {
   let stat = {};
   const store = createStore(
     persistReducer(

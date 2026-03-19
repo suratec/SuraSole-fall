@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import { View } from 'react-native'
-import { Card } from 'native-base';
+import { Card } from '../../common/NativeBaseShim';
 
 import Text from '../../common/TextFix';
 import ButtonFix from '../../common/ButtonFix'

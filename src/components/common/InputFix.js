@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { View } from 'react-native';
-import { Item, Input, Icon } from 'native-base';
+import { Item, Input, Icon } from 'NativeBaseShim';
 
 export default class InputFix extends Component {
     render() {
