@@ -32,7 +32,7 @@ class index extends Component {
             source={require('../../../assets/image/product/surasole-lite.png')}
             onPress={() => {
               this.props.productID(1);
-              this.props.navigation.replace('Device', {
+              this.props.navigation.navigate('Device', {
                 name: this.props.lang
                   ? Lang.addDeviceButton.thai
                   : Lang.addDeviceButton.eng,

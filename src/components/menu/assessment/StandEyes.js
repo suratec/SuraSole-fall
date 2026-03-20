@@ -1027,7 +1027,7 @@ class StandEyes extends Component {
                 <HeaderFix
                     icon_left={'left'}
                     onpress_left={() => {
-                        this.props.navigation.navigate('Home');
+                      this.props.navigation.goBack();
                     }}
                     title={this.getLocalizedTitle()}
                 />

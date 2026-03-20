@@ -483,7 +483,7 @@ class index extends Component {
       <View style={styles.container}>
         <HeaderFix
           icon_left={'left'}
-          onpress_left={() => this.props.navigation.navigate('Home')}
+          onpress_left={() => this.props.navigation.goBack()}
           title={getLocalizedText(this.props.lang, Lang.title)}
         />
         <RefreshComponent methodToCall={() => this.retrieveConnected()} />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, TextInput, Platform } from 'react-native';
 import { Card as PaperCard, Button as PaperButton, Avatar } from 'react-native-paper';
 import VectorIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -49,8 +49,28 @@ export const Thumbnail = ({ source, style, width = 56, height = 56 }) => (
     <Image source={source} style={[{ width, height, borderRadius: width / 2 }, style]} />
 );
 
-export const Item = ({ children, style }) => <View style={[{ borderBottomWidth: 1, borderColor: '#ccc' }, style]}>{children}</View>;
-export const Input = (props) => <Text {...props} />; // Placeholder
+export const Item = ({ children, style, rounded }) => (
+    <View style={[
+        { borderBottomWidth: 1, borderColor: '#ccc', flexDirection: 'row', alignItems: 'center' },
+        rounded && {
+            borderWidth: 1,
+            borderRadius: 25,
+            paddingHorizontal: 15,
+            height: 48,
+            marginVertical: 5
+        },
+        style
+    ]}>
+        {children}
+    </View>
+);
+export const Input = (props) => (
+    <TextInput
+        placeholderTextColor="#999"
+        {...props}
+        style={[{ flex: 1, color: '#000', fontSize: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 5 }, props.style]}
+    />
+);
 export const TabHeading = ({ children, style }) => <View style={style}>{children}</View>;
 export const ActionSheet = { show: () => console.log('ActionSheet not implemented') };
 export const Toast = { show: () => console.log('Toast not implemented') };

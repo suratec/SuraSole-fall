@@ -87,22 +87,22 @@ export default class card_profile extends Component {
                             </>
                         }
 
-                        {/* --- Fixed Button Row --- */}
+                        {/* --- Refined Button Row --- */}
                         <View style={{
                             flexDirection: 'row',
-                            justifyContent: 'space-between',
+                            justifyContent: 'center',
                             alignItems: 'center',
                             marginBottom: 30,
                             marginTop: 20,
                         }}>
                             <ButtonFix
-                                styles={{ flex: 0.48 }}
+                                styles={{ width: 140, height: 45, minWidth: 0, marginHorizontal: 8 }}
                                 rounded={true}
                                 title={getLocalizedText(this.props.lang, Lang.updateLabel)}
                                 onPress={this.props.onUpdate}
                             />
                             <ButtonFix
-                                styles={{ flex: 0.48, backgroundColor: '#6c757d' }}
+                                styles={{ width: 140, height: 45, minWidth: 0, marginHorizontal: 8, backgroundColor: '#6c757d' }}
                                 rounded={true}
                                 title={getLocalizedText(this.props.lang, Lang.noteLabel)}
                                 onPress={this.props.onNote}

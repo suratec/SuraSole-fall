@@ -529,7 +529,7 @@ class index extends Component {
               )}
             </View>
 
-            <ListItem navigation={this.props.navigation} />
+            <ListItem style={{ marginTop: 30 }} navigation={this.props.navigation} />
           </ScrollView>
 
         </View>

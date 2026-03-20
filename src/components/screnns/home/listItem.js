@@ -41,12 +41,15 @@ class listItem extends Component {
   render() {
     return (
       <View
-        style={{
-          backgroundColor: '#fff',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 10,
-        }}>
+        style={[
+          {
+            backgroundColor: '#fff',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 15,
+          },
+          this.props.style,
+        ]}>
         {/* Row 1 */}
         <View
           style={{

@@ -292,7 +292,7 @@ class TenMeterWalkTest extends Component {
             this.setState({ isRecording: false });
 
             setTimeout(() => {
-                this.props.navigation.replace('Home');
+                this.props.navigation.goBack();
             }, 500);
         } else {
             const { rightDevice, leftDevice } = this.props;
@@ -348,7 +348,7 @@ class TenMeterWalkTest extends Component {
             <View style={styles.container}>
                 <HeaderFix
                     icon_left="left"
-                    onpress_left={() => this.props.navigation.navigate('Home')}
+                    onpress_left={() => this.props.navigation.goBack()}
                     title={getLocalizedText(this.props.lang, langAssessment.tenMeterWalkTest)}
                     rightText={getLocalizedText(this.props.lang, langAssessment.finish)}
                     onpress_right={() => Alert.alert(getLocalizedText(this.props.lang, langAssessment.testComplete))}
