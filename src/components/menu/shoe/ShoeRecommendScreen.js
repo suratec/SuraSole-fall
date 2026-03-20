@@ -63,8 +63,8 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
             navigation.goBack();
             return true; // prevent app exit
         };
-        BackHandler.addEventListener('hardwareBackPress', onBackPress);
-        return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
     }, [navigation]);
 
     const applyFilters = () => {

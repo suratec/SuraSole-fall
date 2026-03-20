@@ -9,7 +9,7 @@ export default class Text extends Component {
       <TextRN
         style={[
           {
-            fontWeight: this.props.type ? 'bold' : '100',
+            fontWeight: this.props.type ? 'bold' : 'normal',
             fontSize: this.props.type ? UI.font_titleSize : UI.font_normalSize,
             color: this.props.textCl ? UI.textWhite : UI.textBlack,
           },

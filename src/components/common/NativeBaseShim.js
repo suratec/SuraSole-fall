@@ -10,8 +10,33 @@ export const Body = ({ children, style }) => <View style={[{ flex: 1, alignItems
 export const Left = ({ children, style }) => <View style={[{ flex: 1, alignItems: 'flex-start', justifyContent: 'center' }, style]}>{children}</View>;
 export const Right = ({ children, style }) => <View style={[{ flex: 1, alignItems: 'flex-end', justifyContent: 'center' }, style]}>{children}</View>;
 
-export const Card = ({ children, style }) => <PaperCard style={[{ margin: 5 }, style]}>{children}</PaperCard>;
-export const CardItem = ({ children, style }) => <View style={[{ padding: 10, flexDirection: 'row', alignItems: 'center' }, style]}>{children}</View>;
+export const Card = ({ children, style }) => (
+    <View style={[{
+        marginVertical: 5,
+        marginHorizontal: 10,
+        padding: 0,
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        // Elevation/Shadow
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+    }, style]}>
+        {children}
+    </View>
+);
+export const CardItem = ({ children, style, button, onPress }) => {
+    const Component = button ? TouchableOpacity : View;
+    return (
+        <Component onPress={onPress} activeOpacity={0.8} style={[{ padding: 10, flexDirection: 'row', alignItems: 'center' }, style]}>
+            {children}
+        </Component>
+    );
+};
+export const Title = ({ children, style }) => <Text style={[{ fontSize: 18, fontWeight: 'bold' }, style]}>{children}</Text>;
+export const Subtitle = ({ children, style }) => <Text style={[{ fontSize: 12 }, style]}>{children}</Text>;
 
 export const Icon = ({ name, style, ...props }) => <VectorIcon name={name || 'help'} style={style} {...props} />;
 export const Button = ({ children, onPress, style, ...props }) => (
@@ -36,5 +61,5 @@ export const Col = ({ children, style, ...props }) => <View style={[{ flexDirect
 
 export default {
     Container, Content, Header, Body, Left, Right, Card, CardItem, Icon, Button, Thumbnail, Item, Input, TabHeading, ActionSheet, Toast,
-    Grid, Row, Col
+    Grid, Row, Col, Title, Subtitle
 };

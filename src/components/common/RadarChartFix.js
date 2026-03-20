@@ -47,7 +47,7 @@ export default class RadarChart extends React.Component {
       historyLine.push(historyDot(history[i][0], history[i][1], i));
     }
     return {
-      historyLine: [<G>{historyLine}</G>],
+      historyLine: [<G key="history-group">{historyLine}</G>],
       history,
     };
   }

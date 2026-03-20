@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, {Component} from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,12 +8,9 @@ import {
   NativeModules,
   Platform,
   PermissionsAndroid,
-  ScrollView,
   AppState,
   FlatList,
   Dimensions,
-  Button,
-  SafeAreaView,
   TouchableOpacity,
   Image,
   ActivityIndicator,
@@ -21,24 +18,19 @@ import {
 } from 'react-native';
 import HeaderFix from '../../common/HeaderFix';
 import Toast from 'react-native-simple-toast';
-import { ActionSheet } from '../../common/NativeBaseShim';
 import BleManager from 'react-native-ble-manager';
-import { Card, CardItem, Icon } from '../../common/NativeBaseShim';
 import UI from '../../../config/styles/CommonStyles';
-import { connect } from 'react-redux';
+import {connect} from 'react-redux';
 import Lang from '../../../assets/language/menu/lang_device';
-import { getLocalizedText } from '../../../assets/language/langUtils';
-import { stat } from 'react-native-fs';
+import {getLocalizedText} from '../../../assets/language/langUtils';
 import RNAndroidLocationEnabler from 'react-native-android-location-enabler';
-import RNPermissions, { NotificationOption, Permission, PERMISSIONS } from 'react-native-permissions';
+import RNPermissions, {PERMISSIONS} from 'react-native-permissions';
 import RefreshComponent from '../../common/RefreshComponent';
-
 
 const window = Dimensions.get('window');
 
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
-// const peripherals = new Map();
 
 class index extends Component {
   constructor() {
@@ -52,74 +44,67 @@ class index extends Component {
       battRight: '100',
       ltime: new Date(),
       rtime: new Date(),
-      data: [],
       left: '',
       right: '',
-      extra: 0
+      extra: 0,
     };
 
     this.handleDiscoverPeripheral = this.handleDiscoverPeripheral.bind(this);
     this.handleStopScan = this.handleStopScan.bind(this);
-    this.handleDisconnectedPeripheral = this.handleDisconnectedPeripheral.bind(
-      this,
-    );
+    this.handleDisconnectedPeripheral =
+      this.handleDisconnectedPeripheral.bind(this);
     this.handleAppStateChange = this.handleAppStateChange.bind(this);
   }
 
-  checkPermission() {
+  async checkPermission() {
     if (Platform.OS === 'android') {
-      if (Platform.OS === 'android' && Platform.Version >= 29) {
-        PermissionsAndroid.check(
+      if (Platform.Version >= 31) {
+        const result = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        ).then(result => {
-          if (result) {
-            this.enableBLE();
-            console.log('Permission is OK');
-          } else {
-            PermissionsAndroid.requestMultiple(
-              [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-              PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-              PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN]
-            ).then(result => {
-              if (result) {
-                this.enableBLE();
-                console.log('User accept');
-              } else {
-                console.log('User refuse');
-              }
-            });
-          }
-        });
-      } else {
-        PermissionsAndroid.check(
+        ]);
+
+        const isGranted =
+          result['android.permission.BLUETOOTH_CONNECT'] ===
+            PermissionsAndroid.RESULTS.GRANTED &&
+          result['android.permission.BLUETOOTH_SCAN'] ===
+            PermissionsAndroid.RESULTS.GRANTED;
+
+        if (isGranted) {
+          this.enableBLE();
+          console.log('Android 12+ BLE Permissions OK');
+        } else {
+          console.log('Android 12+ BLE Permissions Refused');
+          Toast.show('Please allow Bluetooth Permission to scan devices');
+        }
+      } else if (Platform.Version >= 23) {
+        const result = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
           PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-        ).then(result => {
-          if (result) {
-            this.enableBLE();
-            console.log('Permission is OK');
-          } else {
-            PermissionsAndroid.request(
-              PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-            ).then(result => {
-              if (result) {
-                this.enableBLE();
-                console.log('User accept');
-              } else {
-                console.log('User refuse');
-              }
-            });
-          }
-        });
+        ]);
+
+        if (
+          result['android.permission.ACCESS_FINE_LOCATION'] ===
+          PermissionsAndroid.RESULTS.GRANTED
+        ) {
+          this.enableBLE();
+          console.log('Location Permission OK');
+        } else {
+          console.log('Location Permission Refused');
+          Toast.show('Please allow Location Permission to scan devices');
+        }
+      } else {
+        this.enableBLE();
       }
     } else {
       RNPermissions.request(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE)
-        .then((status) => {
+        .then(status => {
           this.enableBLE();
           console.log('status', status);
-          RNPermissions.requestMultiple(
-            [RNPermissions.PERMISSIONS.IOS.BLUETOOTH_PERIPHERAL]
-          ).then(result => {
+          RNPermissions.requestMultiple([
+            RNPermissions.PERMISSIONS.IOS.BLUETOOTH_PERIPHERAL,
+          ]).then(result => {
             if (result) {
               this.enableBLE();
               console.log('User accept');
@@ -128,7 +113,7 @@ class index extends Component {
             }
           });
         })
-        .catch((error) => {
+        .catch(error => {
           console.error(error);
         });
     }
@@ -138,30 +123,22 @@ class index extends Component {
     if (Platform.OS === 'android') {
       BleManager.enableBluetooth()
         .then(() => {
-          // Success code
-          this.startBLE()
+          this.startBLE();
           console.log('The bluetooth is already enabled or the user confirm');
         })
         .catch(error => {
-          // Failure code
           console.log('The user refuse to enable bluetooth');
+          this.startBLE();
         });
     } else if (Platform.OS === 'ios') {
-      this.startBLE()
-      if (!this.props.isBlueToothOn) {
-      }
+      this.startBLE();
     }
   }
 
   componentDidMount() {
     BleManager.checkState();
-
     this.checkPermission();
-    this.startScan();
 
-    // this.startReading();
-    // this.startReading();
-    console.log("this.connectivityCheckInterval", this.connectivityCheckInterval)
     AppState.addEventListener('change', this.handleAppStateChange);
     this.handlerDiscover = bleManagerEmitter.addListener(
       'BleManagerDiscoverPeripheral',
@@ -177,77 +154,43 @@ class index extends Component {
     );
 
     this.retrieveConnected();
-
-    console.log(this.props.leftDevice, " this.props.leftDevice ");
   }
 
   startBLE() {
+    const initAndScan = () => {
+      BleManager.start({showAlert: false}).then(() => {
+        console.log('Module initialized');
+        this.startReading();
+        this.retrieveConnected();
+        this.startScan();
+      });
+    };
 
-    BleManager.start({ showAlert: false }).then(() => {
-      // Success code
-      console.log('Module initialized');
-      this.startReading();
-    });
-    // AppState.addEventListener('change', this.handleAppStateChange);
-    // this.handlerDiscover = bleManagerEmitter.addListener(
-    //   'BleManagerDiscoverPeripheral',
-    //   this.handleDiscoverPeripheral,
-    // );
-    // this.handlerStop = bleManagerEmitter.addListener(
-    //   'BleManagerStopScan',
-    //   this.handleStopScan,
-    // );
-    // this.handlerDisconnect = bleManagerEmitter.addListener(
-    //   'BleManagerDisconnectPeripheral',
-    //   this.handleDisconnectedPeripheral,
-    // );
     if (Platform.OS === 'android') {
-      RNAndroidLocationEnabler.promptForEnableLocationIfNeeded({
-        interval: 10000,
-        fastInterval: 5000,
-      })
-        .then(data => {
-          console.log(data);
+      if (
+        RNAndroidLocationEnabler &&
+        RNAndroidLocationEnabler.promptForEnableLocationIfNeeded
+      ) {
+        RNAndroidLocationEnabler.promptForEnableLocationIfNeeded({
+          interval: 10000,
+          fastInterval: 5000,
         })
-        .catch(err => {
-          console.log(err);
-        });
-    }
-    this.startReading();
-    this.retrieveConnected();
-
-
-  }
-
-  async deviceConnect() {
-    let service;
-    let characteristicN;
-
-    if (Platform.OS === 'android') {
-      service = '0000FFE0-0000-1000-8000-00805F9B34FB';
-      characteristicN = '0000FFE1-0000-1000-8000-00805F9B34FB';
+          .then(data => {
+            console.log('Location enabled:', data);
+            initAndScan();
+          })
+          .catch(err => {
+            console.log('Location enable error:', err);
+            initAndScan();
+          });
+      } else {
+        console.log(
+          'RNAndroidLocationEnabler is undefined - skipping location prompt',
+        );
+        initAndScan();
+      }
     } else {
-      service = 'FFE0';
-      characteristicN = 'FFE1';
-    }
-
-    if (typeof this.props.rightDevice !== 'undefined') {
-      await BleManager.connect(this.props.rightDevice);
-      await BleManager.retrieveServices(this.props.rightDevice);
-      await BleManager.startNotification(
-        this.props.rightDevice,
-        service,
-        characteristicN,
-      );
-    }
-    if (typeof this.props.leftDevice !== 'undefined') {
-      await BleManager.connect(this.props.leftDevice);
-      await BleManager.retrieveServices(this.props.leftDevice);
-      await BleManager.startNotification(
-        this.props.leftDevice,
-        service,
-        characteristicN,
-      );
+      initAndScan();
     }
   }
 
@@ -259,87 +202,46 @@ class index extends Component {
       console.log('App has come to the foreground!');
       BleManager.getConnectedPeripherals([]).then(peripheralsArray => {
         console.log('Connected peripherals: ' + peripheralsArray.length);
-        this.setState({ bleList: peripheralsArray });
+        this.setState({bleList: peripheralsArray});
       });
     }
-    this.setState({ appState: nextAppState });
+    this.setState({appState: nextAppState});
   }
-
-  checkConnectivity() {
-    const { bleList } = this.state;
-    const updatedList = [];
-
-    bleList.forEach(device => {
-      BleManager.isPeripheralConnected(device.id, [])
-        .then(isConnected => {
-          if (isConnected) {
-            updatedList.push(device);
-          } else {
-            this.peripherals.delete(device.id);
-          }
-        })
-        .catch(error => {
-          console.log(`Error checking connectivity for device ${device.id}:`, error);
-        });
-    });
-
-    this.setState({ bleList: updatedList });
-  }
-
 
   componentWillUnmount() {
-    console.log('componentWillUnmount', this.props.leftDevice);
-    console.log('componentWillUnmount', this.props.rightDevice);
-
     if (this.handlerDiscover) this.handlerDiscover.remove();
     if (this.handlerStop) this.handlerStop.remove();
     if (this.handlerDisconnect) this.handlerDisconnect.remove();
     if (this.dataRecord) this.dataRecord.remove();
-
-
-    if (this.connectivityCheckInterval) {
-      clearInterval(this.connectivityCheckInterval);
-    }
   }
 
   handleDisconnectedPeripheral(data) {
     let peripheral = this.peripherals.get(data.peripheral);
-    console.log('peripheral ' + peripheral);
     if (peripheral) {
       peripheral.connected = false;
       this.peripherals.set(peripheral.id, peripheral);
-
-      this.setState({ bleList: Array.from(this.peripherals.values()) });
-      if (this.connectivityCheckInterval) {
-        clearInterval(this.connectivityCheckInterval);
-      }
+      this.setState({bleList: Array.from(this.peripherals.values())});
     }
     console.log('Disconnected from ' + data.peripheral);
-
-    // this.setState({ bleList: Array.from(this.peripherals.values()) });
   }
 
   async startReading() {
-
     if (this.dataRecord) {
-      this.dataRecord.remove(); // Clean up existing listener if any
+      this.dataRecord.remove();
     }
 
     this.dataRecord = bleManagerEmitter.addListener(
       'BleManagerDidUpdateValueForCharacteristic',
-      ({ value, peripheral, characteristic, service }) => {
+      ({value, peripheral, characteristic, service}) => {
         let time = new Date();
-
         if (peripheral === this.props.leftDevice) {
           if (time - this.state.ltime > 250) {
-            this.setState({ battLeft: value[value.length - 1] });
-            this.setState({ ltime: time });
+            this.setState({battLeft: value[value.length - 1], ltime: time});
           }
         }
         if (peripheral === this.props.rightDevice) {
           if (time - this.state.rtime > 250) {
-            this.setState({ battRight: value[value.length - 1] });
-            this.setState({ rtime: time });
+            this.setState({battRight: value[value.length - 1], rtime: time});
           }
         }
       },
@@ -348,357 +250,200 @@ class index extends Component {
 
   handleStopScan() {
     console.log('Scan is stopped');
-    this.setState({ scanning: false });
+    this.setState({scanning: false});
   }
 
   startScan() {
-
     if (!this.state.scanning) {
-      this.setState({ peripherals: new Map() });
-      BleManager.scan([], 5, true).then(results => {
-        console.log('Scanning...');
-        this.setState({ scanning: true, bleList: [] });
-      });
+      this.setState({peripherals: new Map()});
+      BleManager.scan([], 5, true)
+        .then(() => {
+          console.log('Scanning...');
+          this.setState({scanning: true, bleList: []});
+        })
+        .catch(err => {
+          console.log('Scan failed to start:', err);
+        });
     }
-    // this.connectivityCheckInterval = setInterval(this.checkConnectivity.bind(this), 10000);
   }
 
   checkConnection(id) {
     BleManager.isPeripheralConnected(id, []).then(isConnected => {
-      if (isConnected) {
-        console.log('Peripheral is connected!');
-      } else {
-        console.log('Peripheral is NOT connected!');
+      if (!isConnected) {
         let peripheral = this.peripherals.get(id);
         if (peripheral) {
           peripheral.connected = false;
           this.peripherals.delete(id);
-          this.setState({ bleList: Array.from(this.peripherals.values()) });
+          this.setState({bleList: Array.from(this.peripherals.values())});
         }
       }
     });
   }
 
   retrieveConnected() {
-
-    //     console.log('============ retrieveConnected ===========');
-    //     this.props.addLeftDevice(undefined);
-    //     this.props.addRightDevice(undefined);
-    //     this.setState({   bleList: []})
-    //     BleManager.getConnectedPeripherals([]).then(results => {
-    // console.log("322 resulte->",results)
-    //       if (results.length == 0) {
-    // this.props.addLeftDevice(undefined);
-    // this.setState({ left: '' });
-    // this.props.addRightDevice(undefined);
-    // this.setState({ right: '' });
-    //         console.log('No connected peripherals');
-    //       }
-    // for (var i = 0; i < results.length; i++) {
-    //   let peripheral = results[i];
-    //   if (peripheral.name[peripheral.name.length - 1] === 'L') {
-    //     this.props.addLeftDevice(peripheral.id);
-    //     this.setState({ left: peripheral.id });
-    //   } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
-    //     this.props.addRightDevice(peripheral.id);
-    //     this.setState({ right: peripheral.id });
-    //   }
-    //   this.checkConnection(peripheral.id);
-    //   // this.actionConnectDevice(peripheral);
-    //   peripheral.connected = true;
-    //   this.peripherals.set(peripheral.id, peripheral);
-    //   // console.log("343 ->",this.peripherals.values())
-    //   this.setState({bleList : Array.from(this.peripherals.values())});
-    // }
-    //     });
-
     console.log('============ retrieveConnected ===========');
     this.props.addLeftDevice(undefined);
     this.props.addRightDevice(undefined);
-    this.setState({ bleList: [] });
+    this.setState({bleList: []});
 
-    BleManager.getConnectedPeripherals([]).then(results => {
-      console.log("322 resulte->", results);
-
-      if (results.length === 0) {
-        this.props.addLeftDevice(undefined);
-        this.setState({ left: '' });
-        this.props.addRightDevice(undefined);
-        this.setState({ right: '' });
-        console.log('No connected peripherals');
-        return;
-      }
-
-      const leftDevices = [];
-      const rightDevices = [];
-
-
-      results.forEach(peripheral => {
-        console.log("Device name:", peripheral.name);
-        if (!peripheral.name) {
-          console.log('Skipping peripheral with null name:', peripheral);
+    BleManager.getConnectedPeripherals([])
+      .then(results => {
+        if (results.length === 0) {
+          console.log('No connected peripherals');
           return;
         }
-        if (peripheral.name && peripheral.name.endsWith('L')) {
-          this.props.addLeftDevice(peripheral.id);
-          leftDevices.push(peripheral.id);
-        } else if (peripheral.name && peripheral.name.endsWith('R')) {
-          this.props.addRightDevice(peripheral.id);
-          rightDevices.push(peripheral.id);
-        }
-        this.checkConnection(peripheral.id);
-        peripheral.connected = true;
-        this.peripherals.set(peripheral.id, peripheral);
-      });
 
-      // Update state after processing all peripherals
-      this.setState({
-        left: leftDevices.length > 0 ? leftDevices[0] : '',
-        right: rightDevices.length > 0 ? rightDevices[0] : '',
-        bleList: Array.from(this.peripherals.values())
+        const leftDevices = [];
+        const rightDevices = [];
+
+        results.forEach(peripheral => {
+          if (!peripheral.name) return;
+          if (peripheral.name.endsWith('L')) {
+            this.props.addLeftDevice(peripheral.id);
+            leftDevices.push(peripheral.id);
+          } else if (peripheral.name.endsWith('R')) {
+            this.props.addRightDevice(peripheral.id);
+            rightDevices.push(peripheral.id);
+          }
+          this.checkConnection(peripheral.id);
+          peripheral.connected = true;
+          this.peripherals.set(peripheral.id, peripheral);
+        });
+
+        this.setState({
+          left: leftDevices.length > 0 ? leftDevices[0] : '',
+          right: rightDevices.length > 0 ? rightDevices[0] : '',
+          bleList: Array.from(this.peripherals.values()),
+        });
+      })
+      .catch(error => {
+        console.error('Error retrieving connected peripherals:', error);
       });
-    }).catch(error => {
-      console.error('Error retrieving connected peripherals:', error);
-    });
   }
 
   handleDiscoverPeripheral(peripheral) {
-    // console.log('Got ble peripheral', peripheral.name);
-    if (peripheral.name) {
-      let name = peripheral.name[peripheral.name.length - 1];
-      if (name === 'L' || name === 'R') {
+    const deviceName =
+      peripheral.name ||
+      (peripheral.advertising && peripheral.advertising.localName);
+    if (deviceName) {
+      let nameSuffix = deviceName.trim().slice(-1);
+      if (nameSuffix === 'L' || nameSuffix === 'R') {
+        peripheral.name = deviceName;
         this.peripherals.set(peripheral.id, peripheral);
+        this.setState({bleList: Array.from(this.peripherals.values())});
       }
     }
-    // console.log("peripheral-->",peripheral)
-    // console.log('357 Got ble peripheral->',Array.from(this.peripherals.values()));
-    this.setState({ bleList: Array.from(this.peripherals.values()) });
   }
 
-  actionConfirmConnect = item => {
-    let BUTTONS = [
-      item.connected
-        ? { text: 'Disconnect', icon: 'link', iconColor: '#3742fa' }
-        : { text: 'Connect', icon: 'link', iconColor: '#3742fa' },
-      { text: 'Cancel', icon: 'close', iconColor: 'red' },
-    ];
-
-    let OptionsIndex = BUTTONS.length - 1;
-
-    return ActionSheet.show(
-      {
-        options: BUTTONS,
-        cancelButtonIndex: OptionsIndex,
-        destructiveButtonIndex: OptionsIndex,
-        title: 'Option',
-      },
-      buttonIndex => {
-        if (buttonIndex != OptionsIndex) {
-          this.actionConnectDevice(item);
-        }
-      },
-    );
+  handleDeviceTap = item => {
+    if (item.connected) {
+      Alert.alert(
+        'ยืนยันการตัดการเชื่อมต่อ',
+        `ต้องการตัดการเชื่อมต่อ ${item.name} หรือไม่?`,
+        [
+          {text: 'ยกเลิก', style: 'cancel'},
+          {
+            text: 'ตัดการเชื่อมต่อ',
+            style: 'destructive',
+            onPress: () => this.actionConnectDevice(item),
+          },
+        ],
+      );
+    } else {
+      this.actionConnectDevice(item);
+    }
   };
 
   actionConnectDevice = async peripheral => {
-    if (peripheral) {
-      if (peripheral.connected) {
-        if (peripheral.name[peripheral.name.length - 1] === 'L') {
-          this.props.addLeftDevice(undefined);
-          this.setState({ left: '' });
-        } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
-          this.props.addRightDevice(undefined);
-          this.setState({ right: '' });
-        }
-        BleManager.disconnect(peripheral.id)
-          .then(() => {
-            // Success code
-            console.log('Disconnected');
-          })
-          .catch(error => {
-            // Failure code
-            console.log(error);
-            Alert.alert(
-              'เกิดข้อผิดพลาดระหว่างอุปกรณ์',
-              'โปรดปิดบลูทูธ และดำเนินการเชื่อมต่อใหม่อีกครั้ง',
+    if (!peripheral) return;
+
+    if (peripheral.connected) {
+      if (peripheral.name?.endsWith('L')) {
+        this.props.addLeftDevice(undefined);
+        this.setState({left: ''});
+      } else if (peripheral.name?.endsWith('R')) {
+        this.props.addRightDevice(undefined);
+        this.setState({right: ''});
+      }
+      BleManager.disconnect(peripheral.id).catch(error => {
+        console.log(error);
+        Alert.alert('Error disconnecting', 'Please try again');
+      });
+    } else {
+      BleManager.connect(peripheral.id)
+        .then(() => {
+          let p = this.peripherals.get(peripheral.id);
+          if (p) {
+            p.connected = true;
+            this.peripherals.set(peripheral.id, p);
+            this.setState({bleList: Array.from(this.peripherals.values())});
+          }
+          if (peripheral.name?.endsWith('L')) {
+            this.props.addLeftDevice(peripheral.id);
+          } else if (peripheral.name?.endsWith('R')) {
+            this.props.addRightDevice(peripheral.id);
+          }
+
+          BleManager.retrieveServices(peripheral.id).then(() => {
+            const service = '0000FFE0-0000-1000-8000-00805F9B34FB';
+            const char = '0000FFE1-0000-1000-8000-00805F9B34FB';
+
+            BleManager.startNotification(peripheral.id, service, char).then(
+              () => {
+                console.log('Started notification on ' + peripheral.id);
+                // Write initial setup
+                BleManager.write(peripheral.id, service, char, [0]).then(() => {
+                  BleManager.write(peripheral.id, service, char, [1, 95]);
+                });
+              },
             );
           });
-      } else {
-        BleManager.getConnectedPeripherals([]).then(results => {
-          if (
-            peripheral.name[peripheral.name.length - 1] === 'L' &&
-            this.props.leftDevice
-          ) {
-            Toast.show(`Surasole L has been connected`);
-            return;
-          } else if (
-            peripheral.name[peripheral.name.length - 1] === 'R' &&
-            this.props.rightDevice
-          ) {
-            Toast.show(`Surasole R has been connected`);
-            return;
-          } else {
-            BleManager.connect(peripheral.id)
-              .then(() => {
-                let p = this.peripherals.get(peripheral.id);
-                if (p) {
-                  // if(typeof this.props.leftDevice  === 'undefined' || typeof this.props.rightDevice === 'undefined' ){
-                  //   p.connected = false;
-                  // }else{
-                  //   p.connected = true
-                  // }
-
-                  p.connected = true;
-                  this.peripherals.set(peripheral.id, p);
-                  console.log("list------", this.peripherals.values())
-                  this.setState({ bleList: Array.from(this.peripherals.values()) });
-                }
-                if (peripheral.name[peripheral.name.length - 1] === 'L') {
-                  this.props.addLeftDevice(peripheral.id);
-                } else if (
-                  peripheral.name[peripheral.name.length - 1] === 'R'
-                ) {
-                  this.props.addRightDevice(peripheral.id);
-                }
-                console.log('Connected to ' + peripheral.id);
-                setTimeout(() => {
-                  BleManager.retrieveServices(peripheral.id).then(
-                    peripheralInfo => {
-                      var service;
-                      var bakeCharacteristic;
-                      var crustCharacteristic;
-                      if (Platform.OS === 'android') {
-                        service = '0000FFE0-0000-1000-8000-00805F9B34FB';
-                        bakeCharacteristic =
-                          '0000FFE1-0000-1000-8000-00805F9B34FB';
-                        crustCharacteristic =
-                          '0000FFE1-0000-1000-8000-00805F9B34FB';
-                      } else {
-                        service = 'FFE0';
-                        bakeCharacteristic = 'FFE1';
-                        crustCharacteristic = 'FFE1';
-                      }
-                      setTimeout(() => {
-                        BleManager.startNotification(
-                          peripheral.id,
-                          service,
-                          bakeCharacteristic,
-                        )
-                          .then(() => {
-                            console.log(
-                              'Started notification on ' + peripheral.id,
-                            );
-                            setTimeout(() => {
-                              BleManager.write(
-                                peripheral.id,
-                                service,
-                                crustCharacteristic,
-                                [0],
-                              ).then(() => {
-                                console.log('Writed NORMAL crust');
-                                BleManager.write(
-                                  peripheral.id,
-                                  service,
-                                  bakeCharacteristic,
-                                  [1, 95],
-                                ).then(() => {
-                                  console.log(
-                                    'Writed 351 temperature, the pizza should be BAKED',
-                                  );
-                                });
-                              });
-                            }, 500);
-                          })
-                          .catch(error => {
-                            console.log('Notification error', error);
-                          });
-                      }, 200);
-                    },
-                  );
-                }, 900);
-              })
-              .catch(error => {
-                Toast.show(`${peripheral.id} connection error`);
-                console.log('Connection error', error);
-              });
-          }
+        })
+        .catch(error => {
+          Toast.show(`${peripheral.id} connection error`);
+          console.log('Connection error', error);
         });
-      }
     }
   };
 
   checkLeftRight(name) {
-    if (name?.endsWith("L")) {
-      return (
-        <Image
-          style={{ width: 20, height: 50 }}
-          resizeMode={'contain'}
-          source={require('../../../assets/image/foot/Left.png')}
-          tintColor={'red'}
-        />
-      );
-    } else if (name.endsWith("R")) {
-      return (
-        <Image
-          style={{ width: 20, height: 50 }}
-          resizeMode={'contain'}
-          source={require('../../../assets/image/foot/Right.png')}
-          tintColor={'red'}
-        />
-      );
-    } else {
-    }
+    if (!name) return null;
+    const source = name.endsWith('L')
+      ? require('../../../assets/image/foot/Left.png')
+      : name.endsWith('R')
+      ? require('../../../assets/image/foot/Right.png')
+      : null;
+
+    if (!source) return null;
+    return (
+      <Image
+        style={{width: 20, height: 50}}
+        resizeMode={'contain'}
+        source={source}
+        tintColor={'red'}
+      />
+    );
   }
-
-  decimalToHexString(number) {
-    if (number < 0) {
-      number = 0xffffffff + number + 1;
-    }
-    if (number == undefined) {
-      number = 0xffffffff + number + 1;
-    }
-    return number.toString(16).toUpperCase();
-  }
-
-  convertBLEId(data) {
-    console.log(data);
-    if (data != undefined) {
-      let id = `${this.decimalToHexString(data[15])}:${this.decimalToHexString(
-        data[16],
-      )}:${this.decimalToHexString(data[17])}:${this.decimalToHexString(
-        data[18],
-      )}:${this.decimalToHexString(data[19])}:${this.decimalToHexString(
-        data[20],
-      )}`;
-      return id;
-    }
-
-  }
-
-  convertUUIDToId(data) {
-   
-
-    const macArray = data?.advertising?.manufacturerRawData?.bytes
-      .slice(-6)
-      .map(byte => byte.toString(16).padStart(2, '0'));
-    return macArray.join(':');
-
-  }
-
-
-
 
   renderItem(item) {
-
     const color = item.connected ? 'mediumspringgreen' : '#fff';
     return (
-      <TouchableHighlight onPress={() => this.actionConfirmConnect(item)}>
-        <Card>
-          <CardItem style={[{ backgroundColor: color }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 12, color: "#000" }}>{item.name}</Text>
+      <TouchableHighlight
+        onPress={() => this.handleDeviceTap(item)}
+        underlayColor="#f0f0f0">
+        <View style={deviceStyles.itemCard}>
+          <View style={[deviceStyles.itemContent, {backgroundColor: color}]}>
+            {!item.connected && (
+              <View style={{marginRight: 15}}>
+                {this.checkLeftRight(item.name)}
+              </View>
+            )}
+            <View style={{flex: 1}}>
+              <Text style={{fontSize: 15, color: '#000', fontWeight: 'bold'}}>
+                {item.name}
+              </Text>
               {item.connected ? (
-                <Text style={{ fontSize: 10, color: "#000" }}>
+                <Text style={{fontSize: 13, color: '#333'}}>
                   Battery :{' '}
                   {item?.name?.endsWith('L')
                     ? this.state.battLeft
@@ -706,37 +451,30 @@ class index extends Component {
                   %
                 </Text>
               ) : (
-                <Text style={{ fontSize: 10, color: "#000" }}>Signal Strength: {item.rssi}</Text>
+                <Text style={{fontSize: 12, color: '#666'}}>
+                  Signal Strength: {item.rssi}
+                </Text>
               )}
-              <Text style={{ fontSize: 10, color: "#000" }}>ID : {Platform.OS == 'ios' ? this.convertUUIDToId(item): item.id}
-                {/* {this.convertBLEId(item.advertising.manufacturerData.bytes)} */}
-              </Text>
+              <Text style={{fontSize: 12, color: '#666'}}>ID : {item.id}</Text>
             </View>
-            {item.connected ? (
-              <View style={{ alignItems: 'center' }}>
-                {/* <Icon
-                  type="AntDesign"
-                  name="checkcircle"
-                  style={{ color: '#ffffff' }}
-                /> */}
-                <Image source={require('../../../assets/image/checked.png')} tintColor={"#fff"} style={{ width: 18, height: 18, marginLeft: 10 }} />
-                <Text style={{ fontSize: 10, color: "#000" }}>Connected</Text>
-              </View>
-            ) : (
-              <View style={{ flexDirection: 'row' }}>
-                {this.checkLeftRight(item.name)}
+            {item.connected && (
+              <View style={{alignItems: 'center', marginLeft: 10}}>
+                <Image
+                  source={require('../../../assets/image/checked.png')}
+                  tintColor={'#fff'}
+                  style={{width: 24, height: 24}}
+                />
+                <Text style={{fontSize: 10, color: '#000'}}>Connected</Text>
               </View>
             )}
-          </CardItem>
-        </Card>
+          </View>
+        </View>
       </TouchableHighlight>
     );
   }
 
   render() {
-
-    const list = Array.isArray(this.state.bleList) ? this.state.bleList : [...this.state.bleList.values()];
-    
+    const list = Array.from(this.peripherals.values());
     const btnScanTitle = this.state.scanning
       ? getLocalizedText(this.props.lang, Lang.scanningForDevices)
       : getLocalizedText(this.props.lang, Lang.scanBluetooth);
@@ -745,58 +483,41 @@ class index extends Component {
       <View style={styles.container}>
         <HeaderFix
           icon_left={'left'}
-          onpress_left={() => {
-            this.props.navigation.navigate('Home');
-          }}
+          onpress_left={() => this.props.navigation.navigate('Home')}
           title={getLocalizedText(this.props.lang, Lang.title)}
         />
         <RefreshComponent methodToCall={() => this.retrieveConnected()} />
-        <View style={styles.container}>
-          <ScrollView style={styles.scroll}>
-            {list.length == 0 && (
-              <View style={{ flex: 1, margin: 20 }}>
-                <Text style={{ textAlign: 'center', alignSelf: 'center' }}>
-                  {getLocalizedText(this.props.lang, Lang.noDeviceList)}
-                </Text>
-              </View>
-            )}
-            {this.state.scanning ? (
-              <ActivityIndicator style={{ marginTop: 20 }} />
-            ) : (
-              <FlatList
-                data={list}
-                renderItem={({ item }) => this.renderItem(item)}
-                keyExtractor={item => item.id}
-              />
-            )}
-          </ScrollView>
-        </View>
-        <View style={{ margin: 10, marginBottom: 50 }}>
-          <TouchableOpacity onPress={() => {
-
-
-            this.setState({
-              extra: this.state.extra + 1,
-              // bleList: [],
-              appState: 'active',
-              // data: [],
-              // left: '',
-              // right: '',
-            })
-            this.startScan()
-
-          }}
-          >
-            <View
-              style={{
-                backgroundColor: UI.color_Gradient[1],
-                padding: 10,
-                borderRadius: 30,
-              }}>
-              <Text style={{ textAlign: 'center', color: '#fff', fontSize: 16 }}>
-                {btnScanTitle}
+        <View style={styles.listArea}>
+          {list.length === 0 && !this.state.scanning && (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {getLocalizedText(this.props.lang, Lang.noDeviceList)}
               </Text>
             </View>
+          )}
+          {this.state.scanning && list.length === 0 ? (
+            <ActivityIndicator
+              size="large"
+              color="#00bfc5"
+              style={{marginTop: 50}}
+            />
+          ) : (
+            <FlatList
+              data={list}
+              renderItem={({item}) => this.renderItem(item)}
+              keyExtractor={item => item.id}
+              contentContainerStyle={{paddingBottom: 20}}
+            />
+          )}
+        </View>
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.scanButton}
+            onPress={() => this.startScan()}>
+            <Text style={styles.scanButtonText}>{btnScanTitle}</Text>
+            {this.state.scanning && (
+              <ActivityIndicator color="#fff" style={{marginLeft: 10}} />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -804,45 +525,83 @@ class index extends Component {
   }
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    width: window.width,
-    height: window.height,
+const deviceStyles = StyleSheet.create({
+  itemCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginVertical: 6,
+    marginHorizontal: 12,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
-  scroll: {
-    flex: 1,
-    margin: 10,
+  itemContent: {
+    flexDirection: 'row',
+    padding: 16,
+    alignItems: 'center',
+    borderRadius: 8,
   },
 });
 
-const mapStateToProps = state => {
-  return {
-    leftDevice: state.leftDevice,
-    rightDevice: state.rightDevice,
-    isStart: state.isStart,
-    isSupport: state.isSupport,
-    isBlueToothOn: state.isBlueToothOn,
-    lang: state.lang,
-  };
-};
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  listArea: {
+    flex: 1,
+    paddingTop: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+  },
+  footer: {
+    padding: 16,
+    paddingBottom: 32,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  scanButton: {
+    backgroundColor: UI.color_Gradient[1],
+    paddingVertical: 14,
+    borderRadius: 30,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  scanButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});
 
-const mapDispatchToProps = dispatch => {
-  return {
-    addLeftDevice: device => {
-      return dispatch({ type: 'ADD_LEFT_DEVICE', payload: device });
-    },
-    addRightDevice: device => {
-      return dispatch({ type: 'ADD_RIGHT_DEVICE', payload: device });
-    },
-    starting: () => {
-      return dispatch({ type: 'STARTING' });
-    },
-  };
-};
+const mapStateToProps = state => ({
+  leftDevice: state.leftDevice,
+  rightDevice: state.rightDevice,
+  lang: state.lang,
+});
 
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps,
-)(index);
+const mapDispatchToProps = dispatch => ({
+  addLeftDevice: device => dispatch({type: 'ADD_LEFT_DEVICE', payload: device}),
+  addRightDevice: device =>
+    dispatch({type: 'ADD_RIGHT_DEVICE', payload: device}),
+});
+
+export default connect(mapStateToProps, mapDispatchToProps)(index);

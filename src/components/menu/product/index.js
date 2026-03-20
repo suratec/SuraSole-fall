@@ -24,9 +24,8 @@ class index extends Component {
         <View
           style={{
             padding: 10,
-            alignContent: 'stretch',
-            flexDirection: 'row',
-            flexWrap: 'wrap',
+            flexDirection: 'column',
+            alignItems: 'center',
           }}>
           <Items
             text={'SURASOLES Lite (5)'}

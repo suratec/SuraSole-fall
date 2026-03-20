@@ -92,121 +92,132 @@ class index extends Component {
   }
 
   excelFile = async () => {
-    await RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-      res.forEach(r => {
-        RNFS.readFile(r.path)
-            .then(text => {
-              var excelData = JSON.parse(
-                  '[' + text.substring(0, text.length - 1) + ']',
-              );
-              var setJson = [];
-              Object.keys(excelData).forEach(function (index) {
-                let FL =
-                    (excelData[index].left.sensor[0] +
-                        excelData[index].left.sensor[1] +
-                        excelData[index].left.sensor[2]) /
-                    3;
-                let FR =
-                    (excelData[index].right.sensor[0] +
-                        excelData[index].right.sensor[1] +
-                        excelData[index].right.sensor[2]) /
-                    3;
-                let COP_X =
-                    FR +
-                    excelData[index].right.sensor[3] +
-                    excelData[index].right.sensor[4] -
-                    (FL +
-                        excelData[index].left.sensor[3] +
-                        excelData[index].left.sensor[4]);
-                let COP_Y =
-                    FL +
-                    FR -
-                    (excelData[index].right.sensor[4] +
-                        excelData[index].left.sensor[4]);
-                data = {
-                  Timestamp: moment(excelData[index].stamp).format(
-                      'MMMM Do YYYY, h:mm:ss:ms a',
-                  ),
-                  Left_1: excelData[index].left.sensor[0],
-                  Left_2: excelData[index].left.sensor[1],
-                  Left_3: excelData[index].left.sensor[2],
-                  Left_4: excelData[index].left.sensor[3],
-                  Left_5: excelData[index].left.sensor[4],
-                  Right_1: excelData[index].right.sensor[0],
-                  Right_2: excelData[index].right.sensor[1],
-                  Right_3: excelData[index].right.sensor[2],
-                  Right_4: excelData[index].right.sensor[3],
-                  Right_5: excelData[index].right.sensor[4],
-                  FL: FL,
-                  LX:
-                      excelData[index].left.sensor[2] -
-                      excelData[index].left.sensor[1],
-                  LY: FL - excelData[index].left.sensor[4],
-                  FR: FR,
-                  RX:
-                      excelData[index].right.sensor[1] -
-                      excelData[index].right.sensor[2],
-                  RY: excelData[index].right.sensor[4] - FR,
-                  COP_X: COP_X,
-                  COP_Y: COP_Y,
-                };
-                setJson.push(data);
-              });
+    const path = RNFS.CachesDirectoryPath + '/suratechM/';
+    RNFS.exists(path).then(exists => {
+      if (!exists) {
+        console.warn('Folder does not exist:', path);
+        return;
+      }
+      RNFS.readDir(path).then(res => {
+        res.forEach(r => {
+          RNFS.readFile(r.path)
+              .then(text => {
+                var excelData = JSON.parse(
+                    '[' + text.substring(0, text.length - 1) + ']',
+                );
+                var setJson = [];
+                Object.keys(excelData).forEach(function (index) {
+                  let FL =
+                      (excelData[index].left.sensor[0] +
+                          excelData[index].left.sensor[1] +
+                          excelData[index].left.sensor[2]) /
+                      3;
+                  let FR =
+                      (excelData[index].right.sensor[0] +
+                          excelData[index].right.sensor[1] +
+                          excelData[index].right.sensor[2]) /
+                      3;
+                  let COP_X =
+                      FR +
+                      excelData[index].right.sensor[3] +
+                      excelData[index].right.sensor[4] -
+                      (FL +
+                          excelData[index].left.sensor[3] +
+                          excelData[index].left.sensor[4]);
+                  let COP_Y =
+                      FL +
+                      FR -
+                      (excelData[index].right.sensor[4] +
+                          excelData[index].left.sensor[4]);
+                  data = {
+                    Timestamp: moment(excelData[index].stamp).format(
+                        'MMMM Do YYYY, h:mm:ss:ms a',
+                    ),
+                    Left_1: excelData[index].left.sensor[0],
+                    Left_2: excelData[index].left.sensor[1],
+                    Left_3: excelData[index].left.sensor[2],
+                    Left_4: excelData[index].left.sensor[3],
+                    Left_5: excelData[index].left.sensor[4],
+                    Right_1: excelData[index].right.sensor[0],
+                    Right_2: excelData[index].right.sensor[1],
+                    Right_3: excelData[index].right.sensor[2],
+                    Right_4: excelData[index].right.sensor[3],
+                    Right_5: excelData[index].right.sensor[4],
+                    FL: FL,
+                    LX:
+                        excelData[index].left.sensor[2] -
+                        excelData[index].left.sensor[1],
+                    LY: FL - excelData[index].left.sensor[4],
+                    FR: FR,
+                    RX:
+                        excelData[index].right.sensor[1] -
+                        excelData[index].right.sensor[2],
+                    RY: excelData[index].right.sensor[4] - FR,
+                    COP_X: COP_X,
+                    COP_Y: COP_Y,
+                  };
+                  setJson.push(data);
+                });
 
-              ws = XLSX.utils.json_to_sheet(setJson);
-              ws = XLSX.utils.json_to_sheet(setJson);
+                ws = XLSX.utils.json_to_sheet(setJson);
+                ws = XLSX.utils.json_to_sheet(setJson);
 
-              wb = XLSX.utils.book_new();
-              XLSX.utils.book_append_sheet(wb, ws, 'Data Record');
+                wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Data Record');
 
-              wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
-              file =
-                  RNFS.ExternalCachesDirectoryPath + '/' + Date.now() + '.xlsx';
-              console.log(file);
-              writeFile(file, wbout, 'ascii')
-                  .then(r => {
-                    /* :) */
-                  })
-                  .catch(e => {
-                    /* :( */
-                  });
-            })
-            .catch(e => { });
+                wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
+                file =
+                    RNFS.ExternalCachesDirectoryPath + '/' + Date.now() + '.xlsx';
+                console.log(file);
+                writeFile(file, wbout, 'ascii')
+                    .then(r => {
+                      /* :) */
+                    })
+                    .catch(e => {
+                      /* :( */
+                    });
+              })
+              .catch(e => { });
+        });
+        Toast.show('Excel Download File Success');
       });
     });
-    Toast.show('Excel Download File Success');
   };
 
   onPreLoad() {
-    RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-      res.forEach(r => {
-        RNFS.readFile(r.path)
-            .then(text => {
-              let data = JSON.parse(
-                  '[' + text.substring(0, text.length - 1) + ']',
-              );
-              var content = {
-                data: data,
-                id_customer: data[0].id_customer,
-                id_device: '',
-                type: 1, // for medical
-              };
-              fetch(`${API}/addjson`, {
-                method: 'POST',
-                headers: {
-                  Accept: 'application/json',
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(content),
+    const path = RNFS.CachesDirectoryPath + '/suratechM/';
+    RNFS.exists(path).then(exists => {
+      if (!exists) return;
+      RNFS.readDir(path).then(res => {
+        res.forEach(r => {
+          RNFS.readFile(r.path)
+              .then(text => {
+                let data = JSON.parse(
+                    '[' + text.substring(0, text.length - 1) + ']',
+                );
+                var content = {
+                  data: data,
+                  id_customer: data[0].id_customer,
+                  id_device: '',
+                  type: 1, // for medical
+                };
+                fetch(`${API}/addjson`, {
+                  method: 'POST',
+                  headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(content),
+                })
+                    .then(resp => resp.json())
+                    .then(resp => {
+                      if (resp.status != 'ผิดพลาด') {
+                        RNFS.unlink(r.path);
+                      }
+                    });
               })
-                  .then(resp => resp.json())
-                  .then(resp => {
-                    if (resp.status != 'ผิดพลาด') {
-                      RNFS.unlink(r.path);
-                    }
-                  });
-            })
-            .catch(e => { });
+              .catch(e => { });
+        });
       });
     });
   }
@@ -1783,11 +1794,9 @@ class index extends Component {
                   <LinearGradient
                       colors={[
                           '#eafffa',
-                          '#eafffa'
-                          // '#FFFFFF',
-                          // '#FFFFFF',
-                          // 'rgba(216,255,255,0.6)',
-                          // '#CFFFFF',
+                          '#eafffa',
+                          '#eafffa',
+                          '#eafffa',
                       ]}
                       locations={[0, 0.9, 0.96, 1]}
                       start={{ x: 0, y: 0 }}

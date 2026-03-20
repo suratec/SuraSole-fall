@@ -138,17 +138,26 @@ class index extends Component {
     });
 
     await messaging().requestPermission();
+    // Use the newer pattern for hasPermission
     const enabled = await messaging().hasPermission();
 
-    // Add back button handler
-    BackHandler.addEventListener(
+    // Add back button handler using the newer subscription pattern
+    this.backHandlerSubscription = BackHandler.addEventListener(
         'hardwareBackPress',
         this.handleBackButtonClick,
     );
 
-    NetInfo.addEventListener(this.handleConnectivityChange);
+    try {
+      if (NetInfo && typeof NetInfo.addEventListener === 'function') {
+        this.netInfoUnsubscribe = NetInfo.addEventListener(this.handleConnectivityChange);
+      }
+    } catch (e) {
+      console.log('NetInfo error:', e);
+    }
 
-    this.sendDataToSetver();
+    if (typeof this.sendDataToSetver === 'function') {
+      this.sendDataToSetver();
+    }
 
     if (Platform.OS === 'android') {
       PermissionsAndroid.requestMultiple([
@@ -176,22 +185,29 @@ class index extends Component {
   }
 
   componentWillUnmount() {
-    if (this.focusListener) {
+    if (this.focusListener && typeof this.focusListener === 'function') {
       this.focusListener();
+    } else if (this.focusListener && typeof this.focusListener.remove === 'function') {
+      this.focusListener.remove();
     }
-    BackHandler.removeEventListener('hardwareBackPress', this.handleBackButtonClick);
+    if (this.netInfoUnsubscribe && typeof this.netInfoUnsubscribe === 'function') {
+      this.netInfoUnsubscribe();
+    }
+    
+    if (this.backHandlerSubscription && typeof this.backHandlerSubscription.remove === 'function') {
+      this.backHandlerSubscription.remove();
+    }
 
     // Clean up dimension listener properly
-    if (this.dimensionListener?.remove) {
+    if (this.dimensionListener && typeof this.dimensionListener.remove === 'function') {
       this.dimensionListener.remove();
     }
   }
 
   handleBackButtonClick = async () => {
     try {
-      const parent = this.props.navigation.getParent();
-
-      if (!parent || parent.state.index === 0) {
+      // In React Navigation v7, we use canGoBack() instead of parent.state.index
+      if (!this.props.navigation.canGoBack()) {
         Alert.alert(
             '',
             getLocalizedText(this.props.lang, LangAlert.closeApp),
@@ -248,7 +264,10 @@ class index extends Component {
   };
 
   sendDataToSetver() {
-    RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
+    const path = RNFS.CachesDirectoryPath + '/suratechM/';
+    RNFS.exists(path).then(exists => {
+      if (!exists) return;
+      RNFS.readDir(path).then(res => {
       res.forEach(r => {
         console.log(r.path);
         RNFS.readFile(r.path)
@@ -319,6 +338,7 @@ class index extends Component {
                   });
             })
             .catch(e => {});
+      });
       });
     });
   }

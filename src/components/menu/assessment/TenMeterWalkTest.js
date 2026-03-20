@@ -55,7 +55,11 @@ class TenMeterWalkTest extends Component {
     componentWillUnmount() {
         clearInterval(this.readInterval);
         if (this.dataRecord) this.dataRecord.remove();
-        if (this.focusListener) this.focusListener.remove();
+        if (typeof this.focusListener === 'function') {
+            this.focusListener();
+        } else if (this.focusListener && typeof this.focusListener.remove === 'function') {
+            this.focusListener.remove();
+        }
     }
 
     handleConnectivityChange = status => {

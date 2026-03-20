@@ -192,7 +192,11 @@ class index extends Component {
     if (this.dataRecord) {
       this.dataRecord.remove();
     }
-    this.focusListener.remove();
+    if (typeof this.focusListener === 'function') {
+      this.focusListener();
+    } else if (this.focusListener && typeof this.focusListener.remove === 'function') {
+      this.focusListener.remove();
+    }
   };
 
   actionConnectDevice(peripheral) {

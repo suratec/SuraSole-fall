@@ -4,6 +4,7 @@ import React, {Component} from 'react';
 import {TouchableOpacity, Text as RNText, View, Image} from 'react-native';
 import UI from '../../../config/styles/CommonStyles';
 import Text from '../../common/TextFix';
+import {Thumbnail} from '../../common/NativeBaseShim';
 
 export class item extends Component {
   render() {

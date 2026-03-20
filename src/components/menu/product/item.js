@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import {Image} from 'react-native';
+import {Image, View, StyleSheet} from 'react-native';
 import {Body, Card, CardItem, Thumbnail} from '../../common/NativeBaseShim';
 import UI from '../../../config/styles/CommonStyles';
 import Text from '../../common/TextFix';
@@ -9,37 +9,37 @@ export class item extends Component {
     return (
       <Card
         style={{
-          width: '99%',
+          width: '98%',
           height: 100,
           marginBottom: 10,
+          marginHorizontal: 0,
+          alignSelf: 'center',
           borderColor: '#eee',
           borderWidth: 1,
         }}>
         <CardItem
           style={{
-            height: 100,
+            height: 110,
             flex: 1,
             flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
+            paddingHorizontal: 15,
           }}
           button
           onPress={this.props.onPress}>
           <Image
             source={this.props.source}
-            style={{width: 80, height: 80}}
+            style={{width: 70, height: 90}}
             resizeMode={'contain'}
           />
 
           <Body
             style={{
               flex: 1,
-              textAlign: 'center',
               justifyContent: 'center',
               alignItems: 'center',
-              margin: 'auto',
             }}>
-            <Text>{this.props.text}</Text>
+            <Text style={{ textAlign: 'center' }}>{this.props.text}</Text>
           </Body>
         </CardItem>
       </Card>
