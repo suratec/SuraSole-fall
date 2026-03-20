@@ -12,7 +12,7 @@ import {
   Toast,
 } from 'react-native';
 import {Card} from '../../common/NativeBaseShim';
-import {Col, Grid} from 'react-native-easy-grid';
+import {Col, Grid} from '../../common/NativeBaseShim';
 import {connect} from 'react-redux';
 import {
   FileManager,
@@ -82,7 +82,7 @@ class index extends Component {
   componentDidMount = () => {
     NetInfo.addEventListener(this.handleConnectivityChange);
     const { navigation } = this.props;
-    this.focusListener = navigation.addListener('didFocus', () => {
+    this.focusListener = navigation.addListener('focus', () => {
       this.retrieveConnected();
       this.startReading();
     });
@@ -473,7 +473,7 @@ class index extends Component {
           onpress_left={() => {
             this.props.navigation.goBack();
           }}
-          title={this.props.navigation.getParam('name', '')}
+          title={this.props.route.params?.['name'] ?? ''}
         />
         
         {/* Add smaller spacer to push chart slightly higher */}

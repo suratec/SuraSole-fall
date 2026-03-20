@@ -57,7 +57,7 @@ const Legs = () => {
             navigation.goBack();
             }}
             title={
-                // this.props.navigation.getParam('name', 'DashBoard')
+                // this.props.route.params?.['name'] ?? 'DashBoard'
                 "Foot Photo"
             }
             />

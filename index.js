@@ -2,6 +2,7 @@
  * @format
  */
 
+import 'react-native-gesture-handler';
 import {View, Text, TextInput} from 'react-native';
 
 

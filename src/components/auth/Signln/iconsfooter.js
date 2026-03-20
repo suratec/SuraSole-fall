@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import { TouchableOpacity, Image, Text, View } from 'react-native';
-import { Col, Row, Grid } from "react-native-easy-grid";
+import { Col, Row, Grid } from '../../common/NativeBaseShim';
 
 export default class iconsfooter extends Component {
     render() {

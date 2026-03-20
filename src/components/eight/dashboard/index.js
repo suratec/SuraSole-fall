@@ -355,7 +355,7 @@ class index extends Component {
           onpress_left={() => {
             this.props.navigation.goBack();
           }}
-          title={this.props.navigation.getParam('name', 'DashBoard')}
+          title={this.props.route.params?.['name'] ?? 'DashBoard'}
         />
 
         <View style={{flex: 1, paddingTop: 8}}>

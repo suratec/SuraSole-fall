@@ -100,7 +100,7 @@ class index extends Component {
                 <HeaderFix
                     icon_left={'left'}
                     onpress_left={() => { this.props.navigation.goBack() }}
-                    title={this.props.navigation.getParam('name', '')}
+                    title={this.props.route.params?.['name'] ?? ''}
                 />
 
                 <View style={{ padding: 10 }}>

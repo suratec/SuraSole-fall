@@ -6,7 +6,7 @@ import * as d3Array from 'd3-array';
 import * as d3ScaleChromatic from 'd3-scale-chromatic';
 
 import Contour from '../components/AnimatedSvgD3Contour';
-import { Col, Grid } from "react-native-easy-grid";
+import { Col, Grid } from '../../common/NativeBaseShim';
 // import contourData from '../data/contourData';
 // import { BleManager } from 'react-native-ble-plx';
 

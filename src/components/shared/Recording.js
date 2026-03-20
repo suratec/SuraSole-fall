@@ -14,7 +14,7 @@
 // import NetInfo from '@react-native-community/netinfo';
 // import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// import {Col, Grid} from 'react-native-easy-grid';
+// import {Col, Grid} from '../common/NativeBaseShim';
 // import {connect} from 'react-redux';
 
 // import HeaderFix from '../../common/HeaderFix';

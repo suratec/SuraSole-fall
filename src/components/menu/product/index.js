@@ -19,7 +19,7 @@ class index extends Component {
           onpress_left={() => {
             this.props.navigation.goBack();
           }}
-          title={this.props.navigation.getParam('name', '')}
+          title={this.props.route.params?.['name'] ?? ''}
         />
         <View
           style={{

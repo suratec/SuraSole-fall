@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import {Platform, StyleSheet, Text, View, TouchableOpacity} from 'react-native';
-import {Button} from 'NativeBaseShim';
+import {Button} from './NativeBaseShim';
 import UI from '../../config/styles/CommonStyles';
 
 export default class ButtonFix extends Component {

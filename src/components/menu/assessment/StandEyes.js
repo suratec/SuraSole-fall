@@ -155,7 +155,7 @@ class StandEyes extends Component {
         noti !== null ? this.setState({notiAlarm: parseInt(noti)}) : 100;
         NetInfo.addEventListener(this.handleConnectivityChange);
         const {navigation} = this.props;
-        this.focusListener = navigation.addListener('didFocus', () => {
+        this.focusListener = navigation.addListener('focus', () => {
             this.retrieveConnected();
             this.startReading();
             this.setState({focus: true});

@@ -46,7 +46,7 @@ class TenMeterWalkTest extends Component {
         if (noti) this.setState({ notiAlarm: parseInt(noti) });
         NetInfo.addEventListener(this.handleConnectivityChange);
 
-        this.focusListener = this.props.navigation.addListener('didFocus', () => {
+        this.focusListener = this.props.navigation.addListener('focus', () => {
             this.retrieveConnected();
             this.startReading();
         });

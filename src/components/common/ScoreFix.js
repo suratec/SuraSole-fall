@@ -1,7 +1,7 @@
 import React, {Component} from 'react';
 import {View} from 'react-native';
-import {Card, CardItem, Body} from 'NativeBaseShim';
-import {Col, Row, Grid} from 'react-native-easy-grid';
+import {Card, CardItem, Body} from './NativeBaseShim';
+import {Col, Row, Grid} from './NativeBaseShim';
 import Text from './TextFix';
 import UI from '../../config/styles/CommonStyles';
 

@@ -12,7 +12,7 @@ class NormalizeSize {
   constructor() {
     this.normalize = this.normalize.bind(this);
   }
-  normalize(size: any) {
+  normalize(size) {
     return (size / base_unit_height) * height;
   }
 }

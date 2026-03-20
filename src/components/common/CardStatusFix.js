@@ -2,7 +2,7 @@
 import React, {Component} from 'react';
 import {View} from 'react-native';
 import Text from './TextFix';
-import {Card, CardItem, Body} from 'NativeBaseShim';
+import {Card, CardItem, Body} from './NativeBaseShim';
 
 export default class CardStatusFix extends Component {
   render() {

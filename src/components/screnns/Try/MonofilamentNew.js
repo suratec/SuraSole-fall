@@ -6,7 +6,7 @@ import HeaderFix from '../../common/HeaderFix';
 import CheckBox from '@react-native-community/checkbox';
 import { connect } from 'react-redux';
 import { Snackbar } from 'react-native-paper';
-import PageControl from 'react-native-page-control';
+import PageControl from '../../common/PageControlShim';
 
 
 import ROOT_API, { IMAGE_URL } from '../../../config/Api'
@@ -338,7 +338,7 @@ const MonofilamentNew = ({ user, navigation }) => {
                     navigation.goBack();
                 }}
                 title={
-                    // this.props.navigation.getParam('name', 'DashBoard')
+                    // this.props.route.params?.['name'] ?? 'DashBoard'
                     "Pain Locations"
                 }
             />
@@ -902,19 +902,19 @@ const MonofilamentNew = ({ user, navigation }) => {
 
             </ScrollView>
             <PageControl
-                style={{ left: 0, right: 0, bottom: 5 }}
+                style={{ position: 'absolute', left: 0, right: 0, bottom: -15 }}
                 numberOfPages={2}
                 currentPage={currentPage}
                 hidesForSinglePage
                 pageIndicatorTintColor='gray'
-                currentPageIndicatorTintColor='white'
+                currentPageIndicatorTintColor={UI.color_Gradient[1]}
                 indicatorStyle={{ borderRadius: 5 }}
                 currentIndicatorStyle={{ borderRadius: 5 }}
                 indicatorSize={{ width: 8, height: 8 }}
                 onPageIndicatorPress={(index) => {
                     setCurrentPage(index)
                     scrollRef.current.scrollTo({
-                        x: windowWidth * index,
+                        x: 300 * index,
                         y: 0,
                         animated: true
                     })

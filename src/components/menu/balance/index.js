@@ -18,7 +18,7 @@ import {
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import {Col, Grid} from 'react-native-easy-grid';
+import {Col, Grid} from '../../common/NativeBaseShim';
 import {connect} from 'react-redux';
 
 import HeaderFix from '../../common/HeaderFix';
@@ -174,7 +174,7 @@ class index extends Component {
     noti !== null ? this.setState({notiAlarm: parseInt(noti)}) : 100;
     NetInfo.addEventListener(this.handleConnectivityChange);
     const {navigation} = this.props;
-    this.focusListener = navigation.addListener('didFocus', () => {
+    this.focusListener = navigation.addListener('focus', () => {
       this.retrieveConnected();
       this.startReading();
       this.setState({focus: true});
@@ -1004,7 +1004,7 @@ uploadCachedFilesInOrder = async (legType = '') => {
                   onpress_left={() => {
                     this.props.navigation.goBack();
                   }}
-                  title={this.props.navigation.getParam('name', '')}
+                  title={this.props.route.params?.['name'] ?? ''}
               />
           )}
           {this.state.calibrationScreenOn ? (

@@ -13,7 +13,7 @@ import {
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { Col, Grid } from 'react-native-easy-grid';
+import { Col, Grid } from '../../common/NativeBaseShim';
 import { connect } from 'react-redux';
 
 import HeaderFix from '../../common/HeaderFix';
@@ -629,7 +629,7 @@ class index extends React.PureComponent {
               onpress_left={() => {
                 this.props.navigation.goBack();
               }}
-              title={this.props.navigation.getParam('name', '')}
+              title={this.props.route.params?.['name'] ?? ''}
           />
 
           <ScrollView
