@@ -575,13 +575,6 @@ class index extends Component {
 
       return (
         <View style={{ flex: 1, backgroundColor: 'white' }}>
-          <HeaderFix
-              icon_left={'left'}
-              onpress_left={() => {
-                this.props.navigation.goBack();
-              }}
-              title={this.props.route.params?.['name'] ?? 'Dashboard'}
-          />
           {this.state.isLoading ? (
               <View
                   style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -589,6 +582,13 @@ class index extends Component {
               </View>
           ) : this.state.dataShow ? (
               <View style={{ flex: 1 }}>
+                <HeaderFix
+                    icon_left={'left'}
+                    onpress_left={() => {
+                        this.props.navigation.goBack();
+                    }}
+                    title={this.props.route.params?.['name'] ?? 'Dashboard'}
+                />
                 <View
                     style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{textAlign:"center"}} >{'No data found. \n Press Back to record data or click Reload'}</Text>
@@ -649,7 +649,15 @@ class index extends Component {
                   }}
               >
                 {/* ──────────── PAGE 1 ──────────── */}
-                <ScrollView contentContainerStyle={{ paddingBottom: 50 }}>
+                <View key="slide1" style={{ flex: 1 }}>
+                    <HeaderFix
+                        icon_left={'left'}
+                        onpress_left={() => {
+                            this.props.navigation.goBack();
+                        }}
+                        title={getLocalizedText(this.props.lang, LangDashboard.dashboard)}
+                    />
+                    <ScrollView contentContainerStyle={{ paddingBottom: 50 }}>
                   <View style={{ flex: 1, paddingTop: 8 }}>
                       <Text style={{ fontSize: 16, textAlign: 'right', marginRight: 10, color:'#005C51', fontWeight: 'bold' }}>
                           {this.state.currentDateTime || moment().format('DD/MM/YYYY')}
@@ -1789,8 +1797,17 @@ class index extends Component {
                       </View>
                   </View>
                 </ScrollView>
+                </View>
 
                 {/* ──────────── PAGE 2 ──────────── */}
+                <View key="slide2" style={{ flex: 1 }}>
+                  <HeaderFix
+                      icon_left={'left'}
+                      onpress_left={() => {
+                          this.props.navigation.goBack();
+                      }}
+                      title={getLocalizedText(this.props.lang, LangDashboard.summary)}
+                  />
                   <LinearGradient
                       colors={[
                           '#eafffa',
@@ -1880,6 +1897,7 @@ class index extends Component {
                       </View>
                       </ScrollView>
                   </LinearGradient>
+                </View>
 
               </Swiper>
           )}

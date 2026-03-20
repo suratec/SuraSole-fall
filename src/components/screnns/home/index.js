@@ -411,22 +411,19 @@ class index extends Component {
 
     return (
         <View style={{backgroundColor: 'white', flex: 1}}>
-          {/* NavigationEvents moved to componentDidMount listener */}
-
           {this.popup()}
-
 
           <View
               style={{
                 position: 'absolute',
-                left: screenWidth * 0.2,      // Mirror the logout button position
-                top: screenWidth * 0.55,      // Same top position as logout
+                left: 15,
+                top: Platform.OS === 'ios' ? 70 : 50,
                 borderWidth: 1.2,
                 borderColor: '#fff',
                 padding: 2,
-                borderRadius: screenWidth / 2, // Same border radius as logout
-                width: 34,                     // Same size as logout (30 + 2*2 padding)
-                height: 34,
+                borderRadius: 20,
+                width: 38,
+                height: 38,
                 justifyContent: 'center',
                 alignItems: 'center',
                 zIndex: 9999,
@@ -447,47 +444,48 @@ class index extends Component {
             />
           </View>
 
+          <TouchableOpacity
+              activeOpacity={0.8}
+              style={{
+                position: 'absolute',
+                right: 15,
+                top: Platform.OS === 'ios' ? 70 : 50,
+                borderWidth: 1.2,
+                borderColor: '#fff',
+                padding: 2,
+                borderRadius: 20,
+                width: 38,
+                height: 38,
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 9999,
+              }}
+              onPress={() => {
+                this.checkExitOrLogout();
+              }}
+          >
+            <Image
+                style={{ width: 22, height: 22, tintColor: '#fff' }}
+                source={
+                  this.props.impersonating
+                      ? require('../../../assets/image/menu/exit.png')
+                      : require('../../../assets/image/icons/logout.png')
+                }
+            />
+          </TouchableOpacity>
+
           <ScrollView
-              style={{flex: 1}}
+              style={{ flex: 1 }}
               contentContainerStyle={{
-                minHeight: safeHeight,
                 flexGrow: 1,
-              }}>
-
-            <View style={[styles.oval, { height: safeHeight * 0.35 }]}>
-
-
-              <TouchableOpacity
-                  style={[
-                    {
-                      position: 'absolute',
-                      right: screenWidth * 0.2,
-                      top: screenWidth * 0.55,
-                    },
-                    !this.props.impersonating && {
-                      borderWidth: 1.2,
-                      borderColor: '#fff',
-                      padding: 2,
-                      borderRadius: screenWidth / 2,
-                    },
-                  ]}
-                  onPress={() => {
-                    this.checkExitOrLogout();
-                  }}
-              >
-                <Image
-                    style={{width: 30, height: 30}}
-                    source={
-                      this.props.impersonating
-                          ? require('../../../assets/image/menu/exit.png')
-                          : require('../../../assets/image/icons/logout.png')
-                    }
-                />
-              </TouchableOpacity>
+                backgroundColor: 'white'
+              }}
+              showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.oval}>
               {this.props.user && (
                   <View
                       style={{
-                        top: -10,
                         alignContent: 'center',
                         justifyContent: 'center',
                         textAlign: 'center',
@@ -545,10 +543,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderBottomLeftRadius: 70,
     borderBottomRightRadius: 70,
-    borderBottomWidth: 30,
-    borderColor: '#ffffff',
     backgroundColor: UI.color_Gradient[1],
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'ios' ? 80 : 60,
+    paddingBottom: 40,
+    width: '100%',
+    overflow: 'hidden',
   },
 });
 
