@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
+import Toast from 'react-native-simple-toast';
 import {Card, TabHeading} from '../../common/NativeBaseShim';
 import {Col, Grid} from '../../common/NativeBaseShim';
 import {connect} from 'react-redux';
@@ -503,7 +504,15 @@ class index extends Component {
                   },
                   body: JSON.stringify(content),
                 })
-                  .then(resp => resp.json())
+                  .then(async resp => {
+                    const raw = await resp.text();
+                    try {
+                        return JSON.parse(raw);
+                    } catch (e) {
+                        console.error('JSON Parse error in addjson:', raw);
+                        throw new Error('Invalid JSON from server');
+                    }
+                  })
                   .then(resp => {
                     if (resp.status != 'ผิดพลาด') {
                       console.log(`Clear : ${r.path}`);
@@ -514,12 +523,17 @@ class index extends Component {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           id: this.props.user.id_customer,
-                          // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
                         }),
                       })
-                      .then(resp1 => {
+                      .then(async resp1 => {
                             console.log('============API Response============');
-                            return  resp1.json();
+                            const raw1 = await resp1.text();
+                            try {
+                                return JSON.parse(raw1);
+                            } catch (e) {
+                                console.error('JSON Parse error in getUserDashboardStatic:', raw1);
+                                throw new Error('Invalid JSON from server');
+                            }
                           })
                         .then(resp1 => {
                           
@@ -529,25 +543,27 @@ class index extends Component {
                             body: JSON.stringify({
                               id: this.props.user.id_customer,
                               ...resp1
-                              // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
                             }),
                           })
-                            .then(res => {
+                            .then(async res => {
                               console.log('============API Response============');
-                              return console.log(res), res.json();
+                              const raw2 = await res.text();
+                              try {
+                                  return JSON.parse(raw2);
+                              } catch (e) {
+                                  console.error('JSON Parse error in get_user_data:', raw2);
+                                  throw new Error('Invalid JSON from server');
+                              }
                             })
                             .then(res => {
                               console.log(res, 'responseFromAPU');
-  
                             })
                             .catch(err => {
                               console.log(err);
                               this.setState({ isLoading: false });
                               Toast.show('Something went wrong. Please Try again!!!');
                             });
-                        }
-  
-                        )
+                        })
                         .catch(err => {
                           console.log(err);
                           this.setState({ isLoading: false });

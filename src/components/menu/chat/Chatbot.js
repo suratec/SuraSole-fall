@@ -7,7 +7,7 @@ import {
     Image, PermissionsAndroid, ActivityIndicator, RefreshControl
 } from 'react-native';
 import { connect } from 'react-redux';
-import Sound from 'react-native-sound';
+import { Player } from '@react-native-community/audio-toolkit';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import HeaderFix from '../../common/HeaderFix';
 import Toast from 'react-native-simple-toast';
@@ -146,10 +146,19 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
             });
 
             const status = response.status;
-            const data = await response.json();
+            const rawText = await response.text();
 
             console.log('📨 History API status:', status);
-            console.log('📨 History response:', data);
+            console.log('📨 Raw history response:', rawText);
+
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (e) {
+                console.error('❌ Failed to parse History JSON:', e);
+                // If it fails to parse, we can't continue with the data
+                return;
+            }
 
             if (status === 200 && Array.isArray(data)) {
                 // Convert API format to our message format
@@ -364,7 +373,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         }
     };
 
-    // ✅ Updated playAudio function with stop functionality
+    // ✅ Updated playAudio function using audio-toolkit
     const playAudio = (url, messageId) => {
         // If already playing this audio, stop it
         if (isPlaying && currentPlayingMessageId === messageId) {
@@ -373,46 +382,56 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         }
 
         // Stop any currently playing audio
-        if (soundRef.current) {
-            soundRef.current.stop(() => {
-                soundRef.current.release();
-                soundRef.current = null;
-            });
-        }
+        stopAudio();
 
         setIsPlaying(true);
         setCurrentPlayingMessageId(messageId);
 
-        const sound = new Sound(url, null, (error) => {
-            if (error) {
-                console.log('Sound load error:', error);
-                setIsPlaying(false);
-                setCurrentPlayingMessageId(null);
-                Toast.show('Failed to load audio');
-                return;
-            }
+        try {
+            const player = new Player(url, {
+                autoDestroy: true,
+                continuesToPlayInBackground: true
+            });
 
-            soundRef.current = sound;
-            sound.play(success => {
-                if (!success) {
+            soundRef.current = player;
+
+            player.play((err) => {
+                if (err) {
+                    console.error('Playback error:', err);
+                    setIsPlaying(false);
+                    setCurrentPlayingMessageId(null);
                     Toast.show('Playback failed');
+                    return;
                 }
-                // Audio finished playing
+            });
+
+            player.on('ended', () => {
                 setIsPlaying(false);
                 setCurrentPlayingMessageId(null);
-                sound.release();
                 soundRef.current = null;
             });
-        });
+
+            player.on('error', (err) => {
+                console.error('Player error:', err);
+                setIsPlaying(false);
+                setCurrentPlayingMessageId(null);
+                soundRef.current = null;
+            });
+
+        } catch (e) {
+            console.error('❌ Player constructor error:', e);
+            setIsPlaying(false);
+            setCurrentPlayingMessageId(null);
+            Toast.show('Audio system error');
+        }
     };
 
-    // ✅ New function to stop audio playback
+    // ✅ Updated function to stop audio playback using audio-toolkit
     const stopAudio = () => {
         if (soundRef.current) {
-            soundRef.current.stop(() => {
-                soundRef.current.release();
-                soundRef.current = null;
-            });
+            soundRef.current.stop();
+            soundRef.current.destroy();
+            soundRef.current = null;
         }
         setIsPlaying(false);
         setCurrentPlayingMessageId(null);
