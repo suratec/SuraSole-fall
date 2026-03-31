@@ -10,7 +10,7 @@ import { connect } from 'react-redux';
 import { Player } from '@react-native-community/audio-toolkit';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import HeaderFix from '../../common/HeaderFix';
-import Toast from 'react-native-simple-toast';
+import { ToastAndroid } from 'react-native'; // Replaced simple-toast
 import langChatbot from '../../../assets/language/menu/lang_chatbot';
 import {getLocalizedText} from '../../../assets/language/langUtils';
 import RNFS from 'react-native-fs';
@@ -99,20 +99,21 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
 
     const getAuthFormData = () => {
         if (!user?.id_customer) {
-            Toast.show('Missing user info');
+            ToastAndroid.show('Missing user info', ToastAndroid.SHORT);
             return null;
         }
 
         const effectiveToken = impersonating && patient_token ? patient_token : token;
 
         if (!effectiveToken) {
-            Toast.show('Missing token');
+            ToastAndroid.show('Missing token', ToastAndroid.SHORT);
             return null;
         }
 
         return {
             token: effectiveToken,
             userId: user.id_customer,
+            securityToken: user.security_token || effectiveToken
         };
     };
 
@@ -131,7 +132,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
             console.log('🔄 Fetching chat history with skip:', skip);
 
             const requestBody = {
-                security_token: auth.token,
+                security_token: auth.securityToken,
                 user_id: auth.userId,
                 skip: skip,
                 limit: 20
@@ -141,6 +142,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${auth.token}`
                 },
                 body: JSON.stringify(requestBody),
             });
@@ -179,11 +181,11 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                 setHistoryLoaded(true);
             } else {
                 console.error('❌ History API error:', status, data);
-                Toast.show('Failed to load chat history');
+                ToastAndroid.show('Failed to load chat history', ToastAndroid.SHORT);
             }
         } catch (error) {
             console.error('❌ History fetch error:', error);
-            Toast.show('Failed to load chat history');
+            ToastAndroid.show('Failed to load chat history', ToastAndroid.SHORT);
         } finally {
             setIsLoadingHistory(false);
             setIsRefreshing(false);
@@ -199,10 +201,11 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
             new Date(a.created_at) - new Date(b.created_at)
         );
 
-        sortedHistory.forEach(item => {
+        sortedHistory.forEach((item) => {
+            const rowUniqueId = Math.random().toString(36).substring(7);
             // Add user message
             messages.push({
-                id: `history-${item.id}-user`,
+                id: `history-${item.id}-user-${rowUniqueId}`,
                 type: 'user',
                 text: item.message,
                 timestamp: item.created_at,
@@ -211,7 +214,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
 
             // Add bot response
             messages.push({
-                id: `history-${item.id}-bot`,
+                id: `history-${item.id}-bot-${rowUniqueId}`,
                 type: 'bot',
                 text: item.response,
                 audio: item.is_voice === 1 ? item.voice_url : null,
@@ -269,24 +272,24 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                 console.log('✅ Parsed response:', data);
             } catch (e) {
                 console.error('❌ Failed to parse JSON:', e);
-                Toast.show('Invalid server response');
+                ToastAndroid.show('Invalid server response', ToastAndroid.SHORT);
                 return;
             }
 
             if (status !== 200) {
                 console.error('❌ Server returned error status:', status, data);
-                Toast.show(data?.message || 'Server error');
+                ToastAndroid.show(data?.message || 'Server error', ToastAndroid.SHORT);
                 return;
             }
 
             if (data?.text_response) {
                 addMessage('bot', data.text_response, data.voice_url);
             } else {
-                Toast.show('No response from server');
+                ToastAndroid.show('No response from server', ToastAndroid.SHORT);
             }
         } catch (error) {
             console.error('Chatbot API error:', error);
-            Toast.show('Chatbot API failed');
+            ToastAndroid.show('Chatbot API failed', ToastAndroid.SHORT);
         } finally {
             setIsTyping(false);
         }
@@ -318,7 +321,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                 PermissionsAndroid.PERMISSIONS.RECORD_AUDIO
             );
             if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-                Toast.show('Microphone permission denied');
+                ToastAndroid.show('Microphone permission denied', ToastAndroid.SHORT);
                 return;
             }
         }
@@ -339,13 +342,13 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
             setIsRecording(false);
 
             if (!filePath) {
-                Toast.show('Recording failed');
+                ToastAndroid.show('Recording failed', ToastAndroid.SHORT);
                 return;
             }
 
             const ready = await ensureNonEmpty(filePath);
             if (!ready) {
-                Toast.show('Audio not ready. Please try again.');
+                ToastAndroid.show('Audio not ready. Please try again.', ToastAndroid.SHORT);
                 return;
             }
 
@@ -400,7 +403,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                     console.error('Playback error:', err);
                     setIsPlaying(false);
                     setCurrentPlayingMessageId(null);
-                    Toast.show('Playback failed');
+                    ToastAndroid.show('Playback failed', ToastAndroid.SHORT);
                     return;
                 }
             });
@@ -422,7 +425,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
             console.error('❌ Player constructor error:', e);
             setIsPlaying(false);
             setCurrentPlayingMessageId(null);
-            Toast.show('Audio system error');
+            ToastAndroid.show('Audio system error', ToastAndroid.SHORT);
         }
     };
 

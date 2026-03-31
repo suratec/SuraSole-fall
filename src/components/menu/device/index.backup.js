@@ -20,7 +20,7 @@ import {
   Alert,
 } from 'react-native';
 import HeaderFix from '../../common/HeaderFix';
-import Toast from 'react-native-simple-toast';
+import { ToastAndroid } from 'react-native'; // Replaced simple-toast
 import { ActionSheet } from '../../common/NativeBaseShim';
 import BleManager from 'react-native-ble-manager';
 import { Card, CardItem, Icon } from '../../common/NativeBaseShim';
@@ -471,13 +471,13 @@ class index extends Component {
             peripheral.name[peripheral.name.length - 1] === 'L' &&
             this.props.leftDevice
           ) {
-            Toast.show(`Surasole L has been connected`);
+            ToastAndroid.show(`Surasole L has been connected`, ToastAndroid.SHORT);
             return;
           } else if (
             peripheral.name[peripheral.name.length - 1] === 'R' &&
             this.props.rightDevice
           ) {
-            Toast.show(`Surasole R has been connected`);
+            ToastAndroid.show(`Surasole R has been connected`, ToastAndroid.SHORT);
             return;
           } else {
             BleManager.connect(peripheral.id)
@@ -560,7 +560,7 @@ class index extends Component {
                 }, 900);
               })
               .catch(error => {
-                Toast.show(`${peripheral.id} connection error`);
+                ToastAndroid.show(`${peripheral.id} connection error`, ToastAndroid.SHORT);
                 console.log('Connection error', error);
               });
           }

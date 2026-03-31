@@ -1,4 +1,6 @@
 import React, {Component} from 'react';
+import { ToastAndroid } from 'react-native';
+
 import {
   View,
   Image,
@@ -541,7 +543,7 @@ class index extends React.PureComponent {
                             .catch(err => {
                               console.log(err);
                               this.setState({ isLoading: false });
-                              Toast.show('Something went wrong. Please Try again!!!');
+                              ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
                             });
                         }
   
@@ -549,7 +551,7 @@ class index extends React.PureComponent {
                         .catch(err => {
                           console.log(err);
                           this.setState({ isLoading: false });
-                          Toast.show('Something went wrong. Please Try again!!!');
+                          ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
                         });
                     }
                   });

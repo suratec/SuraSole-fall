@@ -68,3 +68,33 @@ allprojects {
         }
     }
 }
+
+allprojects {
+    tasks.configureEach { task ->
+        if (task.name.contains("configureCMake") || task.name.contains("generateJsonModel")) {
+            task.doFirst {
+                // Patch react-native-worklets CMakeLists.txt for NDK 27 c++_shared compatibility
+                def workletsCMake = new File("${rootProject.projectDir}/../node_modules/react-native-worklets/android/CMakeLists.txt")
+                if (workletsCMake.exists()) {
+                    def content = workletsCMake.text
+                    if (!content.contains("c++_shared") && content.contains("fbjni::fbjni)")) {
+                        println "Patching react-native-worklets CMakeLists.txt for NDK 27 c++_shared compatibility..."
+                        content = content.replace("fbjni::fbjni)", "fbjni::fbjni c++_shared)")
+                        workletsCMake.text = content
+                    }
+                }
+
+                // Patch react-native-reanimated CMakeLists.txt for NDK 27 c++_shared compatibility
+                def reanimatedCMake = new File("${rootProject.projectDir}/../node_modules/react-native-reanimated/android/CMakeLists.txt")
+                if (reanimatedCMake.exists()) {
+                    def content = reanimatedCMake.text
+                    if (!content.contains("c++_shared") && content.contains("worklets)")) {
+                        println "Patching react-native-reanimated CMakeLists.txt for NDK 27 c++_shared compatibility..."
+                        content = content.replace("worklets)", "worklets\n  c++_shared)")
+                        reanimatedCMake.text = content
+                    }
+                }
+            }
+        }
+    }
+}

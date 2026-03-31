@@ -12,7 +12,7 @@ import CardsTagging from './cards_tagging';
 import CardsResult from './cards_result';
 import CardsSpecified from './cards_overspecified';
 import ButtonFix from '../../common/ButtonFix';
-import Toast from 'react-native-simple-toast';
+import { ToastAndroid } from 'react-native'; // Replaced simple-toast
 import moment from 'moment';
 
 import API from '../../../config/Api';
@@ -150,7 +150,7 @@ class index extends Component {
             })
             .catch(e => {});
         });
-        Toast.show('Excel Download File Success');
+        ToastAndroid.show('Excel Download File Success', ToastAndroid.SHORT);
       });
     });
   };
@@ -351,10 +351,11 @@ class index extends Component {
     console.log(status.isConnected);
     await this.setState({isConnected: status.isConnected});
     console.log(`Internet Connection : ${this.state.isConnected}`);
-    Toast.show(
+    ToastAndroid.show(
       this.state.isConnected
         ? 'Internet Connection : ON'
         : 'Internet Connection: OFF',
+      ToastAndroid.SHORT
     );
   };
 

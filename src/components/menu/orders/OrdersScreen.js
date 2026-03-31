@@ -63,8 +63,8 @@ function OrdersScreen({ navigation, lang, user }) {
 
     useEffect(() => {
         if (!isFocused) return;
-        BackHandler.addEventListener('hardwareBackPress', onBackPress);
-        return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
     }, [isFocused, onBackPress]);
 
     const getStatusText = (status) => {

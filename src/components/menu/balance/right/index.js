@@ -1,6 +1,8 @@
 //5.11.62
 
 import React, {Component} from 'react';
+import { ToastAndroid } from 'react-native';
+
 // import {NavigationActions} from 'react-navigation';
 import {
   View,
@@ -443,13 +445,13 @@ class index extends Component {
                                     .catch(err => {
                                       console.log(err);
                                       this.setState({ isLoading: false });
-                                      Toast.show('Something went wrong. Please Try again!!!');
+                                      ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
                                     });
                               })
                               .catch(err => {
                                 console.log(err);
                                 this.setState({ isLoading: false });
-                                Toast.show('Something went wrong. Please Try again!!!');
+                                ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
                               });
                         }
                       });

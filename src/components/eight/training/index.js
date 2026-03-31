@@ -13,7 +13,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import Toast from 'react-native-simple-toast';
+import { ToastAndroid } from 'react-native'; // Replaced simple-toast
 import {Card, TabHeading} from '../../common/NativeBaseShim';
 import {Col, Grid} from '../../common/NativeBaseShim';
 import {connect} from 'react-redux';
@@ -713,13 +713,13 @@ class index extends Component {
                             .catch(err => {
                               console.log(err);
                               this.setState({ isLoading: false });
-                              Toast.show('Something went wrong. Please Try again!!!');
+                              ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
                             });
                         })
                         .catch(err => {
                           console.log(err);
                           this.setState({ isLoading: false });
-                          Toast.show('Something went wrong. Please Try again!!!');
+                          ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
                         });
                     }
                   });

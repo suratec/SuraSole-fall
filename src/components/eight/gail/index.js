@@ -1,6 +1,8 @@
 //5.11.62
 
 import React, {Component} from 'react';
+
+
 import NetInfo from '@react-native-community/netinfo';
 import {
   View,
@@ -9,7 +11,7 @@ import {
   NativeEventEmitter,
   Alert,
   Platform,
-  Toast,
+  ToastAndroid,
 } from 'react-native';
 import {Card} from '../../common/NativeBaseShim';
 import {Col, Grid} from '../../common/NativeBaseShim';
@@ -430,7 +432,7 @@ class index extends Component {
                             .catch(err => {
                               console.log(err);
                               this.setState({ isLoading: false });
-                              Toast.show('Something went wrong. Please Try again!!!');
+                              ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
                             });
                         }
 
@@ -438,7 +440,7 @@ class index extends Component {
                         .catch(err => {
                           console.log(err);
                           this.setState({ isLoading: false });
-                          Toast.show('Something went wrong. Please Try again!!!');
+                          ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
                         });
                     }
                   });
@@ -446,7 +448,7 @@ class index extends Component {
               .catch(e => {});
           });
         });
-    alert(getLocalizedText(this.props.lang, Lang.alert));
+    Alert.alert('', getLocalizedText(this.props.lang, Lang.alert));
   }
 
   actionUpdate = data => {

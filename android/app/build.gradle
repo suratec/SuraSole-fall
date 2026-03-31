@@ -84,6 +84,18 @@ android {
         versionCode 11
         versionName "5.0.0"
         multiDexEnabled true
+
+        externalNativeBuild {
+            cmake {
+                // NDK 27: force shared c++ runtime for all .so targets
+                // CMAKE_SHARED_LINKER_FLAGS injects -lc++_shared into EVERY shared lib link command
+                // (including autolinking sub-builds), which is the definitive NDK 27 fix
+                arguments "-DANDROID_STL=c++_shared",
+                          "-DCMAKE_SHARED_LINKER_FLAGS=-lc++_shared"
+                // Suppress deprecated ContextContainer::Shared warning-as-error from picker
+                cppFlags "-Wno-deprecated-declarations"
+            }
+        }
     }
     signingConfigs {
         debug {

@@ -17,7 +17,7 @@ import {
   Alert,
 } from 'react-native';
 import HeaderFix from '../../common/HeaderFix';
-import Toast from 'react-native-simple-toast';
+import { ToastAndroid } from 'react-native'; // Replaced simple-toast
 import BleManager from 'react-native-ble-manager';
 import UI from '../../../config/styles/CommonStyles';
 import {connect} from 'react-redux';
@@ -76,7 +76,7 @@ class index extends Component {
           console.log('Android 12+ BLE Permissions OK');
         } else {
           console.log('Android 12+ BLE Permissions Refused');
-          Toast.show('Please allow Bluetooth Permission to scan devices');
+          ToastAndroid.show('Please allow Bluetooth Permission to scan devices', ToastAndroid.SHORT);
         }
       } else if (Platform.Version >= 23) {
         const result = await PermissionsAndroid.requestMultiple([
@@ -92,7 +92,7 @@ class index extends Component {
           console.log('Location Permission OK');
         } else {
           console.log('Location Permission Refused');
-          Toast.show('Please allow Location Permission to scan devices');
+          ToastAndroid.show('Please allow Location Permission to scan devices', ToastAndroid.SHORT);
         }
       } else {
         this.enableBLE();
@@ -400,7 +400,7 @@ class index extends Component {
           });
         })
         .catch(error => {
-          Toast.show(`${peripheral.id} connection error`);
+          ToastAndroid.show(`${peripheral.id} connection error`, ToastAndroid.SHORT);
           console.log('Connection error', error);
         });
     }

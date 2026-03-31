@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 // import {NavigationEvents} from 'react-navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-simple-toast';
+import { ToastAndroid } from 'react-native'; // Replaced simple-toast
 import UI from '../../../config/styles/CommonStyles';
 import Text from '../../common/TextFix';
 import ListItem from './listItem';
@@ -346,13 +346,13 @@ class index extends Component {
                                 .catch(err => {
                                   console.log(err);
                                   this.setState({ isLoading: false });
-                                  Toast.show('Something went wrong. Please Try again!!!');
+                                  ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
                                 });
                           })
                           .catch(err => {
                             console.log(err);
                             this.setState({ isLoading: false });
-                            Toast.show('Something went wrong. Please Try again!!!');
+                            ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
                           });
                     }
                   });
