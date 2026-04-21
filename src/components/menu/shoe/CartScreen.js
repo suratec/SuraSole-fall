@@ -16,6 +16,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { connect } from 'react-redux';
+import { useIsFocused, useRoute } from '@react-navigation/native';
 import HeaderFix from '../../common/HeaderFix';
 import shoeLang from '../../../assets/language/menu/lang_shoe';
 import { getLocalizedText } from '../../../assets/language/langUtils';
@@ -24,22 +25,31 @@ import cartApi from '../../../services/cartApi';
 const UK_SIZES = ['5', '6', '7', '8', '9', '10', '11', '12'];
 
 const CartScreen = ({ navigation, lang, user }) => {
+    const route = useRoute();
     // v4-safe param access (with fallback for route.params if ever present)
     const getParam = (key, def = null) => {
-        if (typeof navigation?.getParam === 'function') return navigation.getParam(key, def);
-        return navigation?.state?.params?.[key] ?? def; // fallback
+        return route?.params?.[key] ?? navigation?.state?.params?.[key] ?? def;
     };
 
-    const selectedShoes = getParam('selectedShoes', []) || [];
+    const selectedShoes = getParam('itemsToAddToCart', []) || getParam('selectedShoes', []) || [];
     const patient = getParam('patient', null);
 
-    const [cartItems, setCartItems] = useState(
-        selectedShoes.map((item) => ({
+    const isFocused = useIsFocused();
+    const [cartItems, setCartItems] = useState([]);
+
+    // Sync items from navigation params
+    useEffect(() => {
+        if (!isFocused) return;
+
+        const selected = getParam('itemsToAddToCart', []) || getParam('selectedShoes', []) || [];
+        console.log('Syncing cartItems (isFocused). Count:', selected.length);
+        setCartItems(selected.map(item => ({
             ...item,
             quantity: 1,
             size: '',
-        }))
-    );
+        })));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isFocused, navigation.state?.params]); // Refresh every time we come back or params change
 
     const [sizeModal, setSizeModal] = useState({ visible: false, index: null });
     const [note, setNote] = useState('');
@@ -82,8 +92,24 @@ const CartScreen = ({ navigation, lang, user }) => {
     // Create cart on mount (real backend call)
     useEffect(() => {
         const createCart = async () => {
+            console.log('CartScreen mounted. Parameters:', { 
+                selectedShoesCount: selectedShoes?.length,
+                patient: patient?.id_data_role || 'none',
+                user: user?.id_customer || user?.id_data_role || 'none'
+            });
+
             setIsCreatingCart(true);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
             try {
+                // Load doctor info locally to avoid dependency loop or double execution
+                let currentDoctorInfo = doctorInfo;
+                if (!currentDoctorInfo) {
+                    const saved = await AsyncStorage.getItem('doctor_user');
+                    if (saved) currentDoctorInfo = JSON.parse(saved);
+                }
+
                 // Prefer patient id if clinician ordering on behalf of a patient
                 const customerId =
                     patient?.id_data_role ??
@@ -92,24 +118,35 @@ const CartScreen = ({ navigation, lang, user }) => {
                     user?.id ??
                     null;
 
-                const doctorId = (doctorInfo?.doctor_id ?? user?.doctor_id) ?? 'null';
+                const doctorId = (currentDoctorInfo?.doctor_id ?? user?.doctor_id) ?? 'null';
                 const hospitalId = user?.hospital_id ?? null;
 
+                console.log('Requesting cart creation for customer:', customerId);
                 const res = await cartApi.createCart(
                     customerId,
                     doctorId,
                     hospitalId,
-                    note || 'Shoe order from mobile app'
+                    note || 'Shoe order from mobile app',
+                    { signal: controller.signal } // Pass signal if cartApi supports it (adding it next)
                 );
+                clearTimeout(timeoutId);
 
                 if ((res?.status === 'OK' || res?.status === 'success') && res?.cart_id) {
+                    console.log('Cart created successfully. ID:', res.cart_id);
                     setCartId(res.cart_id);
                 } else {
-                    Alert.alert('Error', 'Failed to create cart');
+                    console.error('Failed to create cart:', res);
+                    Alert.alert('Error', 'Failed to create cart on server');
                 }
             } catch (e) {
-                console.error('Error creating cart:', e);
-                Alert.alert('Error', 'Failed to create cart. Please try again.');
+                clearTimeout(timeoutId);
+                if (e.name === 'AbortError') {
+                    console.error('Cart creation timed out');
+                    Alert.alert('Network Timeout', 'The server is responding slowly. Please try again or check your connection.');
+                } else {
+                    console.error('Error creating cart:', e);
+                    Alert.alert('Error', 'Failed to create cart. Please try again.');
+                }
             } finally {
                 setIsCreatingCart(false);
             }
@@ -117,7 +154,7 @@ const CartScreen = ({ navigation, lang, user }) => {
 
         createCart();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [doctorInfo]); // run once; if doctorInfo loads async, this will still run correctly
+    }, []); // Only run once on mount
 
     const updateSize = (size) => {
         const updated = [...cartItems];
@@ -295,40 +332,41 @@ const CartScreen = ({ navigation, lang, user }) => {
                 <Text style={styles.headerText}>{getLocalizedText(lang, shoeLang.remove)}</Text>
             </View>
 
-            {isCreatingCart ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#00c3cc" />
-                    <Text style={styles.loadingText}>
-                        {getLocalizedText(lang, shoeLang.creatingCart) || 'Creating cart...'}
-                    </Text>
-                </View>
-            ) : (
-                <FlatList
-                    data={cartItems}
-                    keyExtractor={(item, i) => (item?.product_name ?? 'item') + i}
-                    renderItem={renderItem}
-                    ListFooterComponent={
-                        cartItems.length > 0 ? (
-                            <View style={styles.noteSection}>
-                                <Text style={styles.noteLabel}>
-                                    {getLocalizedText(lang, shoeLang.addNote)}
-                                </Text>
-                                <TextInput
-                                    style={styles.noteInput}
-                                    placeholder={getLocalizedText(lang, shoeLang.notePlaceholder)}
-                                    placeholderTextColor="#aaa"
-                                    value={note}
-                                    onChangeText={setNote}
-                                />
-                                <Text style={styles.total}>
-                                    {getLocalizedText(lang, shoeLang.total)}: ฿{calculateTotal().toFixed(2)}
-                                </Text>
-                            </View>
-                        ) : null
-                    }
-                    contentContainerStyle={{ paddingBottom: 140 }}
-                />
-            )}
+            <FlatList
+                data={cartItems}
+                keyExtractor={(item, i) => (item?.product_name ?? 'item') + i}
+                renderItem={renderItem}
+                ListHeaderComponent={
+                    isCreatingCart ? (
+                        <View style={styles.loadingHeader}>
+                            <ActivityIndicator size="small" color="#00c3cc" />
+                            <Text style={styles.loadingHeaderTex}>
+                                {getLocalizedText(lang, shoeLang.creatingCart) || 'Initializing cart...'}
+                            </Text>
+                        </View>
+                    ) : null
+                }
+                ListFooterComponent={
+                    cartItems.length > 0 ? (
+                        <View style={styles.noteSection}>
+                            <Text style={styles.noteLabel}>
+                                {getLocalizedText(lang, shoeLang.addNote)}
+                            </Text>
+                            <TextInput
+                                style={styles.noteInput}
+                                placeholder={getLocalizedText(lang, shoeLang.notePlaceholder)}
+                                placeholderTextColor="#aaa"
+                                value={note}
+                                onChangeText={setNote}
+                            />
+                            <Text style={styles.total}>
+                                {getLocalizedText(lang, shoeLang.total)}: ฿{calculateTotal().toFixed(2)}
+                            </Text>
+                        </View>
+                    ) : null
+                }
+                contentContainerStyle={{ paddingBottom: 140 }}
+            />
 
             {cartItems.length > 0 && (
                 <TouchableOpacity
@@ -453,6 +491,19 @@ const styles = StyleSheet.create({
         paddingVertical: 50,
     },
     loadingText: { marginTop: 10, fontSize: 16, color: '#666' },
+    loadingHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 10,
+        backgroundColor: '#f0f0f0',
+    },
+    loadingHeaderTex: {
+        marginLeft: 10,
+        fontSize: 14,
+        color: '#666',
+    },
+
 
     noteSection: { marginHorizontal: 16, marginTop: 20 },
     noteLabel: { fontSize: 14, fontWeight: '500', color: '#444', marginBottom: 6 },

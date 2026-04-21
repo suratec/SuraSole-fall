@@ -5,6 +5,7 @@ import { connect } from 'react-redux';
 import { useIsFocused } from '@react-navigation/native';
 import HeaderFix from '../../common/HeaderFix'; // <-- adjust path if needed
 import orderLang from '../../../assets/language/menu/lang_orders'; // <-- adjust path if needed
+import ROOT_API from '../../../config/Api';
 
 function OrdersScreen({ navigation, lang, user }) {
     const isFocused = useIsFocused();
@@ -22,7 +23,7 @@ function OrdersScreen({ navigation, lang, user }) {
             }
 
             try {
-                const shoesRes = await fetch('https://api1.suratec.co.th/shoe-insoles');
+                const shoesRes = await fetch(`${ROOT_API}shoe-insoles`);
                 const shoesData = await shoesRes.json();
                 const shoes = shoesData.status === 'OK' ? shoesData.data : [];
 

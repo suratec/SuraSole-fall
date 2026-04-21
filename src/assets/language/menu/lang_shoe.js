@@ -27,6 +27,10 @@ const shoeLang = {
   pleaseSelectSize: { thai: 'กรุณาเลือกขนาดสำหรับสินค้าทั้งหมด', eng: 'Please select size for all products.', japanese: 'すべての商品にサイズを選択してください。' },
   uk: { thai: 'สหราชอาณาจักร', eng: 'UK', japanese: 'UK' },
   creatingCart: { thai: 'กำลังสร้างตะกร้า...', eng: 'Creating cart...', japanese: 'カートを作成しています...' },
+  loading: { thai: 'กำลังโหลด...', eng: 'Loading...', japanese: '読み込み中...' },
+  error: { thai: 'โหลดข้อมูลรองเท้าไม่สำเร็จ', eng: 'Failed to load shoes.', japanese: '靴の読み込みに失敗しました。' },
+  retry: { thai: 'ลองใหม่', eng: 'Retry', japanese: 'リトライ' },
+  noData: { thai: 'ไม่พบสินค้า', eng: 'No products found.', japanese: '商品が見つかりません。' },
 };
 
 export default shoeLang; 

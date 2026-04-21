@@ -11,14 +11,18 @@ import {
     ScrollView,
     useWindowDimensions,
     BackHandler,
+    ActivityIndicator,
 } from 'react-native';
 import { connect } from 'react-redux';
+import { useRoute } from '@react-navigation/native';
 import HeaderFix from '../../common/HeaderFix';
 import shoeLang from '../../../assets/language/menu/lang_shoe';
 import { getLocalizedText } from '../../../assets/language/langUtils';
 import orderLang from '../../../assets/language/menu/lang_orders';
+import ROOT_API from '../../../config/Api';
 
 export default connect(state => ({ lang: state.lang }))(function ShoeRecommendScreen({ navigation, lang }) {
+    const route = useRoute();
     const { width } = useWindowDimensions();
     const ITEM_MARGIN = 10;
     const NUM_COLUMNS = Math.max(3, Math.floor(width / 140));
@@ -33,22 +37,59 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
     const [sortAscending, setSortAscending] = useState(true);
     const [searchText, setSearchText] = useState('');
 
-    // Fetch catalog (silent failure keeps UI usable)
-    useEffect(() => {
-        let isMounted = true;
-        fetch('https://api1.suratec.co.th/shoe-insoles')
-            .then(res => res.json())
-            .then(data => {
-                if (!isMounted) return;
-                if (data?.status === 'OK' && Array.isArray(data?.data)) {
-                    setShoes(data.data);
-                    setFilteredShoes(data.data);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState(null);
+
+    const fetchShoes = async (isRefreshing = false) => {
+        if (isRefreshing) setRefreshing(true);
+        else setLoading(true);
+        setError(null);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30s
+
+        try {
+            const url = `${ROOT_API}shoe-insoles`;
+            console.log('Fetching shoes from:', url, isRefreshing ? '(refresh)' : '(initial)');
+            
+            const res = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            console.log('Response status:', res.status);
+            
+            const data = await res.json();
+            console.log('API Status:', data?.status, '| Data Count:', Array.isArray(data?.data) ? data.data.length : 'not an array');
+
+            if (data?.status === 'OK' && Array.isArray(data?.data)) {
+                setShoes(data.data);
+                setFilteredShoes(data.data);
+            } else {
+                console.warn('Unexpected data format or status:', data);
+                if (data?.status !== 'OK') {
+                    setError(`Server returned status: ${data?.status || 'Unknown'}`);
+                } else if (!Array.isArray(data?.data)) {
+                    setError('Invalid data format: expected list of products');
                 }
-            })
-            .catch(() => {
-                // no-op
-            });
-        return () => { isMounted = false; };
+            }
+        } catch (err) {
+            clearTimeout(timeoutId);
+            if (err.name === 'AbortError') {
+                console.error('Fetch shoes error: Request timed out');
+                setError('Request timed out (Server is too slow)');
+            } else {
+                console.error('Fetch shoes error:', err);
+                setError(err.message || 'Failed to connect to server');
+            }
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    // Fetch catalog
+    useEffect(() => {
+        fetchShoes();
     }, []);
 
     // Apply filters / search / sort
@@ -124,9 +165,27 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
 
     // v4-safe way to read a param (with fallbacks)
     const getParam = (key, def = null) => {
-        if (typeof navigation?.getParam === 'function') return navigation.getParam(key, def);
-        // fallback for any custom injection
-        return navigation?.state?.params?.[key] ?? def;
+        return route?.params?.[key] ?? navigation?.getParam?.(key, def) ?? navigation?.state?.params?.[key] ?? def;
+    };
+
+    const renderEmpty = () => {
+        if (loading) return null;
+        if (error) {
+            return (
+                <View style={styles.center}>
+                    <Text style={styles.errorText}>{getLocalizedText(lang, shoeLang.error)}</Text>
+                    <Text style={styles.errorSubText}>{error}</Text>
+                    <TouchableOpacity style={styles.retryBtn} onPress={() => fetchShoes()}>
+                        <Text style={styles.retryText}>{getLocalizedText(lang, shoeLang.retry)}</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+        return (
+            <View style={styles.center}>
+                <Text style={styles.emptyText}>{getLocalizedText(lang, shoeLang.noData)}</Text>
+            </View>
+        );
     };
 
     return (
@@ -169,24 +228,36 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                 </TouchableOpacity>
             </View>
 
-            <FlatList
-                key={NUM_COLUMNS}
-                numColumns={NUM_COLUMNS}
-                data={filteredShoes}
-                renderItem={renderShoe}
-                keyExtractor={(item, index) => (item?.product_name ?? 'item') + index}
-                contentContainerStyle={styles.list}
-            />
+            {loading && !refreshing ? (
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color="#00c3cc" />
+                    <Text style={styles.loadingText}>{getLocalizedText(lang, shoeLang.loading)}</Text>
+                </View>
+            ) : (
+                <FlatList
+                    key={NUM_COLUMNS}
+                    numColumns={NUM_COLUMNS}
+                    data={filteredShoes}
+                    renderItem={renderShoe}
+                    keyExtractor={(item, index) => (item?.product_name ?? 'item') + index}
+                    contentContainerStyle={styles.list}
+                    ListEmptyComponent={renderEmpty}
+                    onRefresh={() => fetchShoes(true)}
+                    refreshing={refreshing}
+                />
+            )}
 
             <TouchableOpacity
                 style={[styles.addButton, selectedShoes.length === 0 && { backgroundColor: '#ccc' }]}
                 onPress={() => {
                     if (selectedShoes.length > 0) {
                         const patient = getParam('patient', null);
+                        const toPass = (shoes || []).filter(shoe =>
+                            selectedShoes.includes(shoe?.product_name)
+                        );
+                        console.log('Navigating to CartScreen. Selected names:', selectedShoes.length, 'Objects to pass:', toPass.length);
                         navigation.navigate('CartScreen', {
-                            selectedShoes: (shoes || []).filter(shoe =>
-                                selectedShoes.includes(shoe?.product_name)
-                            ),
+                            itemsToAddToCart: toPass,
                             patient, // pass through if present
                         });
                     }
@@ -465,6 +536,46 @@ const styles = StyleSheet.create({
     },
     backText: {
         fontSize: 30,
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        minHeight: 300,
+    },
+    loadingText: {
+        marginTop: 10,
+        color: '#00c3cc',
+        fontSize: 16,
+    },
+    errorText: {
+        color: '#ff4444',
+        fontSize: 16,
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    errorSubText: {
+        color: '#666',
+        fontSize: 14,
+        textAlign: 'center',
+        marginTop: 5,
+        marginBottom: 15,
+    },
+    emptyText: {
+        color: '#666',
+        fontSize: 16,
+        textAlign: 'center',
+    },
+    retryBtn: {
+        backgroundColor: '#00c3cc',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 20,
+    },
+    retryText: {
         color: '#fff',
         fontWeight: 'bold',
     },

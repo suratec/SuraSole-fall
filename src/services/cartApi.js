@@ -3,7 +3,7 @@ const BASE_URL = 'https://api1.suratec.co.th';
 
 const cartApi = {
     // Create Cart
-    createCart: async (idCustomer, doctorId, hospitalId, addNote) => {
+    createCart: async (idCustomer, doctorId, hospitalId, addNote, options = {}) => {
         try {
             console.log('Creating cart with:', { idCustomer, doctorId, hospitalId, addNote });
             const response = await fetch(`${BASE_URL}/cart/create`, {
@@ -17,6 +17,7 @@ const cartApi = {
                     hospital_id: hospitalId,
                     add_note: addNote,
                 }),
+                signal: options.signal,
             });
 
             if (!response.ok) {
