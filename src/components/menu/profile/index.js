@@ -46,11 +46,17 @@ class index extends Component {
     loading: false,
   };
 
-  getImageURI = (img_path) => {
-    if (!img_path) return null;
-    return img_path.startsWith('http')
+  getImageSource = (img_path, role) => {
+    if (!img_path || (typeof img_path === 'string' && (img_path.includes('user.png') || img_path.includes('doctor.png')))) {
+      return role === 'mod_employee'
+        ? require('../../../assets/image/icons/doctor.png')
+        : require('../../../assets/image/icons/user.png');
+    }
+    return {
+      uri: img_path.startsWith('http')
         ? img_path
-        : `https://api1.suratec.co.th/pic/${img_path}`;
+        : `https://api1.suratec.co.th/pic/${img_path}`,
+    };
   };
 
   // Toggle language selection modal visibility
@@ -129,8 +135,8 @@ class index extends Component {
           this.props.user.role == 'mod_employee'
               ? user.id_employee
               : user.id_customer,
-      fname: user.fname.toString(),
-      lname: user.lname.toString(),
+      fname: user.fname == null ? '' : user.fname.toString(),
+      lname: user.lname == null ? '' : user.lname.toString(),
       sex: user.sex === null ? 0 : parseInt(user.sex),
       heigth: user.height == null ? '0' : user.height.toString(),
       weigth: user.weight == null ? '0' : user.weight.toString(),
@@ -306,9 +312,7 @@ class index extends Component {
                       height: screenWidth,
                       borderRadius: screenWidth / 2,
                     }}
-                    source={{
-                      uri: this.getImageURI(this.state.img_path),
-                    }}
+                    source={this.getImageSource(this.state.img_path, this.props.user.role)}
                     onError={(e) => {
                       console.log('Image failed to load:', e.nativeEvent);
                     }}

@@ -20,7 +20,6 @@ const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPa
     const searchPatients = getLocalizedText(lang, langPatientList.searchPatients);
     const name = getLocalizedText(lang, langPatientList.name);
     const username = getLocalizedText(lang, langPatientList.username);
-    const role = getLocalizedText(lang, langPatientList.role);
     const EXIT_FLAG = 'doctor_left_on_patientlist';
 
     const setExitFlag   = () => AsyncStorage.setItem(EXIT_FLAG, '1');
@@ -221,7 +220,6 @@ const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPa
             >
                 <Text style={styles.cell}>{item.name || ''}</Text>
                 <Text style={styles.cell}>{item.user_member || ''}</Text>
-                <Text style={styles.cell}>{item.data_role || ''}</Text>
             </TouchableOpacity>
         );
     };
@@ -273,7 +271,6 @@ const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPa
               <View style={styles.headerRow}>
                 <Text style={styles.headerCell}>{name}</Text>
                 <Text style={styles.headerCell}>{username}</Text>
-                <Text style={styles.headerCell}>{role}</Text>
               </View>
               <FlatList
                 data={filteredPatients}

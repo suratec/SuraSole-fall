@@ -59,6 +59,19 @@ class index extends Component {
     this.handleBackButtonClick = this.handleBackButtonClick.bind(this);
   }
 
+  getImageSource = (img_path, role) => {
+    if (!img_path || (typeof img_path === 'string' && (img_path.includes('user.png') || img_path.includes('doctor.png')))) {
+      return role === 'mod_employee'
+        ? require('../../../assets/image/icons/doctor.png')
+        : require('../../../assets/image/icons/user.png');
+    }
+    return {
+      uri: img_path.startsWith('http')
+        ? img_path
+        : `https://api1.suratec.co.th/pic/${img_path}`,
+    };
+  };
+
   actionProfile = () => {
     this.props.navigation.navigate('Profile');
   };
@@ -519,11 +532,9 @@ class index extends Component {
                             borderWidth: 1,
                             borderColor: '#fff',
                             padding: 2,
-                            borderRadius: screenWidth / 2,
+                            borderRadius: (screenWidth - 20) / 2,
                           }}
-                          source={{
-                            uri: this.props.user.image,
-                          }}
+                          source={this.getImageSource(this.props.user.image, this.props.user.role)}
                       />
                       <Image
                           onPress={() => this.actionProfile()}

@@ -338,12 +338,15 @@ class index extends Component {
   handleDeviceTap = item => {
     if (item.connected) {
       Alert.alert(
-        'ยืนยันการตัดการเชื่อมต่อ',
-        `ต้องการตัดการเชื่อมต่อ ${item.name} หรือไม่?`,
+        getLocalizedText(this.props.lang, Lang.confirmDisconnect),
+        getLocalizedText(this.props.lang, Lang.askDisconnect(item.name)),
         [
-          {text: 'ยกเลิก', style: 'cancel'},
           {
-            text: 'ตัดการเชื่อมต่อ',
+            text: getLocalizedText(this.props.lang, Lang.cancelText),
+            style: 'cancel',
+          },
+          {
+            text: getLocalizedText(this.props.lang, Lang.disConnectText),
             style: 'destructive',
             onPress: () => this.actionConnectDevice(item),
           },

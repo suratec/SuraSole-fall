@@ -21,6 +21,16 @@ const scanBluetooth = {
     japanese: 'Bluetoothスキャン'
 }
 const noDeviceList = {eng: 'No Device List', thai: 'ไม่มีรายการอุปกรณ์', japanese: 'デバイスリストなし'}
+const confirmDisconnect = {
+    eng: 'Confirm Disconnect',
+    thai: 'ยืนยันการตัดการเชื่อมต่อ',
+    japanese: '切断の確認'
+}
+const askDisconnect = (deviceName) => ({
+    eng: `Do you want to disconnect ${deviceName}?`,
+    thai: `ต้องการตัดการเชื่อมต่อ ${deviceName} หรือไม่?`,
+    japanese: `${deviceName}を切断しますか？`
+})
 export default {
     title,
     devicesListText,
@@ -36,5 +46,7 @@ export default {
     connectText,
     scanningForDevices,
     scanBluetooth,
-    noDeviceList
+    noDeviceList,
+    confirmDisconnect,
+    askDisconnect
 }
