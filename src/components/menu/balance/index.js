@@ -174,6 +174,11 @@ class index extends Component {
     noti !== null ? this.setState({notiAlarm: parseInt(noti)}) : 100;
     NetInfo.addEventListener(this.handleConnectivityChange);
     const {navigation} = this.props;
+    
+    // Initial fetch to load data immediately
+    this.retrieveConnected();
+    this.startReading();
+
     this.focusListener = navigation.addListener('focus', () => {
       this.retrieveConnected();
       this.startReading();
@@ -444,6 +449,7 @@ class index extends Component {
     if (this.state.textAction == 'Record') {
       this.sampleSeq = 0;
       this.setState({textAction: 'Stop'});
+      this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton('Stop');
       let initTime = new Date();
       this.start = initTime;
@@ -466,6 +472,7 @@ class index extends Component {
             stance: this.rightStanceTime,
           },
           id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
         };
         try {
           await RNFS.appendFile(
@@ -519,6 +526,7 @@ class index extends Component {
     if (this.state.textAction == getLocalizedText(this.props.lang, BalanceLang.recordButton)) {
       this.sampleSeq = 0;
       this.setState({textAction: getLocalizedText(this.props.lang, BalanceLang.stopButton)});
+      this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton(getLocalizedText(this.props.lang, BalanceLang.stopButton));
       var initTime = new Date();
       var start = initTime;
@@ -548,6 +556,7 @@ class index extends Component {
                   stance: this.rightStanceTime,
                 },
                 id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
               };
               try {
                 RNFS.appendFile(
@@ -595,6 +604,7 @@ class index extends Component {
 
     } else {
       this.setState({textAction: getLocalizedText(this.props.lang, BalanceLang.recordButton)});
+      this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton(getLocalizedText(this.props.lang, BalanceLang.recordButton));
       // clearInterval(this.readInterval);
       this.sendDataToSetverCalibration('S');
@@ -646,8 +656,10 @@ uploadCachedFilesInOrder = async (legType = '') => {
               const content = {
                   data,
               id_customer: data[0]?.id_customer ?? this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
               id_device: '',
               type: 1, // medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
               product_number: this.props.productNumber,
               bluetooth_left_id: this.props.leftDevice,
               bluetooth_right_id: this.props.rightDevice,
@@ -697,8 +709,10 @@ uploadCachedFilesInOrder = async (legType = '') => {
     content = {
       data: content,
       id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
       id_device: '',
       type: 1, // for medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
     };
 
     fetch(`${API}/addjson`, {
@@ -797,6 +811,7 @@ uploadCachedFilesInOrder = async (legType = '') => {
                   stance: this.rightStanceTime,
                 },
                 id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
               };
 
               try {
@@ -914,6 +929,7 @@ uploadCachedFilesInOrder = async (legType = '') => {
                   stance: this.rightStanceTime,
                 },
                 id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
               };
 
               try {
@@ -1328,7 +1344,7 @@ uploadCachedFilesInOrder = async (legType = '') => {
 
                     {/* Left and Right foot buttons - Fixed Spacing */}
                     <View style={styles.buttonsContainer}>
-                      <Grid style={styles.buttonsGrid}>
+                      <Grid style={[styles.buttonsGrid, {flexDirection: 'row'}]}>
                         <Col>
                           <BalanceButton
                               bntName={getLocalizedText(this.props.lang, BalanceLang.leftButton)}

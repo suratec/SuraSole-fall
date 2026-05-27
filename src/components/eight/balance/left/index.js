@@ -370,6 +370,7 @@ class index extends Component {
           stance: this.rightStanceTime,
         },
         id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
       };
       try {
         await RNFS.appendFile(
@@ -501,8 +502,10 @@ class index extends Component {
                   var content = {
                     data: data,
                     id_customer: data[0].id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
                     id_device: '',
                     type: 1, // for medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
                     product_number: this.props.productNumber,
                     bluetooth_left_id: this.props.leftDevice,
                     bluetooth_right_id: this.props.rightDevice,
@@ -576,8 +579,10 @@ class index extends Component {
     content = {
       data: content,
       id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
       id_device: '',
       type: 1, // for medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
     };
     console.log(content);
 

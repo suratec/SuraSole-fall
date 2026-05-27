@@ -92,6 +92,7 @@ async function processRecordingFile(filePath, params) {
     id_customer: data[0].id_customer,
     id_device: '',
     type: 1, // for medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
     product_number: productNumber,
     bluetooth_left_id: leftDevice,
     bluetooth_right_id: rightDevice,

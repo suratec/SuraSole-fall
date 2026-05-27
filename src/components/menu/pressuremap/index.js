@@ -120,6 +120,7 @@ class index extends React.PureComponent {
     if (typeof this.props.record !== 'undefined') {
       if (this.props.record === 'Stop') {
         this.setState({ textAction: 'Stop' });
+      this.currentSessionId = Date.now().toString();
         // Don't auto-start recording, just sync the UI
       } else {
         this.setState({ textAction: 'Record' });
@@ -309,6 +310,7 @@ class index extends React.PureComponent {
     }
     if (this.state.textAction === 'Record') {
       this.setState({ textAction: 'Stop' });
+      this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton('Stop');
       let initTime = new Date();
       this.start = initTime;
@@ -331,6 +333,7 @@ class index extends React.PureComponent {
             stance: this.rightStanceTime,
           },
           id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
         };
         try {
           // var file = await RNFS.stat(
@@ -499,4 +502,4 @@ const mapDisPatchToProps = dispatch => {
   };
 };
 
-export default connect(mapStateToProps, mapDisPatchToProps)(index);
+export default connect(mapStateToProps, mapDisPatchToProps)(index);

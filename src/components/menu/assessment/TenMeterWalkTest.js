@@ -150,8 +150,10 @@ class TenMeterWalkTest extends Component {
                     const content = {
                         data,
                         id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
                         id_device: "",
                         type: 1, // medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
                         product_number: this.props.productNumber,
                         bluetooth_left_id: this.props.leftDevice,
                         bluetooth_right_id: this.props.rightDevice,
@@ -263,6 +265,7 @@ class TenMeterWalkTest extends Component {
                     stance: 0,
                 },
                 id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
             };
 
             RNFS.appendFile(
@@ -323,6 +326,7 @@ class TenMeterWalkTest extends Component {
                         stance: 0,
                     },
                     id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
                 };
 
                 RNFS.appendFile(

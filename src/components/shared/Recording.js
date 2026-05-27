@@ -164,6 +164,7 @@
 //                   id_customer: this.props.user.id_customer,
 //                   id_device: '',
 //                   type: 1, // for medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
 //                 };
 //                 fetch(`${API}/addjson`, {
 //                   method: 'POST',

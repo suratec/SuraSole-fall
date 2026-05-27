@@ -496,6 +496,7 @@ class index extends Component {
     console.log('==============' + this.state.textAction);
     if (this.state.textAction == 'Record') {
       this.setState({textAction: 'Stop'});
+      this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton('Stop');
       let initTime = new Date();
       this.start = initTime;
@@ -518,6 +519,7 @@ class index extends Component {
             stance: this.rightStanceTime,
           },
           id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
         };
         try {
           // var file = await RNFS.stat(
@@ -580,6 +582,7 @@ class index extends Component {
                 var content = {
                   data: data,
                   id_customer: data[0].id_customer,
+                  session_id: this.currentSessionId || Date.now().toString(),
                   id_device: '',
                   type: 1, // for medical
                   product_number: this.props.productNumber,
@@ -682,6 +685,7 @@ class index extends Component {
     content = {
       data: content,
       id_customer: this.props.user.id_customer,
+      session_id: this.currentSessionId || Date.now().toString(),
       id_device: '',
       type: 1, // for medical
     };

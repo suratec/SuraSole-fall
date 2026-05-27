@@ -232,9 +232,6 @@ class index extends Component {
     try {
       const res = await fetch(`${API}/profile`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
         body: data,
       });
 

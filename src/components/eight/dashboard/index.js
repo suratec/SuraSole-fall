@@ -169,8 +169,10 @@ class index extends Component {
               var content = {
                 data: data,
                 id_customer: data[0].id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
                 id_device: '',
                 type: 1, // for medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
               };
               console.log(content);
               fetch(`${API}/addjson`, {

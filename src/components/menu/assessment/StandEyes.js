@@ -428,6 +428,7 @@ class StandEyes extends Component {
         }
         if (this.state.textAction == 'Record') {
             this.setState({textAction: 'Stop'});
+      this.currentSessionId = Date.now().toString();
             this.props.actionRecordingButton('Stop');
             let initTime = new Date();
             this.start = initTime;
@@ -450,6 +451,7 @@ class StandEyes extends Component {
                         stance: this.rightStanceTime,
                     },
                     id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
                 };
                 try {
                     await await RNFS.appendFile(
@@ -502,6 +504,7 @@ class StandEyes extends Component {
         // console.log('DEBUGGING TESTING MODE: Bluetooth check disabled');
         if (this.state.textAction == 'Record') {
             this.setState({textAction: 'Stop'});
+      this.currentSessionId = Date.now().toString();
             this.props.actionRecordingButton('Stop');
             var initTime = new Date();
             var start = initTime;
@@ -529,6 +532,7 @@ class StandEyes extends Component {
                                     stance: this.rightStanceTime,
                                 },
                                 id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
                             };
                             try {
                                 RNFS.appendFile(
@@ -637,8 +641,10 @@ class StandEyes extends Component {
                     const payload = {
                         data,
                         id_customer: data[0]?.id_customer || this.props.user?.id_customer || '',
+          session_id: this.currentSessionId || Date.now().toString(),
                         id_device: '',
                         type: 1,
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
                         product_number: this.props.productNumber || '',
                         bluetooth_left_id: this.props.leftDevice || '',
                         bluetooth_right_id: this.props.rightDevice || '',
@@ -692,8 +698,10 @@ class StandEyes extends Component {
                             var content = {
                                 data: data,
                                 id_customer: data[0].id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
                                 id_device: '',
                                 type: 1, // for medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
                                 product_number: this.props.productNumber,
                                 bluetooth_left_id: this.props.leftDevice,
                                 bluetooth_right_id: this.props.rightDevice,
@@ -727,8 +735,10 @@ class StandEyes extends Component {
         content = {
             data: content,
             id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
             id_device: '',
             type: 1, // for medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
         };
 
         fetch(`${API}/addjson`, {
@@ -814,6 +824,7 @@ class StandEyes extends Component {
                                     stance: this.rightStanceTime,
                                 },
                                 id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
                             };
 
                             try {
@@ -931,6 +942,7 @@ class StandEyes extends Component {
                                     stance: this.rightStanceTime,
                                 },
                                 id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
                             };
 
                             try {

@@ -95,6 +95,7 @@ class index extends Component {
     this.setState({
       textAction: getLocalizedText(this.props.lang, lang_gail.recordButton)
     });
+      this.currentSessionId = Date.now().toString();
   };
 
   componentWillUnmount = () => {
@@ -203,13 +204,16 @@ class index extends Component {
     if (typeof this.props.record !== 'undefined') {
       if (this.props.record === 'Stop') {
         this.setState({textAction: getLocalizedText(this.props.lang, lang_gail.stopButton)});
+      this.currentSessionId = Date.now().toString();
         // Don't auto-start recording, just sync the UI
       } else {
         this.setState({textAction: getLocalizedText(this.props.lang, lang_gail.recordButton)});
+      this.currentSessionId = Date.now().toString();
       }
     } else {
       this.props.actionRecordingButton('Record');
       this.setState({textAction: getLocalizedText(this.props.lang, lang_gail.recordButton)});
+      this.currentSessionId = Date.now().toString();
     }
 
     this.dataRecord = bleManagerEmitter.addListener(
@@ -268,6 +272,7 @@ class index extends Component {
     }
     if (this.state.textAction === getLocalizedText(this.props.lang, lang_gail.recordButton)) {
       this.setState({textAction: getLocalizedText(this.props.lang, lang_gail.stopButton)});
+      this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton('Stop');
       let initTime = new Date();
       this.start = initTime;
@@ -290,6 +295,7 @@ class index extends Component {
             stance: this.rightStanceTime,
           },
           id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
         };
         try {
           await RNFS.appendFile(
@@ -316,6 +322,7 @@ class index extends Component {
       }, 100);
     } else {
       this.setState({textAction: getLocalizedText(this.props.lang, lang_gail.recordButton)});
+      this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton('Record');
       clearInterval(this.readInterval);
       this.sendDataToSetver();
@@ -341,8 +348,10 @@ class index extends Component {
                 var content = {
                   data: data,
                   id_customer: data[0].id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
                   id_device: '',
                   type: 1, // for medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
                   product_number: this.props.productNumber,
                   bluetooth_left_id: this.props.leftDevice,
                   bluetooth_right_id: this.props.rightDevice,
@@ -426,8 +435,10 @@ class index extends Component {
     let content = {
       data: data,
       id_customer: this.props.user.id_customer,
+          session_id: this.currentSessionId || Date.now().toString(),
       id_device: '',
       type: 1, // for medical
+              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
     };
 
     // console.log('Delete =>' + this.fileStamp_n);
