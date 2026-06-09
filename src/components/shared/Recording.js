@@ -114,7 +114,7 @@
 //           },
 //         };
 //         try {
-//           await await RNFS.appendFile(
+//           await RNFS.appendFile(
 //             RNFS.CachesDirectoryPath +
 //               '/suratechM/' +
 //               this.start.getFullYear() +
@@ -140,53 +140,116 @@
 //       this.setState({textAction: 'Record'});
 //       this.props.actionRecordingButton('Record');
 //       clearInterval(this.readInterval);
+/*
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
 //       this.sendDataToSetver();
 //     }
 //   };
 
-//   sendDataToSetver() {
-//     this.state.isConnected == false
-//       ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-//           console.log('WiFi is not connect');
-//           res.forEach(r => {
-//             console.log(r.path);
-//           });
-//         })
-//       : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-//           res.forEach(r => {
-//             console.log(r.path);
-//             RNFS.readFile(r.path)
-//               .then(text => {
-//                 var content = {
-//                   data: JSON.parse(
-//                     '[' + text.substring(0, text.length - 1) + ']',
-//                   ),
-//                   id_customer: this.props.user.id_customer,
-//                   id_device: '',
-//                   type: 1, // for medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
-//                 };
-//                 fetch(`${API}/addjson`, {
-//                   method: 'POST',
-//                   headers: {
-//                     Accept: 'application/json',
-//                     'Content-Type': 'application/json',
-//                   },
-//                   body: JSON.stringify(content),
-//                 })
-//                   .then(resp => resp.json())
-//                   .then(resp => {
-//                     if (resp.status != 'ผิดพลาด') {
-//                       console.log(`Clear : ${r.path}`);
-//                       RNFS.unlink(r.path);
-//                     }
-//                   });
-//               })
-//               .catch(e => {});
-//           });
-//         });
-//     alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
-//   }
+//  async flushBufferToDisk() {
+    if (this.dataBuffer.length === 0) return;
+    const toFlush = this.dataBuffer.splice(0); // Take all and clear
+    const filePath =
+      RNFS.CachesDirectoryPath +
+      '/suratechM/' +
+      this.start.getFullYear() +
+      this.start.getMonth() +
+      this.start.getDate() +
+      this.round;
+    const chunk = toFlush.map(d => JSON.stringify(d)).join(',') + ',';
+    try {
+      await RNFS.appendFile(filePath, chunk);
+    } catch {
+      await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
+      await RNFS.appendFile(filePath, chunk);
+    }
+  }
+*/
+/*
+    async sendDataToSetver() {
+    try {
+      const dirPath = RNFS.CachesDirectoryPath + '/suratechM/';
+      const files = await RNFS.readDir(dirPath);
+
+      if (!this.state.isConnected) {
+        console.log('WiFi is not connected');
+        files.forEach(r => console.log(r.path));
+        alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+        return;
+      }
+
+      for (const r of files) {
+        console.log(r.path);
+        try {
+          const text = await RNFS.readFile(r.path);
+          let rawText = text.trim();
+          if (rawText.endsWith(',')) rawText = rawText.slice(0, -1);
+
+          let data = JSON.parse('[' + rawText + ']');
+          if (!data || data.length === 0) {
+            await RNFS.unlink(r.path); // Remove empty files
+            continue;
+          }
+
+          const content = {
+            data: data,
+            id_customer: data[0].id_customer || this.props.user.id_customer,
+            session_id: this.currentSessionId || Date.now().toString(),
+            id_device: '',
+            type: 1, // for medical
+            product_number: this.props.productNumber,
+            bluetooth_left_id: this.props.leftDevice, // Fixed swapped Left/Right mapping
+            bluetooth_right_id: this.props.rightDevice,
+          };
+
+          const addRespRaw = await fetch(`${API}/addjson`, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(content),
+          });
+
+          const addResp = JSON.parse(await addRespRaw.text());
+
+          if (addResp.status !== 'ผิดพลาด') {
+            console.log(`Clear : ${r.path}`);
+            await RNFS.unlink(r.path);
+
+            const dashboardRaw = await fetch(`${API}member/getUserDashboardStatic`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: this.props.user.id_customer }),
+            });
+            const dashboardData = JSON.parse(await dashboardRaw.text());
+
+            const userDataRaw = await fetch(`${API}member/get_user_data`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: this.props.user.id_customer,
+                ...dashboardData
+              }),
+            });
+            const userData = JSON.parse(await userDataRaw.text());
+
+            console.log(userData, 'responseFromAPU');
+          }
+        } catch (e) {
+          console.error(`Error processing file ${r.path}:`, e);
+          this.setState({ isLoading: false });
+          ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
+        }
+      }
+    } catch (e) {
+      console.log('Error reading directory:', e);
+    }
+
+    alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+  }
+*/
 
 //   actionDashboard = () => {
 //     this.props.navigation.navigate('Dashboard');

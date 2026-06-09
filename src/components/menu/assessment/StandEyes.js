@@ -55,6 +55,8 @@ class StandEyes extends Component {
 
     round = Math.floor(1000 + Math.random() * 9000);
 
+  dataBuffer = []; // Buffer for sensor data to reduce file I/O
+
     ltime = new Date();
     rtime = new Date();
 
@@ -169,6 +171,8 @@ class StandEyes extends Component {
 
     componentWillUnmount = () => {
         clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
         clearInterval(this.zoneInterval);
         if (this.dataRecord) {
             this.dataRecord.remove();
@@ -435,8 +439,8 @@ class StandEyes extends Component {
             this.lastLtime = initTime;
             this.lastRtime = initTime;
             this.readInterval = setInterval(async () => {
-                time = new Date();
-                data = {
+                const time = new Date();
+                const data = {
                     stamp: time.getTime(),
                     timestamp: time,
                     duration: Math.floor((time - this.start) / 1000),
@@ -453,33 +457,22 @@ class StandEyes extends Component {
                     id_customer: this.props.user.id_customer,
           session_id: this.currentSessionId || Date.now().toString(),
                 };
-                try {
-                    await await RNFS.appendFile(
-                        RNFS.CachesDirectoryPath +
-                        '/suratechM/' +
-                        this.start.getFullYear() +
-                        this.start.getMonth() +
-                        this.start.getDate() +
-                        this.round,
-                        JSON.stringify(data) + ',',
-                    );
-                } catch {
-                    await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
-                    await RNFS.appendFile(
-                        RNFS.CachesDirectoryPath +
-                        '/suratechM/' +
-                        this.start.getFullYear() +
-                        this.start.getMonth() +
-                        this.start.getDate() +
-                        this.round,
-                        JSON.stringify(data) + ',',
-                    );
+                if (!Array.isArray(this.dataBuffer)) {
+                    this.dataBuffer = [];
                 }
-            }, 100);
+                this.dataBuffer.push(data);
+      }, 100);
+
+      // Flush buffer to disk every 2 seconds instead of every 100ms
+      this.flushInterval = setInterval(() => {
+        this.flushBufferToDisk();
+      }, 2000);
         } else {
             this.setState({textAction: 'Record'});
             this.props.actionRecordingButton('Record');
             clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
             this.sendDataToSetver();
         }
     };
@@ -576,14 +569,20 @@ class StandEyes extends Component {
                     this.props.type == 'open' ? 'SOE' : 'SCE',
                 );
                 clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
                 clearInterval(timer);
                 // clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
                 this.handleNavigationAfterTest()
             }, 21000);
         } else {
             this.setState({textAction: 'Record'});
             this.props.actionRecordingButton('Record');
             // clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
             this.sendDataToSetverCalibration(
                 this.props.type == 'open' ? 'SOE' : 'SCE',
             );
@@ -725,7 +724,7 @@ class StandEyes extends Component {
                                     }
                                 });
                         })
-                        .catch(e => {});
+                        .catch(e => { console.error('Unhandled error:', e); });
                 });
             });
         // alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);

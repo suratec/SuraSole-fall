@@ -36,6 +36,8 @@ class TenMeterWalkTest extends Component {
         };
 
         this.round = Math.floor(1000 + Math.random() * 9000);
+
+  dataBuffer = []; // Buffer for sensor data to reduce file I/O
         this.lsensor = [0, 0, 0, 0, 0];
         this.rsensor = [0, 0, 0, 0, 0];
         this.sampleSeq = 0;
@@ -54,6 +56,8 @@ class TenMeterWalkTest extends Component {
 
     componentWillUnmount() {
         clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
         if (this.dataRecord) this.dataRecord.remove();
         if (typeof this.focusListener === 'function') {
             this.focusListener();
@@ -283,6 +287,8 @@ class TenMeterWalkTest extends Component {
 
         setTimeout(() => {
             clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
             this.setState({ textAction: 'Start' });
             this.sendDataToServer();
         }, 10000);
@@ -291,6 +297,8 @@ class TenMeterWalkTest extends Component {
     handleToggleRecording = () => {
         if (this.state.isRecording) {
             clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
             this.sendDataToServer();
             this.setState({ isRecording: false });
 

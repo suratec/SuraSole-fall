@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Image, Dimensions } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ModalPortal } from 'react-native-modals';
 import { Provider, useSelector } from 'react-redux';
 import { PersistGate } from 'redux-persist/lib/integration/react';
@@ -79,6 +80,10 @@ const styles = StyleSheet.create({
     screenContainer: {
         flex: 1,
     },
+    appSafeArea: {
+        flex: 1,
+        backgroundColor: '#ffffff',
+    },
 });
 
 // 2. Auth Stack
@@ -147,17 +152,21 @@ const AppStack = () => (
 
 // 4. Root Navigation
 export default () => (
-    <Provider store={store}>
-        <PersistGate persistor={persister} loading={null}>
-            <NavigationContainer>
-                <ModalPortal />
-                <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="AuthLoading">
-                    <Stack.Screen name="AuthLoading" component={AuthLoadingScreen} />
-                    <Stack.Screen name="Auth" component={AuthStack} />
-                    <Stack.Screen name="App" component={AppStack} />
-                    <Stack.Screen name="Loading" component={LoadingScreen} />
-                </Stack.Navigator>
-            </NavigationContainer>
-        </PersistGate>
-    </Provider>
+    <SafeAreaProvider>
+        <Provider store={store}>
+            <PersistGate persistor={persister} loading={null}>
+                <SafeAreaView style={styles.appSafeArea} edges={['bottom']}>
+                    <NavigationContainer>
+                        <ModalPortal />
+                        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="AuthLoading">
+                            <Stack.Screen name="AuthLoading" component={AuthLoadingScreen} />
+                            <Stack.Screen name="Auth" component={AuthStack} />
+                            <Stack.Screen name="App" component={AppStack} />
+                            <Stack.Screen name="Loading" component={LoadingScreen} />
+                        </Stack.Navigator>
+                    </NavigationContainer>
+                </SafeAreaView>
+            </PersistGate>
+        </Provider>
+    </SafeAreaProvider>
 );

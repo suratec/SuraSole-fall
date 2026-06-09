@@ -2,7 +2,7 @@
  * Pressure Data API Service
  *
  * Extracted from pressuremap/index.js (and shared across 15+ components).
- * Handles the upload flow: read cached files → upload → fetch dashboard → cleanup.
+ * Handles the upload flow: read cached files → upload → cleanup.
  *
  * Usage:
  *   import { uploadRecordingFiles } from '../../services/pressureDataApi';
@@ -50,73 +50,85 @@ export async function uploadSensorData(content) {
   return safeParseJson(response, 'addjson');
 }
 
-/**
- * Fetch dashboard static data for a user.
- */
-export async function fetchDashboardStatic(userId) {
-  console.log('Fetching dashboard for userId:', userId);
-  const response = await fetch(`${API}member/getUserDashboardStatic`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: userId }),
-  });
-  return safeParseJson(response, 'getUserDashboardStatic');
-}
+function isAddJsonSuccess(payload) {
+  const status = String(payload?.status ?? '').toLowerCase();
+  const message = String(payload?.message ?? '').toLowerCase();
+  const data = String(payload?.data ?? '').toLowerCase();
 
-/**
- * Fetch user data, optionally merging with dashboard static data.
- */
-export async function fetchUserData(userId, dashboardData) {
-  const response = await fetch(`${API}member/get_user_data`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: userId, ...dashboardData }),
-  });
-  return safeParseJson(response, 'get_user_data');
+  return (
+    status.includes('success') ||
+    status.includes('สำเร็จ') ||
+    message.includes('success') ||
+    message.includes('สำเร็จ') ||
+    data.includes('success') ||
+    data.includes('สำเร็จ')
+  );
 }
 
 /**
  * Process a single cached recording file:
  *  1. Read the file
  *  2. Upload sensor data
- *  3. On success: delete file, fetch dashboard, fetch user data
+ *  3. On success: delete file
  */
 async function processRecordingFile(filePath, params) {
-  const { userId, productNumber, leftDevice, rightDevice, shoeSize } = params;
-
+  const {
+    userId,
+    productNumber,
+    leftDevice,
+    rightDevice,
+    shoeSize,
+    currentSessionId,
+  } = params;
   const text = await RNFS.readFile(filePath);
-  const data = JSON.parse('[' + text.substring(0, text.length - 1) + ']');
+  let rawText = text.trim();
+  if (rawText.endsWith(',')) rawText = rawText.slice(0, -1);
+
+  if (!rawText) {
+    console.log('Skipping empty file:', filePath);
+    await RNFS.unlink(filePath);
+    return;
+  }
+
+  const data = JSON.parse('[' + rawText + ']');
+  if (!Array.isArray(data) || data.length === 0) {
+    console.log('No samples in file:', filePath);
+    await RNFS.unlink(filePath);
+    return;
+  }
+
+  const firstSample = data[0] || {};
 
   const content = {
     data: data,
-    id_customer: data[0].id_customer,
+    id_customer: firstSample.id_customer || userId,
+    session_id: firstSample.session_id || currentSessionId || Date.now().toString(),
     id_device: '',
     type: 1, // for medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
     product_number: productNumber,
     bluetooth_left_id: leftDevice,
     bluetooth_right_id: rightDevice,
-    shoe_size: shoeSize,
+    shoe_size: shoeSize || 0,
   };
+
+  console.log('addjson payload summary', {
+    records: data.length,
+    id_customer: content.id_customer,
+    session_id: content.session_id,
+    product_number: content.product_number,
+    bluetooth_left_id: content.bluetooth_left_id,
+    bluetooth_right_id: content.bluetooth_right_id,
+    first_left_sensor: firstSample.left?.sensor,
+    first_right_sensor: firstSample.right?.sensor,
+  });
 
   const uploadResp = await uploadSensorData(content);
 
-  if (uploadResp.status !== 'ผิดพลาด') {
+  if (isAddJsonSuccess(uploadResp)) {
     console.log(`Clear : ${filePath}`);
     await RNFS.unlink(filePath);
-
-    // Dashboard & user data fetch — don't let failures affect the upload result
-    try {
-      console.log('============API Response============');
-      const dashboardData = await fetchDashboardStatic(userId);
-
-      console.log('============API Response============');
-      const userData = await fetchUserData(userId, dashboardData);
-      console.log(userData, 'responseFromAPI');
-    } catch (dashErr) {
-      // Server may be temporarily down (500) — log but don't crash
-      console.log('Dashboard/UserData fetch failed (non-critical):', dashErr.message);
-    }
+  } else {
+    console.warn('addjson did not confirm success; keeping file:', filePath, uploadResp);
   }
 }
 
@@ -140,7 +152,7 @@ export async function uploadRecordingFiles(params) {
     const files = await RNFS.readDir(cachePath);
 
     if (!isConnected) {
-      console.log('WiFi is not connect');
+      console.log('WiFi is not connected');
       files.forEach(r => console.log(r.path));
       return;
     }

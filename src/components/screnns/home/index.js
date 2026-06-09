@@ -31,6 +31,7 @@ import HeaderFix from '../../common/HeaderFix';
 import messaging from '@react-native-firebase/messaging';
 import LanguagePickerFix from '../../common/LanguagePickerFix';
 import Lang from '../../../assets/language/screen/lang_home';
+import RecordLang from '../../../assets/language/menu/lang_record';
 
 import LangAlert from '../../../assets/language/alert/lang_alert';
 import {getLocalizedText} from '../../../assets/language/langUtils';
@@ -276,105 +277,87 @@ class index extends Component {
     if (this.state.isConnected) this.sendDataToSetver();
   };
 
-  sendDataToSetver() {
-    const path = RNFS.CachesDirectoryPath + '/suratechM/';
-    RNFS.exists(path).then(exists => {
-      if (!exists) return;
-      RNFS.readDir(path).then(res => {
-      res.forEach(r => {
+  async sendDataToSetver() {
+    try {
+      const dirPath = RNFS.CachesDirectoryPath + '/suratechM/';
+      const files = await RNFS.readDir(dirPath);
+
+      if (!this.state.isConnected) {
+        console.log('WiFi is not connected');
+        files.forEach(r => console.log(r.path));
+        alert(getLocalizedText(this.props.lang, RecordLang.alert));
+        return;
+      }
+
+      for (const r of files) {
         console.log(r.path);
-        RNFS.readFile(r.path)
-            .then(text => {
-              let data = JSON.parse(
-                  '[' + text.substring(0, text.length - 1) + ']',
-              );
-              var content = {
-                data: data,
-                id_customer: data[0].id_customer,
-                id_device: '',
-                type: 1, // for medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
-              };
-              fetch(`${API}/addjson`, {
-                method: 'POST',
-                headers: {
-                  Accept: 'application/json',
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(content),
-              })
-                  .then(async resp => {
-                    const raw = await resp.text();
-                    try {
-                        return JSON.parse(raw);
-                    } catch (e) {
-                        console.error('JSON Parse error in addjson:', raw);
-                        throw new Error('Invalid JSON from server');
-                    }
-                  })
-                  .then(resp => {
-                    if (resp.status != 'ผิดพลาด') {
-                      console.log(`Clear : ${r.path}`);
-                      RNFS.unlink(r.path);
+        try {
+          const text = await RNFS.readFile(r.path);
+          let rawText = text.trim();
+          if (rawText.endsWith(',')) rawText = rawText.slice(0, -1);
 
-                      fetch(`${API}member/getUserDashboardStatic`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          id: this.props.user.id_customer,
-                        }),
-                      })
-                          .then(async resp1 => {
-                            console.log('============API Response============');
-                            const raw1 = await resp1.text();
-                            try {
-                                return JSON.parse(raw1);
-                            } catch (e) {
-                                console.error('JSON Parse error in getUserDashboardStatic:', raw1);
-                                throw new Error('Invalid JSON from server');
-                            }
-                          })
-                          .then(resp1 => {
+          let data = JSON.parse('[' + rawText + ']');
+          if (!data || data.length === 0) {
+            await RNFS.unlink(r.path); // Remove empty files
+            continue;
+          }
 
-                            fetch(`${API}member/get_user_data`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                id: this.props.user.id_customer,
-                                ...resp1
-                              }),
-                            })
-                                .then(async res => {
-                                  console.log('============API Response============');
-                                  const raw2 = await res.text();
-                                  try {
-                                      return JSON.parse(raw2);
-                                  } catch (e) {
-                                      console.error('JSON Parse error in get_user_data:', raw2);
-                                      throw new Error('Invalid JSON from server');
-                                  }
-                                })
-                                .then(res => {
-                                  console.log(res, 'responseFromAPI');
-                                })
-                                .catch(err => {
-                                  console.log(err);
-                                  this.setState({ isLoading: false });
-                                  ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
-                                });
-                          })
-                          .catch(err => {
-                            console.log(err);
-                            this.setState({ isLoading: false });
-                            ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
-                          });
-                    }
-                  });
-            })
-            .catch(e => {});
-      });
-      });
-    });
+          const content = {
+            data: data,
+            id_customer: data[0].id_customer || this.props.user.id_customer,
+            session_id: this.currentSessionId || Date.now().toString(),
+            id_device: '',
+            type: 1, // for medical
+            product_number: this.props.productNumber,
+            bluetooth_left_id: this.props.leftDevice, // Fixed swapped Left/Right mapping
+            bluetooth_right_id: this.props.rightDevice,
+          };
+
+          const addRespRaw = await fetch(`${API}/addjson`, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(content),
+          });
+
+          const addResp = JSON.parse(await addRespRaw.text());
+
+          if (addResp.status !== 'ผิดพลาด') {
+            console.log(`Clear : ${r.path}`);
+            await RNFS.unlink(r.path);
+
+            const dashboardRaw = await fetch(`${API}member/getUserDashboardStatic`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: this.props.user.id_customer }),
+            });
+            const dashboardData = JSON.parse(await dashboardRaw.text());
+
+            const userDataRaw = await fetch(`${API}member/get_user_data`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: this.props.user.id_customer,
+                ...dashboardData
+              }),
+            });
+            const userData = JSON.parse(await userDataRaw.text());
+
+            console.log(userData, 'responseFromAPU');
+          }
+        } catch (e) {
+          console.error(`Error processing file ${r.path}:`, e);
+          this.setState({ isLoading: false });
+          ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
+        }
+      }
+    } catch (e) {
+      console.log('Error reading directory:', e);
+    }
+
+    alert(getLocalizedText(this.props.lang, RecordLang.alert));
   }
 
   popup = () => (

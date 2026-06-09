@@ -41,6 +41,7 @@ import BleManager from 'react-native-ble-manager';
 import Lang from '../../../assets/language/menu/lang_record';
 import LangHome from '../../../assets/language/screen/lang_home';
 import TrainingLang from '../../../assets/language/menu/lang_training';
+import {hasTrainingVibration, toLegacyTrainingKilo} from '../../../utils/trainingSensorUtils';
 
 var RNFS = require('react-native-fs');
 
@@ -81,6 +82,8 @@ class index extends Component {
 
   round = Math.floor(1000 + Math.random() * 9000);
 
+  dataBuffer = []; // Buffer for sensor data to reduce file I/O
+
   rtime = new Date();
   ltime = new Date();
   //#endregion
@@ -115,6 +118,8 @@ class index extends Component {
 
   componentWillUnmount = () => {
     clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
     if (this.dataRecord) {
       this.dataRecord.remove();
     }
@@ -141,19 +146,16 @@ class index extends Component {
     }
   };
 
-  toKilo = value => {
-    return (5.6 * 10 ** -4 * Math.exp(value / 53.36) + 6.72) / 0.796;
-  };
+  toKilo = toLegacyTrainingKilo;
 
   shouldBeVibration = sensor => {
-    for (let i = 0; i < sensor.length; i++) {
-      if (this.toKilo(sensor[i]) > this.props.user.weight * 0.2) {
-        // console.log(this.toKilo(sensor[i]));
-        this.setState({shouldVibrate: true});
-        return;
-      }
-    }
-    this.setState({shouldVibrate: false});
+    this.setState({
+      shouldVibrate: hasTrainingVibration(
+        sensor,
+        this.props.user.weight,
+        this.toKilo,
+      ),
+    });
   };
 
   getText = (value, weight, lang) => {
@@ -413,8 +415,8 @@ class index extends Component {
       this.lastLtime = initTime;
       this.lastRtime = initTime;
       this.readInterval = setInterval(async () => {
-        time = new Date();
-        data = {
+        const time = new Date();
+        const data = {
           stamp: time.getTime(),
           timestamp: time,
           duration: Math.floor((time - this.start) / 1000),
@@ -431,154 +433,125 @@ class index extends Component {
           id_customer: this.props.user.id_customer,
           session_id: this.currentSessionId || Date.now().toString(),
         };
-        try {
-          // var file = await RNFS.stat(
-          //   RNFS.CachesDirectoryPath +
-          //     '/suratechM/' +
-          //     this.start.getFullYear() +
-          //     this.start.getMonth() +
-          //     this.start.getDate() +
-          //     this.round,
-          // );
-          // if (file.size > 100000) {
-          //   this.round += 1;
-          // }
-          await await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
-              '/suratechM/' +
-              this.start.getFullYear() +
-              this.start.getMonth() +
-              this.start.getDate() +
-              this.round,
-            JSON.stringify(data) + ',',
-          );
-        } catch {
-          await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
-          await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
-              '/suratechM/' +
-              this.start.getFullYear() +
-              this.start.getMonth() +
-              this.start.getDate() +
-              this.round,
-            JSON.stringify(data) + ',',
-          );
+        if (!Array.isArray(this.dataBuffer)) {
+          this.dataBuffer = [];
         }
+        this.dataBuffer.push(data);
       }, 100);
+
+      // Flush buffer to disk every 2 seconds instead of every 100ms
+      this.flushInterval = setInterval(() => {
+        this.flushBufferToDisk();
+      }, 2000);
     } else {
       this.setState({textAction: 'Record'});
       this.props.actionRecordingButton('Record');
       clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
       this.sendDataToSetver();
     }
   };
 
-  sendDataToSetver() {
-    this.state.isConnected == false
-      ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-          console.log('WiFi is not connect');
-          res.forEach(r => {
-            console.log(r.path);
-          });
-        })
-      : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-          res.forEach(r => {
-            console.log(r.path);
-            RNFS.readFile(r.path)
-              .then(text => {
-                let data = JSON.parse(
-                  '[' + text.substring(0, text.length - 1) + ']',
-                );
-                var content = {
-                  data: data,
-                  id_customer: data[0].id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
-                  id_device: '',
-                  type: 1, // for medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
-                  product_number: this.props.productNumber,
-                  bluetooth_left_id: this.props.leftDevice,
-                  bluetooth_right_id: this.props.rightDevice,
-                };
-                fetch(`${API}/addjson`, {
-                  method: 'POST',
-                  headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(content),
-                })
-                  .then(async resp => {
-                    const raw = await resp.text();
-                    try {
-                        return JSON.parse(raw);
-                    } catch (e) {
-                        console.error('JSON Parse error in addjson:', raw);
-                        throw new Error('Invalid JSON from server');
-                    }
-                  })
-                  .then(resp => {
-                    if (resp.status != 'ผิดพลาด') {
-                      console.log(`Clear : ${r.path}`);
-                      RNFS.unlink(r.path);
+  async flushBufferToDisk() {
+    if (!Array.isArray(this.dataBuffer) || this.dataBuffer.length === 0 || !this.start) return;
+    const toFlush = this.dataBuffer.splice(0); // Take all and clear
+    const filePath =
+      RNFS.CachesDirectoryPath +
+      '/suratechM/' +
+      this.start.getFullYear() +
+      this.start.getMonth() +
+      this.start.getDate() +
+      this.round;
+    const chunk = toFlush.map(d => JSON.stringify(d)).join(',') + ',';
+    try {
+      await RNFS.appendFile(filePath, chunk);
+    } catch {
+      await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
+      await RNFS.appendFile(filePath, chunk);
+    }
+  }
 
-                      fetch(`${API}member/getUserDashboardStatic`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          id: this.props.user.id_customer,
-                        }),
-                      })
-                      .then(async resp1 => {
-                            console.log('============API Response============');
-                            const raw1 = await resp1.text();
-                            try {
-                                return JSON.parse(raw1);
-                            } catch (e) {
-                                console.error('JSON Parse error in getUserDashboardStatic:', raw1);
-                                throw new Error('Invalid JSON from server');
-                            }
-                          })
-                        .then(resp1 => {
-                          
-                          fetch(`${API}member/get_user_data`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              id: this.props.user.id_customer,
-                              ...resp1
-                            }),
-                          })
-                            .then(async res => {
-                              console.log('============API Response============');
-                              const raw2 = await res.text();
-                              try {
-                                  return JSON.parse(raw2);
-                              } catch (e) {
-                                  console.error('JSON Parse error in get_user_data:', raw2);
-                                  throw new Error('Invalid JSON from server');
-                              }
-                            })
-                            .then(res => {
-                              console.log(res, 'responseFromAPU');
-                            })
-                            .catch(err => {
-                              console.log(err);
-                              this.setState({ isLoading: false });
-                              ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
-                            });
-                        })
-                        .catch(err => {
-                          console.log(err);
-                          this.setState({ isLoading: false });
-                          ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
-                        });
-                    }
-                  });
-              })
-              .catch(e => {});
+    async sendDataToSetver() {
+    try {
+      const dirPath = RNFS.CachesDirectoryPath + '/suratechM/';
+      const files = await RNFS.readDir(dirPath);
+
+      if (!this.state.isConnected) {
+        console.log('WiFi is not connected');
+        files.forEach(r => console.log(r.path));
+        alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+        return;
+      }
+
+      for (const r of files) {
+        console.log(r.path);
+        try {
+          const text = await RNFS.readFile(r.path);
+          let rawText = text.trim();
+          if (rawText.endsWith(',')) rawText = rawText.slice(0, -1);
+
+          let data = JSON.parse('[' + rawText + ']');
+          if (!data || data.length === 0) {
+            await RNFS.unlink(r.path); // Remove empty files
+            continue;
+          }
+
+          const content = {
+            data: data,
+            id_customer: data[0].id_customer || this.props.user.id_customer,
+            session_id: this.currentSessionId || Date.now().toString(),
+            id_device: '',
+            type: 1, // for medical
+            product_number: this.props.productNumber,
+            bluetooth_left_id: this.props.leftDevice, // Fixed swapped Left/Right mapping
+            bluetooth_right_id: this.props.rightDevice,
+          };
+
+          const addRespRaw = await fetch(`${API}/addjson`, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(content),
           });
-        });
+
+          const addResp = JSON.parse(await addRespRaw.text());
+
+          if (addResp.status !== 'ผิดพลาด') {
+            console.log(`Clear : ${r.path}`);
+            await RNFS.unlink(r.path);
+
+            const dashboardRaw = await fetch(`${API}member/getUserDashboardStatic`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: this.props.user.id_customer }),
+            });
+            const dashboardData = JSON.parse(await dashboardRaw.text());
+
+            const userDataRaw = await fetch(`${API}member/get_user_data`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: this.props.user.id_customer,
+                ...dashboardData
+              }),
+            });
+            const userData = JSON.parse(await userDataRaw.text());
+
+            console.log(userData, 'responseFromAPU');
+          }
+        } catch (e) {
+          console.error(`Error processing file ${r.path}:`, e);
+          this.setState({ isLoading: false });
+          ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
+        }
+      }
+    } catch (e) {
+      console.log('Error reading directory:', e);
+    }
+
     alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
   }
 

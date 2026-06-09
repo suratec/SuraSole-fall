@@ -2,14 +2,12 @@ import React, {Component} from 'react';
 import { ToastAndroid } from 'react-native';
 
 import {
-  View,
   Image,
-  Dimensions,
   NativeModules,
   NativeEventEmitter,
   Platform,
   Vibration,
-  Alert, ScrollView,
+  Alert,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,11 +15,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Col, Grid} from '../../common/NativeBaseShim';
 import {connect} from 'react-redux';
 
-import HeaderFix from '../../common/HeaderFix';
 import NotificationsState from '../../shared/Notification';
 import Text from '../../common/TextFix';
-import ButtonFix from '../../common/ButtonFix';
-import SvgContourBasic from '../../contourlib/screens/SvgD3ContourBasic';
+import PressureMapLayout from '../../common/PressureMapLayout';
 import API from '../../../config/Api';
 
 import BleManager from 'react-native-ble-manager';
@@ -45,6 +41,20 @@ import {
   toKilo,
 } from '../../../utils/eightSensorUtils';
 
+const isAddJsonSuccess = (response, body) => {
+  if (!response.ok) return false;
+  if (body?.success === true || body?.status === true) return true;
+
+  const status = String(body?.status ?? '').trim();
+  const normalizedStatus = status.toLowerCase();
+
+  return (
+    normalizedStatus === 'ok' ||
+    normalizedStatus === 'success' ||
+    normalizedStatus.includes('success') ||
+    status.includes('สำเร็จ')
+  );
+};
 
 class index extends React.PureComponent {
   leftSwingTime = 0;
@@ -67,6 +77,7 @@ class index extends React.PureComponent {
   rsensor = [0, 0, 0, 0, 0, 0, 0, 0];
 
   round = 0;
+  dataBuffer = [];
 
   ltime = new Date();
   rtime = new Date();
@@ -119,6 +130,8 @@ class index extends React.PureComponent {
     // Clear existing interval if any (prevent multiple intervals when switching modules)
     if (this.readInterval) {
       clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
     }
     
     // Sync with Redux recording state - don't auto-start recording
@@ -270,6 +283,8 @@ class index extends React.PureComponent {
   componentWillUnmount = () => {
     console.log('============ componentWillUnmount ==============');
     clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
     if (this.dataRecord) {
       this.dataRecord.remove();
     }
@@ -301,8 +316,8 @@ class index extends React.PureComponent {
       this.lastLtime = initTime;
       this.lastRtime = initTime;
       this.readInterval = setInterval(async () => {
-        time = new Date();
-        data = {
+        const time = new Date();
+        const data = {
           stamp: time.getTime(),
           timestamp: time,
           duration: Math.floor((time - this.start) / 1000),
@@ -319,63 +334,130 @@ class index extends React.PureComponent {
           id_customer: this.props.user.id_customer,
           session_id: this.currentSessionId || Date.now().toString(),
         };
-        try {
-          // var file = await RNFS.stat(
-          //   RNFS.CachesDirectoryPath +
-          //     '/suratechM/' +
-          //     this.start.getFullYear() +
-          //     (this.start.getMonth() + 1) +
-          //     this.start.getDate() +
-          //     this.round,
-          // );
-          // if (file.size > 100000) {
-          //   this.round += 1;
-          // }
-          await await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
-              '/suratechM/' +
-              this.start.getFullYear() +
-              this.start.getMonth() +
-              this.start.getDate() +
-              this.round,
-            JSON.stringify(data) + ',',
-          );
-        } catch {
-          await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
-          await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
-              '/suratechM/' +
-              this.start.getFullYear() +
-              this.start.getMonth() +
-              this.start.getDate() +
-              this.round,
-            JSON.stringify(data) + ',',
-          );
+        if (!Array.isArray(this.dataBuffer)) {
+          this.dataBuffer = [];
         }
+        this.dataBuffer.push(data);
       }, 100);
+
+      // Flush buffer to disk every 2 seconds instead of every 100ms
+      this.flushInterval = setInterval(() => {
+        this.flushBufferToDisk();
+      }, 2000);
     } else {
       this.setState({textAction: 'Record'});
       this.props.actionRecordingButton('Record');
       clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
       this.sendDataToSetver();
     }
   };
 
-  sendDataToSetver() {
-    uploadRecordingFiles({
-      isConnected: this.state.isConnected,
-      userId: this.props.user.id_customer,
-      productNumber: this.props.productNumber,
-      leftDevice: this.props.leftDevice,
-      rightDevice: this.props.rightDevice,
-      shoeSize: this.state.shoeSize,
-      onError: (err) => {
-        this.setState({ isLoading: false });
-        ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
-      },
-    }).then(() => {
-      alert(getLocalizedText(this.state.lang, Lang.alert));
-    });
+  async flushBufferToDisk() {
+    if (!Array.isArray(this.dataBuffer) || this.dataBuffer.length === 0 || !this.start) return;
+    const toFlush = this.dataBuffer.splice(0); // Take all and clear
+    const filePath =
+      RNFS.CachesDirectoryPath +
+      '/suratechM/' +
+      this.start.getFullYear() +
+      this.start.getMonth() +
+      this.start.getDate() +
+      this.round;
+    const chunk = toFlush.map(d => JSON.stringify(d)).join(',') + ',';
+    try {
+      await RNFS.appendFile(filePath, chunk);
+    } catch {
+      await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
+      await RNFS.appendFile(filePath, chunk);
+    }
+  }
+
+    async sendDataToSetver() {
+    try {
+      const dirPath = RNFS.CachesDirectoryPath + '/suratechM/';
+      const files = await RNFS.readDir(dirPath);
+
+      if (!this.state.isConnected) {
+        console.log('WiFi is not connected');
+        files.forEach(r => console.log(r.path));
+        alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+        return;
+      }
+
+      for (const r of files) {
+        console.log(r.path);
+        try {
+          const text = await RNFS.readFile(r.path);
+          let rawText = text.trim();
+          if (rawText.endsWith(',')) rawText = rawText.slice(0, -1);
+
+          let data = JSON.parse('[' + rawText + ']');
+          if (!data || data.length === 0) {
+            await RNFS.unlink(r.path); // Remove empty files
+            continue;
+          }
+
+          const content = {
+            data: data,
+            id_customer: data[0].id_customer || this.props.user.id_customer,
+            session_id: this.currentSessionId || Date.now().toString(),
+            id_device: '',
+            type: 1, // for medical
+            product_number: this.props.productNumber,
+            bluetooth_left_id: this.props.leftDevice, // Fixed swapped Left/Right mapping
+            bluetooth_right_id: this.props.rightDevice,
+            shoe_size: this.state.shoeSize || 0,
+          };
+          console.log('addjson payload summary', {
+            records: data.length,
+            id_customer: content.id_customer,
+            session_id: content.session_id,
+            product_number: content.product_number,
+            bluetooth_left_id: content.bluetooth_left_id,
+            bluetooth_right_id: content.bluetooth_right_id,
+            first_left_sensor: data[0]?.left?.sensor,
+            first_right_sensor: data[0]?.right?.sensor,
+          });
+
+          const addRespRaw = await fetch(`${API}/addjson`, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(content),
+          });
+
+          const addRespText = await addRespRaw.text();
+          console.log('addjson HTTP', addRespRaw.status, addRespText.substring(0, 500));
+
+          let addResp;
+          try {
+            addResp = JSON.parse(addRespText);
+          } catch (parseError) {
+            console.warn('addjson returned invalid JSON; keeping file:', r.path);
+            continue;
+          }
+
+          if (isAddJsonSuccess(addRespRaw, addResp)) {
+            console.log(`Clear : ${r.path}`);
+            await RNFS.unlink(r.path);
+          } else {
+            console.warn('addjson did not confirm success; keeping file:', r.path, addResp);
+            ToastAndroid.show('Upload failed. Keeping data for retry.', ToastAndroid.SHORT);
+          }
+        } catch (e) {
+          console.error(`Error processing file ${r.path}:`, e);
+          this.setState({ isLoading: false });
+          ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
+        }
+      }
+    } catch (e) {
+      console.log('Error reading directory:', e);
+    }
+
+    alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
   }
 
   actionDashboard = () => {
@@ -399,56 +481,15 @@ class index extends React.PureComponent {
   render() {
     this.canVibration(this.state.shouldVibrate, this.state.switch);
 
-    // Get screen dimensions
-    const { width: screenWidth, height: screenHeight } = Dimensions.get('screen');
-    const isLandscape = screenWidth > screenHeight;
-
-    // Calculate SVG container height dynamically
-    const svgHeight = isLandscape
-        ? screenHeight * 0.5  // Smaller height in landscape
-        : screenWidth * 0.90 + 50;  // Original height in portrait
-
     return (
-        <View style={{ flex: 1, backgroundColor: 'white' }}>
-          <HeaderFix
-              icon_left={'left'}
-              onpress_left={() => {
-                this.props.navigation.goBack();
-              }}
-              title={this.props.route.params?.['name'] ?? ''}
-          />
-
-          <ScrollView
-              contentContainerStyle={{
-                flexGrow: 1,
-                justifyContent: 'center',
-                paddingHorizontal: 15,
-                paddingVertical: 10,
-              }}
-              showsVerticalScrollIndicator={false}
-          >
-            {/* Dynamic height container for SVG */}
-            <View style={{
-              height: svgHeight,
-              // alignSelf: 'center',
-              justifyContent: 'center',
-            }}>
-              <SvgContourBasic
-                  leftsensor={this.state.leftData}
-                  rightsensor={this.state.rightData}
-              />
-            </View>
-
-            <View style={{ padding: 15, alignItems: 'center' }}>
-              <ButtonFix
-                  action={true}
-                  rounded={true}
-                  title={this.getButtonTitle()}
-                  onPress={() => this.actionRecording()}
-              />
-            </View>
-          </ScrollView>
-        </View>
+      <PressureMapLayout
+        title={this.props.route.params?.['name'] ?? ''}
+        onBack={() => this.props.navigation.goBack()}
+        leftData={this.state.leftData}
+        rightData={this.state.rightData}
+        buttonTitle={this.getButtonTitle()}
+        onRecord={() => this.actionRecording()}
+      />
     );
   }
 }

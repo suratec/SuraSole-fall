@@ -2,14 +2,11 @@ import React from 'react';
 import { ToastAndroid } from 'react-native';
 
 import {
-  View,
-  Dimensions,
   NativeModules,
   NativeEventEmitter,
   Platform,
   Vibration,
   Alert,
-  ScrollView,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,10 +14,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Col, Grid } from '../../common/NativeBaseShim';
 import { connect } from 'react-redux';
 
-import HeaderFix from '../../common/HeaderFix';
 import Text from '../../common/TextFix';
-import ButtonFix from '../../common/ButtonFix';
-import SvgContourBasic from '../../contourlib/screens/SvgD3ContourBasic';
+import PressureMapLayout from '../../common/PressureMapLayout';
 import { uploadRecordingFiles } from '../../../services/pressureDataApi';
 
 import BleManager from 'react-native-ble-manager';
@@ -114,6 +109,8 @@ class index extends React.PureComponent {
     // Clear existing interval if any (prevent multiple intervals when switching modules)
     if (this.readInterval) {
       clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
     }
     
     // Sync with Redux recording state when component comes into focus
@@ -286,6 +283,8 @@ class index extends React.PureComponent {
     this._isMounted = false; // Component is unmounting
     console.log('============ componentWillUnmount ==============');
     clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
     if (this.dataRecord) {
       this.dataRecord.remove();
     }
@@ -373,25 +372,48 @@ class index extends React.PureComponent {
       this.setState({ textAction: 'Record' });
       this.props.actionRecordingButton('Record');
       clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
       this.sendDataToSetver();
     }
   };
 
-  sendDataToSetver() {
-    uploadRecordingFiles({
+  async flushBufferToDisk() {
+    if (!Array.isArray(this.dataBuffer) || this.dataBuffer.length === 0 || !this.start) return;
+    const toFlush = this.dataBuffer.splice(0); // Take all and clear
+    const filePath =
+      RNFS.CachesDirectoryPath +
+      '/suratechM/' +
+      this.start.getFullYear() +
+      this.start.getMonth() +
+      this.start.getDate() +
+      this.round;
+    const chunk = toFlush.map(d => JSON.stringify(d)).join(',') + ',';
+    try {
+      await RNFS.appendFile(filePath, chunk);
+    } catch {
+      await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
+      await RNFS.appendFile(filePath, chunk);
+    }
+  }
+
+  async sendDataToSetver() {
+    await uploadRecordingFiles({
       isConnected: this.state.isConnected,
       userId: this.props.user.id_customer,
       productNumber: this.props.productNumber,
       leftDevice: this.props.leftDevice,
       rightDevice: this.props.rightDevice,
-      shoeSize: this.state.shoeSize,
-      onError: (err) => {
+      shoeSize: this.state.shoeSize || 0,
+      currentSessionId: this.currentSessionId,
+      onError: error => {
+        console.error('Error uploading pressure data:', error);
         this.setState({ isLoading: false });
         ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
       },
-    }).then(() => {
-      alert(getLocalizedText(this.props.lang, Lang.alert));
     });
+
+    alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
   }
 
   actionDashboard = () => {
@@ -415,56 +437,15 @@ class index extends React.PureComponent {
   render() {
     this.canVibration(this.state.shouldVibrate, this.state.switch);
 
-    // Get screen dimensions
-    const { width: screenWidth, height: screenHeight } = Dimensions.get('screen');
-    const isLandscape = screenWidth > screenHeight;
-
-    // Calculate SVG container height dynamically
-    const svgHeight = isLandscape
-        ? screenHeight * 0.5  // Smaller height in landscape
-        : screenWidth * 0.90 + 50;  // Original height in portrait
-
     return (
-        <View style={{ flex: 1, backgroundColor: 'white' }}>
-          <HeaderFix
-              icon_left={'left'}
-              onpress_left={() => {
-                this.props.navigation.goBack();
-              }}
-              title={this.props.route.params?.['name'] ?? ''}
-          />
-
-          <ScrollView
-              contentContainerStyle={{
-                flexGrow: 1,
-                justifyContent: 'center',
-                paddingHorizontal: 15,
-                paddingVertical: 10,
-              }}
-              showsVerticalScrollIndicator={false}
-          >
-            {/* Dynamic height container for SVG */}
-            <View style={{
-              height: svgHeight,
-              // alignSelf: 'center',
-              justifyContent: 'center',
-            }}>
-              <SvgContourBasic
-                  leftsensor={this.state.leftData}
-                  rightsensor={this.state.rightData}
-              />
-            </View>
-
-            <View style={{ padding: 15, alignItems: 'center' }}>
-              <ButtonFix
-                  action={true}
-                  rounded={true}
-                  title={this.getButtonTitle()}
-                  onPress={() => this.actionRecording()}
-              />
-            </View>
-          </ScrollView>
-        </View>
+      <PressureMapLayout
+        title={this.props.route.params?.['name'] ?? ''}
+        onBack={() => this.props.navigation.goBack()}
+        leftData={this.state.leftData}
+        rightData={this.state.rightData}
+        buttonTitle={this.getButtonTitle()}
+        onRecord={() => this.actionRecording()}
+      />
     );
   }
 }

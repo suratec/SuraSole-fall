@@ -1,9 +1,8 @@
 import React, { Component } from 'react'
-import { View } from 'react-native'
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native'
 import { Card } from '../../common/NativeBaseShim';
 
 import Text from '../../common/TextFix';
-import ButtonFix from '../../common/ButtonFix'
 import DropDownPicker from 'react-native-dropdown-picker';
 import InputFix from '../../common/InputFix'
 import Lang from '../../../assets/language/menu/lang_profile';
@@ -16,11 +15,6 @@ export default class card_profile extends Component {
         this.state = {
             open: false,
             value: props.inputValueGender,
-            genderList: [
-                { label: 'Male', value: 0 },
-                { label: 'Female', value: 1 },
-                { label: 'Other', value: 2 },
-            ]
         };
 
         this.setValue = this.setValue.bind(this);
@@ -33,80 +27,128 @@ export default class card_profile extends Component {
     }
 
     setValue(callback) {
-        this.props.inputGender(callback(this.state.value))
-        this.setState(state => ({
-            value: callback(state.value)
-        }));
+        const currentValue = this.props.inputValueGender ?? this.state.value;
+        const nextValue = callback(currentValue);
+        this.props.inputGender(nextValue)
+        this.setState({ value: nextValue });
+    }
+
+    renderField(label, value, onChangeText, keyboardType) {
+        return (
+            <View style={styles.field}>
+                <Text styles={styles.label}>{label}</Text>
+                <InputFix
+                    value={value}
+                    rounded={true}
+                    secure={false}
+                    placeholder={''}
+                    onChangeText={onChangeText}
+                    keyboardType={keyboardType}
+                    styleView={styles.inputWrapper}
+                />
+            </View>
+        );
     }
 
     render() {
-        const { open, value, genderList } = this.state;
+        const { open } = this.state;
+        const genderList = [
+            { label: getLocalizedText(this.props.lang, Lang.male), value: 0 },
+            { label: getLocalizedText(this.props.lang, Lang.female), value: 1 },
+            { label: getLocalizedText(this.props.lang, Lang.other), value: 2 },
+        ];
 
         return (
-            <View style={{ flex: 1, padding: 15 }}>
-                <Card style={{ borderRadius: 12 }}>
-                    <View style={{ flex: 1, marginLeft: 17, marginRight: 17 }}>
-                        <View style={{ height: '3%' }} />
+            <View style={styles.container}>
+                <Card style={styles.card}>
+                    <View style={styles.cardBody}>
+                        {this.renderField(
+                            this.props.labelFirstName,
+                            this.props.inputValueFirstName,
+                            this.props.inputFirstName,
+                        )}
 
-                        <Text styles={{ padding: 15, paddingTop: 5, paddingBottom: 5 }}>{this.props.labelFirstName}</Text>
-                        <InputFix value={this.props.inputValueFirstName} rounded={true} placeholder={''} onChangeText={this.props.inputFirstName} />
+                        {this.renderField(
+                            this.props.labelLastName,
+                            this.props.inputValueLastName,
+                            this.props.inputLastName,
+                        )}
 
-                        <Text styles={{ padding: 15, paddingTop: 5, paddingBottom: 10 }}>{this.props.labelLastName}</Text>
-                        <InputFix value={this.props.inputValueLastName} rounded={true} placeholder={''} onChangeText={this.props.inputLastName} />
-
-                        <Text styles={{ padding: 15, paddingTop: 10, paddingBottom: 10 }}>{this.props.labelGender}</Text>
+                        <View style={[styles.field, styles.dropdownField]}>
+                            <Text styles={styles.label}>{this.props.labelGender}</Text>
                         <DropDownPicker
                             open={open}
                             setOpen={(open) => this.setOpen(open)}
                             items={genderList}
                             searchablePlaceholder="Search"
-                            containerStyle={{ height: 45, borderRadius: 50, width: '98%' }}
-                            style={{
-                                borderTopEndRadius: 30, borderTopLeftRadius: 30,
-                                borderBottomStartRadius: 30, borderBottomRightRadius: 30,
-                                backgroundColor: '#fff', borderRadius: 50,
-                                padding: 15, paddingTop: 5, paddingBottom: 5
-                            }}
-                            placeholder={'Gender'}
+                            containerStyle={styles.dropdownContainer}
+                            style={styles.dropdown}
+                            textStyle={styles.dropdownText}
+                            labelStyle={styles.dropdownText}
+                            placeholderStyle={styles.dropdownPlaceholder}
+                            dropDownContainerStyle={styles.dropdownList}
+                            placeholder={this.props.labelGender}
                             value={this.props.inputValueGender}
                             dropDownMaxHeight={300}
-                            dropDownStyle={{ backgroundColor: '#fafafa' }}
                             setValue={(item) => this.setValue(item)}
+                            listMode="SCROLLVIEW"
+                            zIndex={3000}
+                            zIndexInverse={1000}
                         />
+                        </View>
 
                         {this.props.type === "mod_customer" &&
                             <>
-                                <Text styles={{ padding: 15, paddingTop: 5, paddingBottom: 5 }}>{this.props.labelWeigth}</Text>
-                                <InputFix value={this.props.inputValueWeigth} rounded={true} secure={false} placeholder={''} onChangeText={this.props.inputWeigth} keyboardType={'decimal-pad'} />
+                                {this.renderField(
+                                    this.props.labelWeigth,
+                                    this.props.inputValueWeigth,
+                                    this.props.inputWeigth,
+                                    'decimal-pad',
+                                )}
 
-                                <Text styles={{ padding: 15, paddingTop: 5, paddingBottom: 5 }}>{this.props.labelHeight}</Text>
-                                <InputFix value={this.props.inputValueHeight} rounded={true} secure={false} placeholder={''} onChangeText={this.props.inputHeigth} keyboardType={'decimal-pad'} />
+                                {this.renderField(
+                                    this.props.labelHeight,
+                                    this.props.inputValueHeight,
+                                    this.props.inputHeigth,
+                                    'decimal-pad',
+                                )}
 
-                                <Text styles={{ padding: 15, paddingTop: 5, paddingBottom: 5 }}>{this.props.labelAge}</Text>
-                                <InputFix value={this.props.inputValueAge} rounded={true} secure={false} placeholder={''} onChangeText={this.props.inputAge} keyboardType={'decimal-pad'} />
+                                {this.renderField(
+                                    this.props.labelAge,
+                                    this.props.inputValueAge,
+                                    this.props.inputAge,
+                                    'decimal-pad',
+                                )}
                             </>
                         }
 
-                        {/* --- Refined Button Row --- */}
-                        <View style={{
-                            flexDirection: 'row',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            marginBottom: 30,
-                            marginTop: 20,
-                        }}>
-                            <ButtonFix
-                                styles={{ width: 140, height: 45, minWidth: 0, marginHorizontal: 8 }}
-                                rounded={true}
-                                title={getLocalizedText(this.props.lang, Lang.updateLabel)}
+                        <View style={styles.buttonRow}>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                disabled={this.props.loading}
                                 onPress={this.props.onUpdate}
-                            />
-                            <ButtonFix
-                                styles={{ width: 140, height: 45, minWidth: 0, marginHorizontal: 8, backgroundColor: '#6c757d' }}
-                                rounded={true}
-                                title={getLocalizedText(this.props.lang, Lang.noteLabel)}
+                                style={[
+                                    styles.actionButton,
+                                    styles.primaryButton,
+                                    this.props.loading && styles.disabledButton,
+                                ]}>
+                                {this.props.loading ? (
+                                    <ActivityIndicator color="#ffffff" />
+                                ) : (
+                                    <Text styles={styles.primaryButtonText}>
+                                        {getLocalizedText(this.props.lang, Lang.updateLabel)}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                activeOpacity={0.85}
                                 onPress={this.props.onNote}
-                            />
+                                style={[styles.actionButton, styles.secondaryButton]}>
+                                <Text styles={styles.secondaryButtonText}>
+                                    {getLocalizedText(this.props.lang, Lang.noteLabel)}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
                 </Card>
@@ -114,3 +156,98 @@ export default class card_profile extends Component {
         )
     }
 }
+
+const styles = StyleSheet.create({
+    container: {
+        paddingHorizontal: 16,
+        paddingTop: 10,
+        paddingBottom: 24,
+    },
+    card: {
+        marginHorizontal: 0,
+        marginVertical: 0,
+        borderRadius: 8,
+    },
+    cardBody: {
+        paddingHorizontal: 16,
+        paddingTop: 18,
+        paddingBottom: 18,
+    },
+    field: {
+        marginBottom: 14,
+    },
+    dropdownField: {
+        zIndex: 3000,
+    },
+    label: {
+        color: '#4a4a4a',
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 6,
+        paddingHorizontal: 4,
+    },
+    inputWrapper: {
+        padding: 0,
+    },
+    dropdownContainer: {
+        width: '100%',
+        minHeight: 48,
+    },
+    dropdown: {
+        minHeight: 48,
+        borderRadius: 24,
+        borderColor: '#cccccc',
+        backgroundColor: '#ffffff',
+        paddingHorizontal: 16,
+    },
+    dropdownText: {
+        color: '#222222',
+        fontSize: 15,
+    },
+    dropdownPlaceholder: {
+        color: '#777777',
+        fontSize: 15,
+    },
+    dropdownList: {
+        borderColor: '#cccccc',
+        borderRadius: 16,
+        backgroundColor: '#ffffff',
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        marginTop: 8,
+    },
+    actionButton: {
+        flex: 1,
+        minHeight: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+    },
+    primaryButton: {
+        backgroundColor: '#00A651',
+        marginRight: 6,
+    },
+    secondaryButton: {
+        backgroundColor: '#6c757d',
+        marginLeft: 6,
+    },
+    disabledButton: {
+        opacity: 0.72,
+    },
+    primaryButtonText: {
+        color: '#ffffff',
+        fontSize: 15,
+        fontWeight: '700',
+        textAlign: 'center',
+    },
+    secondaryButtonText: {
+        color: '#ffffff',
+        fontSize: 15,
+        fontWeight: '700',
+        textAlign: 'center',
+    },
+});

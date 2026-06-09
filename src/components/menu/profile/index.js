@@ -2,15 +2,14 @@
 
 import React, {Component} from 'react';
 import {
-  Text,
   View,
   ScrollView,
   TouchableOpacity,
   Image,
   Platform,
   Dimensions,
-  ActivityIndicator,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import {connect} from 'react-redux';
 
@@ -29,7 +28,11 @@ import LangModal from './lang_model';
 
 import ImagePicker from 'react-native-image-crop-picker';
 
-const screenWidth = Math.round(Dimensions.get('window').width) * 0.35;
+const profileImageSize = Math.min(
+  Math.max(Math.round(Dimensions.get('window').width * 0.32), 104),
+  136,
+);
+const cameraBadgeSize = Math.round(profileImageSize * 0.28);
 
 class index extends Component {
   state = {
@@ -285,11 +288,35 @@ class index extends Component {
 
   render() {
     const {img_path, loading} = this.state;
+    const avatarFrameSize = profileImageSize + 8;
+    const avatarStyle = {
+      width: profileImageSize,
+      height: profileImageSize,
+      borderRadius: profileImageSize / 2,
+    };
+    const avatarFrameStyle = {
+      width: avatarFrameSize,
+      height: avatarFrameSize,
+      borderRadius: avatarFrameSize / 2,
+    };
+    const cameraBadgeStyle = {
+      width: cameraBadgeSize,
+      height: cameraBadgeSize,
+      borderRadius: cameraBadgeSize / 2,
+    };
+    const cameraIconStyle = {
+      width: Math.round(cameraBadgeSize * 0.56),
+      height: Math.round(cameraBadgeSize * 0.56),
+    };
+
     console.log('props.user.image:', this.props.user.image);
     console.log('state.img_path:', this.state.img_path);
 
     return (
-        <ScrollView style={{flex: 1}}>
+        <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled">
           <HeaderFix
               icon_left={'left'}
               onpress_left={() => {
@@ -298,17 +325,13 @@ class index extends Component {
               title={getLocalizedText(this.props.lang, Lang.editProfile)}
           />
 
-          <View>
+          <View style={styles.content}>
             <TouchableOpacity
-                style={{alignItems: 'center', paddingTop: 16}}
+                style={styles.avatarButton}
                 onPress={() => this.editprofilePicture()}>
-              <View style={{width: screenWidth, height: screenWidth, padding: 5}}>
+              <View style={[styles.avatarFrame, avatarFrameStyle]}>
                 <Image
-                    style={{
-                      width: screenWidth,
-                      height: screenWidth,
-                      borderRadius: screenWidth / 2,
-                    }}
+                    style={avatarStyle}
                     source={this.getImageSource(this.state.img_path, this.props.user.role)}
                     onError={(e) => {
                       console.log('Image failed to load:', e.nativeEvent);
@@ -318,22 +341,9 @@ class index extends Component {
                     }}
                 />
                 <View
-                    style={{
-                      width: screenWidth * 0.2,
-                      height: screenWidth * 0.2,
-                      borderRadius: screenWidth * 0.34,
-                      position: 'absolute',
-                      backgroundColor: UI.color_Gradient[1],
-                      bottom: 1,
-                      right: 1,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}>
+                    style={[styles.cameraBadge, cameraBadgeStyle]}>
                   <Image
-                      style={{
-                        width: screenWidth * 0.13,
-                        height: screenWidth * 0.13,
-                      }}
+                      style={cameraIconStyle}
                       source={require('../../../assets/image/icons/camera.png')}
                   />
                 </View>
@@ -396,6 +406,45 @@ class index extends Component {
     );
   }
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f7f8',
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+  content: {
+    width: '100%',
+  },
+  avatarButton: {
+    alignItems: 'center',
+    paddingTop: 18,
+    paddingBottom: 2,
+  },
+  avatarFrame: {
+    padding: 4,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+  },
+  cameraBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    backgroundColor: UI.color_Gradient[1],
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+});
 
 const mapStateToProps = state => {
   return {

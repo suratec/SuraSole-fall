@@ -30,6 +30,7 @@ import CardStatusFix from '../../common/CardStatusFix';
 import AlertFix from '../../common/AlertsFix';
 import ScoreFix from '../../common/ScoreFix';
 import API from '../../../config/Api';
+import { uploadRecordingFiles } from '../../../services/pressureDataApi';
 import BleManager from 'react-native-ble-manager';
 
 import {
@@ -75,6 +76,8 @@ class index extends Component {
   lastLtime = new Date();
 
   round = Math.floor(1000 + Math.random() * 9000);
+
+  dataBuffer = []; // Buffer for sensor data to reduce file I/O
 
   ltime = new Date();
   rtime = new Date();
@@ -195,6 +198,8 @@ class index extends Component {
 
   componentWillUnmount = () => {
     clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
     clearInterval(this.zoneInterval);
     if (this.dataRecord) {
       this.dataRecord.remove();
@@ -439,6 +444,7 @@ class index extends Component {
   if (!isRecording) {
     // START recording
     this.setState({ isRecording: true });
+    this.currentSessionId = Date.now().toString();
     this.props.actionRecordingButton('Stop'); // or some neutral value like 'recording'
 
     let initTime = new Date();
@@ -463,6 +469,7 @@ class index extends Component {
           stance: this.rightStanceTime,
         },
         id_customer: user.id_customer,
+        session_id: this.currentSessionId,
       };
 
       try {
@@ -494,6 +501,8 @@ class index extends Component {
     this.props.actionRecordingButton('Record'); // or 'idle'
 
     clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
     this.sendDataToSetver();  // still shows alert in correct language
   }
 };
@@ -547,7 +556,7 @@ class index extends Component {
   //         id_customer: this.props.user.id_customer,
   //       };
   //       try {
-  //         await await RNFS.appendFile(
+  //         await RNFS.appendFile(
   //             RNFS.CachesDirectoryPath +
   //             '/suratechM/' +
   //             this.start.getFullYear() +
@@ -573,6 +582,8 @@ class index extends Component {
   //     this.setState({textAction: 'Record'});
   //     this.props.actionRecordingButton('Record');
   //     clearInterval(this.readInterval);
+  //     clearInterval(this.flushInterval);
+  //     this.flushBufferToDisk(); // Flush remaining data before unmount
   //     this.sendDataToSetver();
   //   }
   // };
@@ -581,91 +592,22 @@ class index extends Component {
 
 
 
-  sendDataToSetver = () => {
-    this.state.isConnected == false
-        ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-          res.forEach(r => {
-            console.log(r.path);
-          });
-        })
-        : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-          res.forEach(r => {
-            console.log(r.path, 'path');
-            RNFS.readFile(r.path)
-                .then(text => {
-                  let data = JSON.parse(
-                      '[' + text.substring(0, text.length - 1) + ']',
-                  );
-                  var content = {
-                    data: data,
-                    id_customer: data[0].id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
-                    id_device: '',
-                    type: 1, // for medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
-                    product_number: this.props.productNumber,
-                    bluetooth_left_id: this.props.leftDevice,
-                    bluetooth_right_id: this.props.rightDevice,
-                    shoe_size: this.state.shoeSize,
-                    leg_type: ''
-                  };
-                  fetch(`${API}/addjson`, {
-                    method: 'POST',
-                    headers: {
-                      Accept: 'application/json',
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(content),
-                  })
-                      .then(resp => resp.json())
-                      .then(resp => {
-                        if (resp.status != 'ผิดพลาด') {
-                          console.log(`Clear : ${r.path}`);
-                          RNFS.unlink(r.path);
-                          fetch(`${API}member/getUserDashboardStatic`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              id: this.props.user.id_customer,
-                            }),
-                          })
-                              .then(resp1 => {
-                                console.log('============API Response============');
-                                return resp1.json();
-                              })
-                              .then(resp1 => {
-                                fetch(`${API}member/get_user_data`, {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({
-                                    id: this.props.user.id_customer,
-                                    ...resp1
-                                  }),
-                                })
-                                    .then(res => {
-                                      console.log('============API Response============');
-                                      return console.log(res), res.json();
-                                    })
-                                    .then(res => {
-                                      console.log(res, 'responseFromAPU');
-                                    })
-                                    .catch(err => {
-                                      console.log(err);
-                                      this.setState({ isLoading: false });
-                                      ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
-                                    });
-                              })
-                              .catch(err => {
-                                console.log(err);
-                                this.setState({ isLoading: false });
-                                ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
-                              });
-                        }
-                      });
-                })
-                .catch(e => { });
-          });
-        });
+  sendDataToSetver = async () => {
+    await uploadRecordingFiles({
+      isConnected: this.state.isConnected,
+      userId: this.props.user.id_customer,
+      productNumber: this.props.productNumber,
+      leftDevice: this.props.leftDevice,
+      rightDevice: this.props.rightDevice,
+      shoeSize: this.state.shoeSize || 0,
+      currentSessionId: this.currentSessionId,
+      onError: error => {
+        console.error('Error uploading balance data:', error);
+        this.setState({ isLoading: false });
+        ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
+      },
+    });
+
     alert(getLocalizedText(this.props.lang, Lang.alert));
   }
 
@@ -673,10 +615,9 @@ class index extends Component {
     content = {
       data: content,
       id_customer: this.props.user.id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
+      session_id: this.currentSessionId || Date.now().toString(),
       id_device: '',
       type: 1, // for medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
     };
 
     fetch(`${API}/addjson`, {

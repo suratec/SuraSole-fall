@@ -129,7 +129,7 @@ class index extends Component {
                       FR -
                       (excelData[index].right.sensor[4] +
                           excelData[index].left.sensor[4]);
-                  data = {
+                  const data = {
                     Timestamp: moment(excelData[index].stamp).format(
                         'MMMM Do YYYY, h:mm:ss:ms a',
                     ),
@@ -159,14 +159,13 @@ class index extends Component {
                   setJson.push(data);
                 });
 
-                ws = XLSX.utils.json_to_sheet(setJson);
-                ws = XLSX.utils.json_to_sheet(setJson);
+                const ws = XLSX.utils.json_to_sheet(setJson);
 
-                wb = XLSX.utils.book_new();
+                const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, 'Data Record');
 
-                wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
-                file =
+                const wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
+                const file =
                     RNFS.ExternalCachesDirectoryPath + '/' + Date.now() + '.xlsx';
                 console.log(file);
                 writeFile(file, wbout, 'ascii')
@@ -177,7 +176,7 @@ class index extends Component {
                       /* :( */
                     });
               })
-              .catch(e => { });
+              .catch(e => { console.error('Unhandled error:', e); });
         });
         ToastAndroid.show('Excel Download File Success', ToastAndroid.SHORT);
       });
@@ -218,7 +217,7 @@ class index extends Component {
                       }
                     });
               })
-              .catch(e => { });
+              .catch(e => { console.error('Unhandled error:', e); });
         });
       });
     });

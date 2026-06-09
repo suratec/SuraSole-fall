@@ -78,6 +78,8 @@ class index extends Component {
 
   round = Math.floor(1000 + Math.random() * 9000);
 
+  dataBuffer = []; // Buffer for sensor data to reduce file I/O
+
   ltime = new Date();
   rtime = new Date();
 
@@ -193,6 +195,8 @@ class index extends Component {
 
   componentWillUnmount = () => {
     clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
     clearInterval(this.zoneInterval);
     if (this.dataRecord) {
       this.dataRecord.remove();
@@ -456,8 +460,8 @@ class index extends Component {
       this.lastLtime = initTime;
       this.lastRtime = initTime;
       this.readInterval = setInterval(async () => {
-        time = new Date();
-        data = {
+        const time = new Date();
+        const data = {
           stamp: time.getTime(),
           timestamp: time,
           duration: Math.floor((time - this.start) / 1000),
@@ -474,33 +478,22 @@ class index extends Component {
           id_customer: this.props.user.id_customer,
           session_id: this.currentSessionId || Date.now().toString(),
         };
-        try {
-          await RNFS.appendFile(
-              RNFS.CachesDirectoryPath +
-              '/suratechM/' +
-              this.start.getFullYear() +
-              this.start.getMonth() +
-              this.start.getDate() +
-              this.round,
-              JSON.stringify(data) + ',',
-          );
-        } catch {
-          await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
-          await RNFS.appendFile(
-              RNFS.CachesDirectoryPath +
-              '/suratechM/' +
-              this.start.getFullYear() +
-              this.start.getMonth() +
-              this.start.getDate() +
-              this.round,
-              JSON.stringify(data) + ',',
-          );
+        if (!Array.isArray(this.dataBuffer)) {
+          this.dataBuffer = [];
         }
+        this.dataBuffer.push(data);
       }, 100);
+
+      // Flush buffer to disk every 2 seconds instead of every 100ms
+      this.flushInterval = setInterval(() => {
+        this.flushBufferToDisk();
+      }, 2000);
     } else {
       this.setState({textAction: 'Record'});
       this.props.actionRecordingButton('Record');
       clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
       this.sendDataToSetver();
     }
   };
@@ -600,6 +593,8 @@ class index extends Component {
         clearInterval(this.readInterval)
         clearInterval(timer);
         // clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
       }, 11000);
 
     } else {
@@ -607,6 +602,8 @@ class index extends Component {
       this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton(getLocalizedText(this.props.lang, BalanceLang.recordButton));
       // clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
       this.sendDataToSetverCalibration('S');
     }
   };
@@ -649,17 +646,16 @@ uploadCachedFilesInOrder = async (legType = '') => {
 
               if (!data.length) {
             console.log('No samples in file:', f.path);
-            await RNFS.unlink(f.path).catch(() => {});
+            await RNFS.unlink(f.path).catch(e => { console.error('Unhandled error:', e); });
             continue;
             }
 
               const content = {
                   data,
               id_customer: data[0]?.id_customer ?? this.props.user.id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
+              session_id: data[0]?.session_id || this.currentSessionId || Date.now().toString(),
               id_device: '',
               type: 1, // medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
               product_number: this.props.productNumber,
               bluetooth_left_id: this.props.leftDevice,
               bluetooth_right_id: this.props.rightDevice,
@@ -687,7 +683,7 @@ uploadCachedFilesInOrder = async (legType = '') => {
             }
 
               if (json.status !== 'ผิดพลาด') {
-            await RNFS.unlink(f.path).catch(() => {});
+            await RNFS.unlink(f.path).catch(e => { console.error('Unhandled error:', e); });
             } else {
             console.warn('Server returned error status; keeping file:', f.path);
             }
@@ -709,10 +705,9 @@ uploadCachedFilesInOrder = async (legType = '') => {
     content = {
       data: content,
       id_customer: this.props.user.id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
+      session_id: this.currentSessionId || Date.now().toString(),
       id_device: '',
       type: 1, // for medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
     };
 
     fetch(`${API}/addjson`, {

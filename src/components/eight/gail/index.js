@@ -71,6 +71,8 @@ class index extends Component {
 
   round = Math.floor(1000 + Math.random() * 9000);
 
+  dataBuffer = []; // Buffer for sensor data to reduce file I/O
+
   state = {
     textAction: 'Record',
     lsensor: [0, 0, 0, 0, 0, 0, 0, 0],
@@ -100,6 +102,8 @@ class index extends Component {
 
   componentWillUnmount = () => {
     clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
     if (this.dataRecord) {
       this.dataRecord.remove();
     }
@@ -230,6 +234,8 @@ class index extends Component {
     // Clear existing interval if any (prevent multiple intervals when switching modules)
     if (this.readInterval) {
       clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
     }
     
     // Sync with Redux recording state - don't auto-start recording
@@ -333,131 +339,127 @@ class index extends Component {
           id_customer: this.props.user.id_customer,
           session_id: this.currentSessionId || Date.now().toString(),
         };
-        try {
-          await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
-              '/suratechM/' +
-              this.start.getFullYear() +
-              this.start.getMonth() +
-              this.start.getDate() +
-              this.round,
-            JSON.stringify(data) + ',',
-          );
-        } catch {
-          await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
-          await RNFS.appendFile(
-            RNFS.CachesDirectoryPath +
-              '/suratechM/' +
-              this.start.getFullYear() +
-              this.start.getMonth() +
-              this.start.getDate() +
-              this.round,
-            JSON.stringify(data) + ',',
-          );
+        if (!Array.isArray(this.dataBuffer)) {
+          this.dataBuffer = [];
         }
+        this.dataBuffer.push(data);
       }, 100);
+
+      // Flush buffer to disk every 2 seconds instead of every 100ms
+      this.flushInterval = setInterval(() => {
+        this.flushBufferToDisk();
+      }, 2000);
     } else {
       this.setState({textAction: getLocalizedText(this.props.lang, lang_gail.recordButton)});
       this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton('Record');
       clearInterval(this.readInterval);
+    clearInterval(this.flushInterval);
+    this.flushBufferToDisk(); // Flush remaining data before unmount
       this.sendDataToSetver();
     }
   };
 
-  sendDataToSetver() {
-    this.state.isConnected == false
-      ? RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-          console.log('WiFi is not connect');
-          res.forEach(r => {
-            console.log(r.path);
+  async flushBufferToDisk() {
+    if (!Array.isArray(this.dataBuffer) || this.dataBuffer.length === 0 || !this.start) return;
+    const toFlush = this.dataBuffer.splice(0); // Take all and clear
+    const filePath =
+      RNFS.CachesDirectoryPath +
+      '/suratechM/' +
+      this.start.getFullYear() +
+      this.start.getMonth() +
+      this.start.getDate() +
+      this.round;
+    const chunk = toFlush.map(d => JSON.stringify(d)).join(',') + ',';
+    try {
+      await RNFS.appendFile(filePath, chunk);
+    } catch {
+      await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
+      await RNFS.appendFile(filePath, chunk);
+    }
+  }
+
+    async sendDataToSetver() {
+    try {
+      const dirPath = RNFS.CachesDirectoryPath + '/suratechM/';
+      const files = await RNFS.readDir(dirPath);
+
+      if (!this.state.isConnected) {
+        console.log('WiFi is not connected');
+        files.forEach(r => console.log(r.path));
+        alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+        return;
+      }
+
+      for (const r of files) {
+        console.log(r.path);
+        try {
+          const text = await RNFS.readFile(r.path);
+          let rawText = text.trim();
+          if (rawText.endsWith(',')) rawText = rawText.slice(0, -1);
+
+          let data = JSON.parse('[' + rawText + ']');
+          if (!data || data.length === 0) {
+            await RNFS.unlink(r.path); // Remove empty files
+            continue;
+          }
+
+          const content = {
+            data: data,
+            id_customer: data[0].id_customer || this.props.user.id_customer,
+            session_id: this.currentSessionId || Date.now().toString(),
+            id_device: '',
+            type: 1, // for medical
+            product_number: this.props.productNumber,
+            bluetooth_left_id: this.props.leftDevice, // Fixed swapped Left/Right mapping
+            bluetooth_right_id: this.props.rightDevice,
+          };
+
+          const addRespRaw = await fetch(`${API}/addjson`, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(content),
           });
-        })
-      : RNFS.readDir(RNFS.CachesDirectoryPath + '/suratechM/').then(res => {
-          res.forEach(r => {
-            console.log(r.path);
-            RNFS.readFile(r.path)
-              .then(text => {
-                let data = JSON.parse(
-                  '[' + text.substring(0, text.length - 1) + ']',
-                );
-                var content = {
-                  data: data,
-                  id_customer: data[0].id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
-                  id_device: '',
-                  type: 1, // for medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
-                  product_number: this.props.productNumber,
-                  bluetooth_left_id: this.props.leftDevice,
-                  bluetooth_right_id: this.props.rightDevice,
-                };
-                console.log(content);
-                fetch(`${API}/addjson`, {
-                  method: 'POST',
-                  headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(content),
-                })
-                  .then(resp => resp.json())
-                  .then(resp => {
-                    if (resp.status != 'ผิดพลาด') {
-                      console.log(`Clear : ${r.path}`);
-                      RNFS.unlink(r.path);
 
-                      fetch(`${API}member/getUserDashboardStatic`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          id: this.props.user.id_customer,
-                          // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
-                        }),
-                      })
-                      .then(resp1 => {
-                            console.log('============API Response============');
-                            return  resp1.json();
-                          })
-                        .then(resp1 => {
-                          
-                          fetch(`${API}member/get_user_data`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              id: this.props.user.id_customer,
-                              ...resp1
-                              // id: 'wef0cdb8296f90cc467fbf1d3645c57f9dp',
-                            }),
-                          })
-                            .then(res => {
-                              console.log('============API Response============');
-                              return console.log(res), res.json();
-                            })
-                            .then(res => {
-                              console.log(res, 'responseFromAPU');
+          const addResp = JSON.parse(await addRespRaw.text());
 
-                            })
-                            .catch(err => {
-                              console.log(err);
-                              this.setState({ isLoading: false });
-                              ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
-                            });
-                        }
+          if (addResp.status !== 'ผิดพลาด') {
+            console.log(`Clear : ${r.path}`);
+            await RNFS.unlink(r.path);
 
-                        )
-                        .catch(err => {
-                          console.log(err);
-                          this.setState({ isLoading: false });
-                          ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
-                        });
-                    }
-                  });
-              })
-              .catch(e => {});
-          });
-        });
-    Alert.alert('', getLocalizedText(this.props.lang, Lang.alert));
+            const dashboardRaw = await fetch(`${API}member/getUserDashboardStatic`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: this.props.user.id_customer }),
+            });
+            const dashboardData = JSON.parse(await dashboardRaw.text());
+
+            const userDataRaw = await fetch(`${API}member/get_user_data`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: this.props.user.id_customer,
+                ...dashboardData
+              }),
+            });
+            const userData = JSON.parse(await userDataRaw.text());
+
+            console.log(userData, 'responseFromAPU');
+          }
+        } catch (e) {
+          console.error(`Error processing file ${r.path}:`, e);
+          this.setState({ isLoading: false });
+          ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
+        }
+      }
+    } catch (e) {
+      console.log('Error reading directory:', e);
+    }
+
+    alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
   }
 
   actionUpdate = data => {
