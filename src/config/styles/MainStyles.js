@@ -42,7 +42,7 @@ const Colors = {
   _blis_gradient: ['#00B4FF', '#1A74FF'],
 };
 
-export default (styles = StyleSheet.create({
+const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderColor: '#dddddd',
@@ -207,7 +207,6 @@ export default (styles = StyleSheet.create({
 
   hb: {
     backgroundColor: Colors._white,
-    width: 60,
     width: 60,
     borderRadius: 30,
   },
@@ -407,4 +406,6 @@ export default (styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'roboto',
   },
-}));
+});
+
+export default styles;

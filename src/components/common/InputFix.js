@@ -19,7 +19,7 @@ export default class InputFix extends Component {
                         onChangeText={this.props.onChangeText}
                         disabled={this.props.disabled}
                         placeholder={this.props.placeholder ? this.props.placeholder : ''}
-                        keyboardType={this.props.keyboardType} />
+                    />
                 </Item>
                 
                 :

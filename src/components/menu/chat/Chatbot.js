@@ -7,7 +7,7 @@ import {
     Image, PermissionsAndroid, ActivityIndicator, RefreshControl
 } from 'react-native';
 import { connect } from 'react-redux';
-import { Player } from '@react-native-community/audio-toolkit';
+
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import HeaderFix from '../../common/HeaderFix';
 import { ToastAndroid } from 'react-native'; // Replaced simple-toast
@@ -376,65 +376,39 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         }
     };
 
-    // ✅ Updated playAudio function using audio-toolkit
-    const playAudio = (url, messageId) => {
-        // If already playing this audio, stop it
+    // ✅ Updated playAudio function using AudioRecorderPlayer
+    const playAudio = async (url, messageId) => {
         if (isPlaying && currentPlayingMessageId === messageId) {
-            stopAudio();
+            await stopAudio();
             return;
         }
 
-        // Stop any currently playing audio
-        stopAudio();
-
+        await stopAudio();
         setIsPlaying(true);
         setCurrentPlayingMessageId(messageId);
 
         try {
-            const player = new Player(url, {
-                autoDestroy: true,
-                continuesToPlayInBackground: true
-            });
-
-            soundRef.current = player;
-
-            player.play((err) => {
-                if (err) {
-                    console.error('Playback error:', err);
-                    setIsPlaying(false);
-                    setCurrentPlayingMessageId(null);
-                    ToastAndroid.show('Playback failed', ToastAndroid.SHORT);
-                    return;
+            await audioRecorderPlayer.startPlayer(url);
+            audioRecorderPlayer.addPlayBackListener((e) => {
+                if (e.currentPosition === e.duration || e.currentPosition < 0) {
+                    stopAudio();
                 }
             });
-
-            player.on('ended', () => {
-                setIsPlaying(false);
-                setCurrentPlayingMessageId(null);
-                soundRef.current = null;
-            });
-
-            player.on('error', (err) => {
-                console.error('Player error:', err);
-                setIsPlaying(false);
-                setCurrentPlayingMessageId(null);
-                soundRef.current = null;
-            });
-
-        } catch (e) {
-            console.error('❌ Player constructor error:', e);
+        } catch (err) {
+            console.error('Playback error:', err);
             setIsPlaying(false);
             setCurrentPlayingMessageId(null);
-            ToastAndroid.show('Audio system error', ToastAndroid.SHORT);
+            ToastAndroid.show('Playback failed', ToastAndroid.SHORT);
         }
     };
 
-    // ✅ Updated function to stop audio playback using audio-toolkit
-    const stopAudio = () => {
-        if (soundRef.current) {
-            soundRef.current.stop();
-            soundRef.current.destroy();
-            soundRef.current = null;
+    // ✅ Updated function to stop audio playback using AudioRecorderPlayer
+    const stopAudio = async () => {
+        try {
+            await audioRecorderPlayer.stopPlayer();
+            audioRecorderPlayer.removePlayBackListener();
+        } catch (err) {
+            // ignore
         }
         setIsPlaying(false);
         setCurrentPlayingMessageId(null);

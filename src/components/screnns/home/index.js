@@ -1,6 +1,6 @@
 //5.11.2562 14.55
 
-import React, {Component} from 'react';
+import React, { Component } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import {
   View,
@@ -25,7 +25,7 @@ import UI from '../../../config/styles/CommonStyles';
 import Text from '../../common/TextFix';
 import ListItem from './listItem';
 import BleManager from 'react-native-ble-manager';
-import {connect} from 'react-redux';
+import { connect } from 'react-redux';
 
 import HeaderFix from '../../common/HeaderFix';
 import messaging from '@react-native-firebase/messaging';
@@ -34,10 +34,8 @@ import Lang from '../../../assets/language/screen/lang_home';
 import RecordLang from '../../../assets/language/menu/lang_record';
 
 import LangAlert from '../../../assets/language/alert/lang_alert';
-import {getLocalizedText} from '../../../assets/language/langUtils';
-import API, {IMAGE_URL} from '../../../config/Api';
-
-var RNFS = require('react-native-fs');
+import { getLocalizedText } from '../../../assets/language/langUtils';
+import { uploadRecordingFiles } from '../../../services/pressureDataApi';
 
 import Modal, {
   ModalTitle,
@@ -56,8 +54,11 @@ class index extends Component {
       peripherals: new Map(),
       showExitIcon: false,
       screenData: Dimensions.get('window'), // Track current dimensions
+      isConnected: true,
     };
     this.handleBackButtonClick = this.handleBackButtonClick.bind(this);
+    this.uploadInProgress = false;
+    this.lastAutoUploadAt = 0;
   }
 
   getImageSource = (img_path, role) => {
@@ -125,7 +126,7 @@ class index extends Component {
     console.log('HOME !!!');
     console.log(this.props.user);
     console.log(this.state, 'here we go');
-    
+
     this.focusListener = this.props.navigation.addListener('focus', async () => {
       // Update screen dimensions when focusing - with safety check
       const currentDimensions = Dimensions.get('window');
@@ -151,14 +152,15 @@ class index extends Component {
       }
     });
 
-    await messaging().requestPermission();
-    // Use the newer pattern for hasPermission
-    const enabled = await messaging().hasPermission();
+    messaging()
+      .requestPermission()
+      .then(() => messaging().hasPermission())
+      .catch(err => console.log('Messaging permission error:', err));
 
     // Add back button handler using the newer subscription pattern
     this.backHandlerSubscription = BackHandler.addEventListener(
-        'hardwareBackPress',
-        this.handleBackButtonClick,
+      'hardwareBackPress',
+      this.handleBackButtonClick,
     );
 
     try {
@@ -169,9 +171,7 @@ class index extends Component {
       console.log('NetInfo error:', e);
     }
 
-    if (typeof this.sendDataToSetver === 'function') {
-      this.sendDataToSetver();
-    }
+    this.sendDataToSetver({ silent: true });
 
     if (Platform.OS === 'android') {
       PermissionsAndroid.requestMultiple([
@@ -180,20 +180,20 @@ class index extends Component {
         PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
       ]).then(() => {
         if (
-            !this.props.user.age &&
-            !this.props.user.weight &&
-            !this.props.user.height
+          !this.props.user.age &&
+          !this.props.user.weight &&
+          !this.props.user.height
         ) {
-          this.setState({show: true});
+          this.setState({ show: true });
         }
       });
     } else {
       if (
-          !this.props.user.age &&
-          !this.props.user.weight &&
-          !this.props.user.height
+        !this.props.user.age &&
+        !this.props.user.weight &&
+        !this.props.user.height
       ) {
-        this.setState({show: true});
+        this.setState({ show: true });
       }
     }
   }
@@ -207,7 +207,7 @@ class index extends Component {
     if (this.netInfoUnsubscribe && typeof this.netInfoUnsubscribe === 'function') {
       this.netInfoUnsubscribe();
     }
-    
+
     if (this.backHandlerSubscription && typeof this.backHandlerSubscription.remove === 'function') {
       this.backHandlerSubscription.remove();
     }
@@ -223,32 +223,6 @@ class index extends Component {
       // In React Navigation v7, we use canGoBack() instead of parent.state.index
       if (!this.props.navigation.canGoBack()) {
         Alert.alert(
-            '',
-            getLocalizedText(this.props.lang, LangAlert.closeApp),
-            [
-              {
-                text: getLocalizedText(this.props.lang, LangAlert.yes),
-                onPress: () => {
-                  this.actionDisconnectBle();
-                  setTimeout(() => {
-                    BackHandler.exitApp();
-                  }, 1000);
-                },
-              },
-              {
-                text: getLocalizedText(this.props.lang, LangAlert.no),
-                onPress: () => console.log('NO Pressed'),
-              },
-            ],
-            {cancelable: false},
-        );
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.log('Back button error:', error);
-      Alert.alert(
           '',
           getLocalizedText(this.props.lang, LangAlert.closeApp),
           [
@@ -266,140 +240,141 @@ class index extends Component {
               onPress: () => console.log('NO Pressed'),
             },
           ],
-          {cancelable: false},
+          { cancelable: false },
+        );
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.log('Back button error:', error);
+      Alert.alert(
+        '',
+        getLocalizedText(this.props.lang, LangAlert.closeApp),
+        [
+          {
+            text: getLocalizedText(this.props.lang, LangAlert.yes),
+            onPress: () => {
+              this.actionDisconnectBle();
+              setTimeout(() => {
+                BackHandler.exitApp();
+              }, 1000);
+            },
+          },
+          {
+            text: getLocalizedText(this.props.lang, LangAlert.no),
+            onPress: () => console.log('NO Pressed'),
+          },
+        ],
+        { cancelable: false },
       );
       return true;
     }
   };
 
   handleConnectivityChange = status => {
-    this.setState({isConnected: status.isConnected});
-    if (this.state.isConnected) this.sendDataToSetver();
+    const isConnected = Boolean(status?.isConnected);
+    this.setState({ isConnected });
+    if (isConnected) {
+      this.sendDataToSetver({ silent: true });
+    }
   };
 
-  async sendDataToSetver() {
+  async sendDataToSetver({ silent = true } = {}) {
+    const emptyResult = {
+      total: 0,
+      uploaded: 0,
+      deleted: 0,
+      kept: 0,
+      failed: 0,
+      offline: false,
+    };
+
+    if (this.uploadInProgress) return emptyResult;
+
+    const now = Date.now();
+    if (silent && now - this.lastAutoUploadAt < 15000) {
+      return emptyResult;
+    }
+
+    this.uploadInProgress = true;
+    this.lastAutoUploadAt = now;
+
     try {
-      const dirPath = RNFS.CachesDirectoryPath + '/suratechM/';
-      const files = await RNFS.readDir(dirPath);
-
-      if (!this.state.isConnected) {
-        console.log('WiFi is not connected');
-        files.forEach(r => console.log(r.path));
-        alert(getLocalizedText(this.props.lang, RecordLang.alert));
-        return;
-      }
-
-      for (const r of files) {
-        console.log(r.path);
-        try {
-          const text = await RNFS.readFile(r.path);
-          let rawText = text.trim();
-          if (rawText.endsWith(',')) rawText = rawText.slice(0, -1);
-
-          let data = JSON.parse('[' + rawText + ']');
-          if (!data || data.length === 0) {
-            await RNFS.unlink(r.path); // Remove empty files
-            continue;
-          }
-
-          const content = {
-            data: data,
-            id_customer: data[0].id_customer || this.props.user.id_customer,
-            session_id: this.currentSessionId || Date.now().toString(),
-            id_device: '',
-            type: 1, // for medical
-            product_number: this.props.productNumber,
-            bluetooth_left_id: this.props.leftDevice, // Fixed swapped Left/Right mapping
-            bluetooth_right_id: this.props.rightDevice,
-          };
-
-          const addRespRaw = await fetch(`${API}/addjson`, {
-            method: 'POST',
-            headers: {
-              Accept: 'application/json',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(content),
-          });
-
-          const addResp = JSON.parse(await addRespRaw.text());
-
-          if (addResp.status !== 'ผิดพลาด') {
-            console.log(`Clear : ${r.path}`);
-            await RNFS.unlink(r.path);
-
-            const dashboardRaw = await fetch(`${API}member/getUserDashboardStatic`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: this.props.user.id_customer }),
-            });
-            const dashboardData = JSON.parse(await dashboardRaw.text());
-
-            const userDataRaw = await fetch(`${API}member/get_user_data`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                id: this.props.user.id_customer,
-                ...dashboardData
-              }),
-            });
-            const userData = JSON.parse(await userDataRaw.text());
-
-            console.log(userData, 'responseFromAPU');
-          }
-        } catch (e) {
-          console.error(`Error processing file ${r.path}:`, e);
+      const result = await uploadRecordingFiles({
+        isConnected: this.state.isConnected !== false,
+        userId: this.props.user?.id_customer,
+        productNumber: this.props.productNumber,
+        leftDevice: this.props.leftDevice,
+        rightDevice: this.props.rightDevice,
+        shoeSize: Number(this.props.user?.shoe_size || this.props.user?.shoeSize || 0),
+        currentSessionId: this.currentSessionId,
+        onError: error => {
+          console.error('Home cached upload error:', error);
           this.setState({ isLoading: false });
+        },
+      });
+
+      if (!silent) {
+        if (result.uploaded > 0 || result.deleted > 0) {
+          ToastAndroid.show(getLocalizedText(this.props.lang, RecordLang.alert), ToastAndroid.SHORT);
+        } else if (result.failed > 0) {
           ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
         }
       }
-    } catch (e) {
-      console.log('Error reading directory:', e);
-    }
 
-    alert(getLocalizedText(this.props.lang, RecordLang.alert));
+      return result;
+    } catch (e) {
+      console.log('Home cached upload skipped:', e);
+      if (!silent) {
+        ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
+      }
+      return emptyResult;
+    } finally {
+      this.uploadInProgress = false;
+    }
   }
 
   popup = () => (
-      <Modal
-          width={0.9}
-          visible={this.state.show}
-          rounded
-          actionsBordered
-          onTouchOutside={() => {
-            this.setState({show: false});
-          }}
-          modalTitle={
-            <ModalTitle
-                title="Warning - Please complete your profile"
-                align="left"
-            />
-          }
-          footer={
-            <ModalFooter>
-              <ModalButton
-                  text="Later"
-                  bordered
-                  onPress={() => {
-                    this.setState({show: false});
-                  }}
-                  key="button-1"
-              />
-              <ModalButton
-                  text="OK"
-                  bordered
-                  onPress={() => {
-                    this.setState({show: false});
-                    this.actionProfile();
-                  }}
-                  key="button-2"
-              />
-            </ModalFooter>
-          }>
-        <ModalContent style={{backgroundColor: '#fff'}}>
-          <Text>Some functions will not work properly</Text>
-        </ModalContent>
-      </Modal>
+    <Modal
+      width={0.9}
+      visible={this.state.show}
+      rounded
+      actionsBordered
+      onTouchOutside={() => {
+        this.setState({ show: false });
+      }}
+      modalTitle={
+        <ModalTitle
+          title="Warning - Please complete your profile"
+          align="left"
+        />
+      }
+      footer={
+        <ModalFooter>
+          <ModalButton
+            text="Later"
+            bordered
+            onPress={() => {
+              this.setState({ show: false });
+            }}
+            key="button-1"
+          />
+          <ModalButton
+            text="OK"
+            bordered
+            onPress={() => {
+              this.setState({ show: false });
+              this.actionProfile();
+            }}
+            key="button-2"
+          />
+        </ModalFooter>
+      }>
+      <ModalContent style={{ backgroundColor: '#fff' }}>
+        <Text>Some functions will not work properly</Text>
+      </ModalContent>
+    </Modal>
   );
 
   render() {
@@ -427,127 +402,128 @@ class index extends Component {
     }
 
     return (
-        <View style={{backgroundColor: 'white', flex: 1}}>
-          {this.popup()}
+      <View style={{ backgroundColor: 'white', flex: 1 }}>
+        {this.popup()}
 
-          <View
-              style={{
-                position: 'absolute',
-                left: 15,
-                top: Platform.OS === 'ios' ? 70 : 50,
-                borderWidth: 1.2,
-                borderColor: '#fff',
-                padding: 2,
-                borderRadius: 20,
-                width: 38,
-                height: 38,
-                justifyContent: 'center',
-                alignItems: 'center',
-                zIndex: 9999,
-              }}
-              pointerEvents="box-none"
-          >
-            <LanguagePickerFix
-                langSwitch={Lang.langSwitch}
-                onLanguageChange={(index) => {
-                  console.log('Language changed to:', index);
-                }}
-                isCircular={true}
-                showFlag={true}
-                showText={false}
+        <View
+          style={{
+            position: 'absolute',
+            left: 15,
+            top: Platform.OS === 'ios' ? 70 : 50,
+            borderWidth: 1.2,
+            borderColor: '#fff',
+            padding: 2,
+            borderRadius: 20,
+            width: 38,
+            height: 38,
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+          pointerEvents="box-none"
+        >
+          <LanguagePickerFix
+            langSwitch={Lang.langSwitch}
+            onLanguageChange={(index) => {
+              console.log('Language changed to:', index);
+            }}
+            isCircular={true}
+            showFlag={true}
+            showText={false}
+            style={{
+              position: 'absolute',
+            }}
+          />
+        </View>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={{
+            position: 'absolute',
+            right: 15,
+            top: Platform.OS === 'ios' ? 70 : 50,
+            borderWidth: 1.2,
+            borderColor: '#fff',
+            padding: 2,
+            borderRadius: 20,
+            width: 38,
+            height: 38,
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+          onPress={() => {
+            this.checkExitOrLogout();
+          }}
+        >
+          <Image
+            style={{ width: 22, height: 22, tintColor: '#fff' }}
+            source={
+              this.props.impersonating
+                ? require('../../../assets/image/menu/exit.png')
+                : require('../../../assets/image/icons/logout.png')
+            }
+          />
+        </TouchableOpacity>
+
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            backgroundColor: 'white'
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.oval}>
+            {this.props.user && (
+              <View
                 style={{
-                  position: 'absolute',
-                }}
-            />
+                  marginTop: 30, // Move profile picture and name further down
+                  alignContent: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  alignItems: 'center',
+                }}>
+                <TouchableOpacity onPress={() => this.actionProfile()}>
+                  <Image
+                    style={{
+                      width: screenWidth - 10,
+                      height: screenWidth - 10,
+                      borderWidth: 1,
+                      borderColor: '#fff',
+                      padding: 2,
+                      borderRadius: (screenWidth - 10) / 2,
+                    }}
+                    source={this.getImageSource(this.props.user.image, this.props.user.role)}
+                  />
+                  <Image
+                    onPress={() => this.actionProfile()}
+                    style={{
+                      width: 30,
+                      height: 35,
+                      position: 'absolute',
+                      top: -10,
+                      right: -5,
+                    }}
+                    source={require('../../../assets/image/icons/pencil.png')}
+                  />
+                </TouchableOpacity>
+                <Text
+                  styles={{ color: 'white', height: 30, marginTop: 10, fontSize: 20 }}
+                  type={'bold'}>
+                  {this.props.user.fname} {this.props.user.lname}
+                </Text>
+                <Text styles={{ color: 'white', fontWeight: '700', height: 40, fontSize: 15 }}>
+                  {this.props.user.email}
+                </Text>
+              </View>
+            )}
           </View>
 
-          <TouchableOpacity
-              activeOpacity={0.8}
-              style={{
-                position: 'absolute',
-                right: 15,
-                top: Platform.OS === 'ios' ? 70 : 50,
-                borderWidth: 1.2,
-                borderColor: '#fff',
-                padding: 2,
-                borderRadius: 20,
-                width: 38,
-                height: 38,
-                justifyContent: 'center',
-                alignItems: 'center',
-                zIndex: 9999,
-              }}
-              onPress={() => {
-                this.checkExitOrLogout();
-              }}
-          >
-            <Image
-                style={{ width: 22, height: 22, tintColor: '#fff' }}
-                source={
-                  this.props.impersonating
-                      ? require('../../../assets/image/menu/exit.png')
-                      : require('../../../assets/image/icons/logout.png')
-                }
-            />
-          </TouchableOpacity>
+          <ListItem style={{ marginTop: 10 }} navigation={this.props.navigation} />
+        </ScrollView>
 
-          <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{
-                flexGrow: 1,
-                backgroundColor: 'white'
-              }}
-              showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.oval}>
-              {this.props.user && (
-                  <View
-                      style={{
-                        alignContent: 'center',
-                        justifyContent: 'center',
-                        textAlign: 'center',
-                        alignItems: 'center',
-                      }}>
-                    <TouchableOpacity onPress={() => this.actionProfile()}>
-                      <Image
-                          style={{
-                            width: screenWidth - 20,
-                            height: screenWidth - 20,
-                            borderWidth: 1,
-                            borderColor: '#fff',
-                            padding: 2,
-                            borderRadius: (screenWidth - 20) / 2,
-                          }}
-                          source={this.getImageSource(this.props.user.image, this.props.user.role)}
-                      />
-                      <Image
-                          onPress={() => this.actionProfile()}
-                          style={{
-                            width: 35,
-                            height: 35,
-                            position: 'absolute',
-                            top: -10,
-                            right: -5,
-                          }}
-                          source={require('../../../assets/image/icons/pencil.png')}
-                      />
-                    </TouchableOpacity>
-                    <Text
-                        styles={{color: 'white', height: 30, marginTop: 10, fontSize: 20}}
-                        type={'bold'}>
-                      {this.props.user.fname} {this.props.user.lname}
-                    </Text>
-                    <Text styles={{color: 'white', fontWeight: '700', height: 40, fontSize: 15}}>
-                      {this.props.user.email}
-                    </Text>
-                  </View>
-              )}
-            </View>
-
-            <ListItem style={{ marginTop: 30 }} navigation={this.props.navigation} />
-          </ScrollView>
-
-        </View>
+      </View>
     );
   }
 }
@@ -559,8 +535,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 70,
     borderBottomRightRadius: 70,
     backgroundColor: UI.color_Gradient[1],
-    paddingTop: Platform.OS === 'ios' ? 80 : 60,
-    paddingBottom: 40,
+    paddingTop: Platform.OS === 'ios' ? 60 : 30, // Reverted to original
+    paddingBottom: 10,
     width: '100%',
     overflow: 'hidden',
   },
@@ -572,6 +548,7 @@ const mapStateToProps = state => {
     lang: state.lang,
     rightDevice: state.rightDevice,
     leftDevice: state.leftDevice,
+    productNumber: state.productNumber,
     impersonating: state.impersonating,
   };
 };
@@ -579,28 +556,28 @@ const mapStateToProps = state => {
 const mapDispatchToProps = dispatch => {
   return {
     upDateState: bleState => {
-      dispatch({type: 'READ_BLUETOOTH_STATE', payload: bleState});
+      dispatch({ type: 'READ_BLUETOOTH_STATE', payload: bleState });
     },
     addLeftDevice: device => {
-      dispatch({type: 'ADD_LEFT_DEVICE', payload: device});
+      dispatch({ type: 'ADD_LEFT_DEVICE', payload: device });
     },
     resetUser: () => {
-      return dispatch({type: 'RESET_USERINFO'});
+      return dispatch({ type: 'RESET_USERINFO' });
     },
     addRightDevice: device => {
-      dispatch({type: 'ADD_RIGHT_DEVICE', payload: device});
+      dispatch({ type: 'ADD_RIGHT_DEVICE', payload: device });
     },
     updatePath: path => {
-      return dispatch({type: 'EDIT_PROFILE_PATH', payload: path});
+      return dispatch({ type: 'EDIT_PROFILE_PATH', payload: path });
     },
     selectedChat: bleState => {
-      dispatch({type: 'SELECTED_CHAT', payload: bleState});
+      dispatch({ type: 'SELECTED_CHAT', payload: bleState });
     },
     startCall: bleState => {
-      dispatch({type: 'START_CALL', payload: bleState});
+      dispatch({ type: 'START_CALL', payload: bleState });
     },
     addUser: (user, token) => {
-      dispatch({type: 'ADD_USERINFO', payload: {user, token}});
+      dispatch({ type: 'ADD_USERINFO', payload: { user, token } });
     },
     setImpersonation: (flag) => {
       dispatch({ type: 'SET_IMPERSONATION', payload: flag });

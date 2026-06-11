@@ -43,7 +43,7 @@ export default class RadarChartForDashboard extends React.Component {
       history.shift();
     }
     history.push([props.xPos, props.yPos]);
-    for (i = 0; i < history.length; i++) {
+    for (let i = 0; i < history.length; i++) {
       historyLine.push(historyDot(history[i][0], history[i][1], i));
     }
     return {
@@ -89,8 +89,8 @@ export default class RadarChartForDashboard extends React.Component {
   //   />
   // );
   preRender() {
-    scales = [];
-    groups = [];
+    const scales = [];
+    const groups = [];
     for (let i = numberOfScales; i > 0; i--) {
       i % 2 == 0
         ? scales.push(this.scale(i))

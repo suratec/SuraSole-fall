@@ -398,7 +398,7 @@ class index extends React.PureComponent {
   }
 
   async sendDataToSetver() {
-    await uploadRecordingFiles({
+    const result = await uploadRecordingFiles({
       isConnected: this.state.isConnected,
       userId: this.props.user.id_customer,
       productNumber: this.props.productNumber,
@@ -409,11 +409,14 @@ class index extends React.PureComponent {
       onError: error => {
         console.error('Error uploading pressure data:', error);
         this.setState({ isLoading: false });
-        ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
       },
     });
 
-    alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+    if (result.uploaded > 0 || result.deleted > 0) {
+      ToastAndroid.show(this.props.lang ? Lang.alert.thai : Lang.alert.eng, ToastAndroid.SHORT);
+    } else if (result.failed > 0) {
+      ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
+    }
   }
 
   actionDashboard = () => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, Image, ImageBackground, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HeaderFix from '../../common/HeaderFix';
@@ -33,6 +33,8 @@ const Tryf = ({ user, navigation }) => {
     const [visiblesnack, setVisiblesnack] = useState(false);
     const [snackmsg, setSnackmsg] = useState('');
     const [currentTab, setCurrentTab] = useState(0);
+    const userId = user?.id_customer;
+    const userRole = user?.role;
     const returnColor = (id) => {
         if (id === 1) {
             return redcolor;
@@ -116,7 +118,10 @@ const Tryf = ({ user, navigation }) => {
             });
     }
 
-    const monofilamentDetails = async () => {
+    const monofilamentDetails = useCallback(async () => {
+        if (!userId || !userRole) {
+            return;
+        }
         // let form = new FormData();
         // form.append('user_id',user.id_customer);
         // form.append('role',user.role);
@@ -124,8 +129,8 @@ const Tryf = ({ user, navigation }) => {
             method: 'POST',
             url: `${ROOT_API}monofilament`,
             data: {
-                "user_id": user.id_customer,
-                "role": user.role,
+                "user_id": userId,
+                "role": userRole,
             },
             headers: {
                 // 'Authorization': "Bearer  "  +  YOUR_BEARER_TOKEN,
@@ -209,7 +214,7 @@ const Tryf = ({ user, navigation }) => {
                 })
 
             });
-    }
+    }, [userId, userRole])
 
     const saveDetails = async () => {
 
@@ -245,7 +250,13 @@ const Tryf = ({ user, navigation }) => {
         form.append('rm9', legData.rm9);
 
         form.append('doctor_id', doctorData.user_info.id_employee);
-        form.append('user_id', user.id_customer);
+        if (!userId) {
+            setSnackmsg('User data is not ready');
+            setVisiblesnack(true);
+            return;
+        }
+
+        form.append('user_id', userId);
         form.append('role', 'doctor');
         form.append('l_status', leftval());
         form.append('r_status', rightval());
@@ -301,9 +312,8 @@ const Tryf = ({ user, navigation }) => {
     }
 
     useEffect(() => {
-        console.log(user, 'userff2')
         monofilamentDetails();
-    }, [])
+    }, [monofilamentDetails])
 
     return (
         <View style={{
@@ -337,9 +347,6 @@ const Tryf = ({ user, navigation }) => {
                         // flex: 1,
                         justifyContent: 'center',
                         alignItems: 'center',
-                        backgroundColor: '#F5FCFF',
-                        justifyContent: 'center',
-                        alignItems: 'center',
                         width: 150,
                         // backgroundColor: UI.color_Gradient[1],
                         backgroundColor: currentTab === 0 ? '#90A4AE' : UI.color_Gradient[1],
@@ -367,9 +374,6 @@ const Tryf = ({ user, navigation }) => {
                     style={{
                         padding: 10,
                         // flex: 1,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        backgroundColor: '#F5FCFF',
                         justifyContent: 'center',
                         alignItems: 'center',
                         width: 150,
@@ -1028,9 +1032,6 @@ const Tryf = ({ user, navigation }) => {
                     // flex: 1,
                     justifyContent: 'center',
                     alignItems: 'center',
-                    backgroundColor: '#F5FCFF',
-                    justifyContent: 'center',
-                    alignItems: 'center',
                     width: 150,
                     backgroundColor: UI.color_Gradient[1],
                     borderRadius: 75,
@@ -1130,9 +1131,6 @@ const Tryf = ({ user, navigation }) => {
                         style={{
                             padding: 10,
                             // flex: 1,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            backgroundColor: '#F5FCFF',
                             justifyContent: 'center',
                             alignItems: 'center',
                             width: 150,

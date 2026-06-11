@@ -65,6 +65,17 @@ function isAddJsonSuccess(payload) {
   );
 }
 
+function createUploadSummary() {
+  return {
+    total: 0,
+    uploaded: 0,
+    deleted: 0,
+    kept: 0,
+    failed: 0,
+    offline: false,
+  };
+}
+
 /**
  * Process a single cached recording file:
  *  1. Read the file
@@ -87,14 +98,14 @@ async function processRecordingFile(filePath, params) {
   if (!rawText) {
     console.log('Skipping empty file:', filePath);
     await RNFS.unlink(filePath);
-    return;
+    return 'deleted';
   }
 
   const data = JSON.parse('[' + rawText + ']');
   if (!Array.isArray(data) || data.length === 0) {
     console.log('No samples in file:', filePath);
     await RNFS.unlink(filePath);
-    return;
+    return 'deleted';
   }
 
   const firstSample = data[0] || {};
@@ -127,8 +138,10 @@ async function processRecordingFile(filePath, params) {
   if (isAddJsonSuccess(uploadResp)) {
     console.log(`Clear : ${filePath}`);
     await RNFS.unlink(filePath);
+    return 'uploaded';
   } else {
     console.warn('addjson did not confirm success; keeping file:', filePath, uploadResp);
+    return 'kept';
   }
 }
 
@@ -147,27 +160,41 @@ async function processRecordingFile(filePath, params) {
 export async function uploadRecordingFiles(params) {
   const { isConnected, onError } = params;
   const cachePath = RNFS.CachesDirectoryPath + '/suratechM/';
+  const summary = createUploadSummary();
 
   try {
     const files = await RNFS.readDir(cachePath);
+    summary.total = files.length;
 
     if (!isConnected) {
       console.log('WiFi is not connected');
       files.forEach(r => console.log(r.path));
-      return;
+      summary.offline = true;
+      summary.kept = files.length;
+      return summary;
     }
 
     for (const file of files) {
       try {
         console.log(file.path);
-        await processRecordingFile(file.path, params);
+        const result = await processRecordingFile(file.path, params);
+        if (result && Object.prototype.hasOwnProperty.call(summary, result)) {
+          summary[result] += 1;
+        }
       } catch (err) {
+        summary.failed += 1;
         console.log(err);
         if (onError) onError(err);
       }
     }
   } catch (err) {
+    const message = String(err?.message || err || '');
+    if (message.includes('ENOENT') || message.includes('no such file')) {
+      return summary;
+    }
     console.log('Error reading cache directory:', err);
     if (onError) onError(err);
   }
+
+  return summary;
 }

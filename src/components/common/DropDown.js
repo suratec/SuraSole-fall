@@ -28,8 +28,9 @@ const DropdownComponent = props => {
     return null;
   };
 
-  const handleChangeValue = value => {
-    props.onChangeOption(item);
+  const handleChangeValue = item => {
+    setValue(item.value);
+    props.onChangeOption?.(item);
   };
 
   return (

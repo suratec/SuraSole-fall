@@ -9,6 +9,7 @@ import {
     TouchableOpacity,
     Text,
     Alert,
+    Platform,
     StyleSheet,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
@@ -643,7 +644,6 @@ class StandEyes extends Component {
           session_id: this.currentSessionId || Date.now().toString(),
                         id_device: '',
                         type: 1,
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
                         product_number: this.props.productNumber || '',
                         bluetooth_left_id: this.props.leftDevice || '',
                         bluetooth_right_id: this.props.rightDevice || '',
@@ -700,7 +700,6 @@ class StandEyes extends Component {
           session_id: this.currentSessionId || Date.now().toString(),
                                 id_device: '',
                                 type: 1, // for medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
                                 product_number: this.props.productNumber,
                                 bluetooth_left_id: this.props.leftDevice,
                                 bluetooth_right_id: this.props.rightDevice,
@@ -737,7 +736,6 @@ class StandEyes extends Component {
           session_id: this.currentSessionId || Date.now().toString(),
             id_device: '',
             type: 1, // for medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
         };
 
         fetch(`${API}/addjson`, {
@@ -1057,7 +1055,6 @@ class StandEyes extends Component {
                         style={{
                             width: '80%',
                             alignSelf: 'center',
-                            marginTop: 10,
                             flexDirection: 'row',
                             marginTop: '10%',
                         }}>

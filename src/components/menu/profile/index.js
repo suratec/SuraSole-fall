@@ -10,6 +10,7 @@ import {
   Dimensions,
   Alert,
   StyleSheet,
+  PermissionsAndroid,
 } from 'react-native';
 import {connect} from 'react-redux';
 
@@ -159,19 +160,61 @@ class index extends Component {
     this.setState({img_path: img});
   };
 
-  editprofilePicture = () => {
-    this.setState({loading: true});
-    console.log('Edit Profile Picture Called');
+  requestCameraPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: "Camera Permission",
+            message: "App needs camera permission to take profile pictures.",
+            buttonNeutral: "Ask Me Later",
+            buttonNegative: "Cancel",
+            buttonPositive: "OK"
+          }
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true;
+  };
 
-    // Show action sheet for image source selection
+  editprofilePicture = () => {
     Alert.alert(
-        'Select Image Source',
-        'Choose how you want to select your profile picture',
-        [
-          { text: 'Camera', onPress: () => this.openCamera() },
-          { text: 'Gallery', onPress: () => this.openGallery() },
-          { text: 'Cancel', style: 'cancel', onPress: () => this.setState({loading: false}) }
-        ]
+      getLocalizedText(this.props.lang, Lang.editProfile) || "Edit Profile Picture",
+      "Please select an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: async () => {
+            this.setState({loading: true});
+            const hasPermission = await this.requestCameraPermission();
+            if (hasPermission) {
+              this.openCamera();
+            } else {
+              this.setState({loading: false});
+              AlertFix.alertBasic(
+                getLocalizedText(this.props.lang, Lang.alertErrorTitle) || 'Error',
+                'Camera permission is required to take profile pictures.'
+              );
+            }
+          }
+        },
+        {
+          text: "Choose from Gallery",
+          onPress: () => {
+            this.setState({loading: true});
+            this.openGallery();
+          }
+        },
+        {
+          text: "Cancel",
+          style: 'cancel'
+        }
+      ]
     );
   };
 
@@ -225,9 +268,9 @@ class index extends Component {
     data.append('id', this.state.id);
     data.append('type', this.props.user.role);
     data.append('image', {
-      uri: Platform.OS === 'android' ? imagePath : `file://${imagePath}`,
-      name: `profile_${Date.now()}.jpg`,
-      type: mimeType || 'image/jpeg',
+      uri: imagePath.startsWith('file://') ? imagePath : `file://${imagePath}`,
+      name: 'profile.jpg',
+      type: 'image/jpg',
     });
 
     console.log('Uploading cropped image...');
@@ -238,7 +281,14 @@ class index extends Component {
         body: data,
       });
 
-      const json = await res.json();
+      const responseText = await res.text();
+      let json;
+      try {
+        json = JSON.parse(responseText);
+      } catch (parseError) {
+        console.log('Server returned non-JSON response:', responseText);
+        throw new Error('Server returned non-JSON response');
+      }
       console.log('Upload Response:', json);
 
       if (json.status === 'สำเร็จ') {
@@ -436,8 +486,8 @@ const styles = StyleSheet.create({
   },
   cameraBadge: {
     position: 'absolute',
-    right: 0,
-    bottom: 0,
+    right: 6,
+    bottom: 6,
     backgroundColor: UI.color_Gradient[1],
     justifyContent: 'center',
     alignItems: 'center',

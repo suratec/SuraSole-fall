@@ -10,6 +10,7 @@ import {
   ScrollView,
   Vibration,
   Alert,
+  Platform,
   StyleSheet,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
@@ -570,7 +571,7 @@ class index extends Component {
       if (!this.state.isConnected) {
         console.log('WiFi is not connected');
         files.forEach(r => console.log(r.path));
-        alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+        ToastAndroid.show(this.props.lang ? Lang.alert.thai : Lang.alert.eng, ToastAndroid.SHORT);
         return;
       }
 
@@ -642,7 +643,7 @@ class index extends Component {
       console.log('Error reading directory:', e);
     }
 
-    alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+    ToastAndroid.show(this.props.lang ? Lang.alert.thai : Lang.alert.eng, ToastAndroid.SHORT);
   }
 
   actionDashboard = () => {

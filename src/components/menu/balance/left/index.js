@@ -12,6 +12,7 @@ import {
   Alert,
   Text as RNText,
   Dimensions,
+  Platform,
   StyleSheet,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
@@ -175,7 +176,7 @@ class index extends Component {
     clearInterval(this.flushInterval);
     this.flushBufferToDisk(); // Flush remaining data before unmount
     clearInterval(this.zoneInterval);
-    if (this.dataRecord) {
+    if (this.dataRecord && typeof this.dataRecord.remove === 'function') {
       this.dataRecord.remove();
     }
   };
@@ -266,7 +267,7 @@ class index extends Component {
         ({value, peripheral, characteristic, service}) => {
           let time = new Date();
           if (peripheral === this.props.leftDevice) {
-            leftsensor = this.toDecimalArray(value);
+            const leftsensor = this.toDecimalArray(value);
             this.recordData(leftsensor, 'L');
             if (time - this.ltime > 333) {
               this.shouldBeVibration(leftsensor);
@@ -282,7 +283,7 @@ class index extends Component {
             }
           }
           if (peripheral === this.props.rightDevice) {
-            rightsensor = this.toDecimalArray(value);
+            const rightsensor = this.toDecimalArray(value);
             this.recordData(rightsensor, 'R');
             if (time - this.rtime > 333) {
               this.rightPhase = rightsensor.reduce((a, b) => a + b, 0);
@@ -406,7 +407,7 @@ class index extends Component {
       if (!this.state.isConnected) {
         console.log('WiFi is not connected');
         files.forEach(r => console.log(r.path));
-        alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+        ToastAndroid.show(this.props.lang ? Lang.alert.thai : Lang.alert.eng, ToastAndroid.SHORT);
         return;
       }
 
@@ -478,7 +479,7 @@ class index extends Component {
       console.log('Error reading directory:', e);
     }
 
-    alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+    ToastAndroid.show(this.props.lang ? Lang.alert.thai : Lang.alert.eng, ToastAndroid.SHORT);
   }
 
   actionUpdate = content => {
@@ -490,7 +491,6 @@ class index extends Component {
           session_id: this.currentSessionId || Date.now().toString(),
       id_device: '',
       type: 1, // for medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
     };
     console.log(content);
 

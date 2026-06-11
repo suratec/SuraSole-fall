@@ -18,7 +18,6 @@ import {connect} from 'react-redux';
 import NotificationsState from '../../shared/Notification';
 import Text from '../../common/TextFix';
 import PressureMapLayout from '../../common/PressureMapLayout';
-import API from '../../../config/Api';
 
 import BleManager from 'react-native-ble-manager';
 
@@ -40,21 +39,6 @@ import {
   findRightContourArray,
   toKilo,
 } from '../../../utils/eightSensorUtils';
-
-const isAddJsonSuccess = (response, body) => {
-  if (!response.ok) return false;
-  if (body?.success === true || body?.status === true) return true;
-
-  const status = String(body?.status ?? '').trim();
-  const normalizedStatus = status.toLowerCase();
-
-  return (
-    normalizedStatus === 'ok' ||
-    normalizedStatus === 'success' ||
-    normalizedStatus.includes('success') ||
-    status.includes('สำเร็จ')
-  );
-};
 
 class index extends React.PureComponent {
   leftSwingTime = 0;
@@ -373,91 +357,26 @@ class index extends React.PureComponent {
     }
   }
 
-    async sendDataToSetver() {
-    try {
-      const dirPath = RNFS.CachesDirectoryPath + '/suratechM/';
-      const files = await RNFS.readDir(dirPath);
+  async sendDataToSetver() {
+    const result = await uploadRecordingFiles({
+      isConnected: this.state.isConnected,
+      userId: this.props.user.id_customer,
+      productNumber: this.props.productNumber,
+      leftDevice: this.props.leftDevice,
+      rightDevice: this.props.rightDevice,
+      shoeSize: this.state.shoeSize || 0,
+      currentSessionId: this.currentSessionId,
+      onError: error => {
+        console.error('Error uploading pressure data:', error);
+        this.setState({ isLoading: false });
+      },
+    });
 
-      if (!this.state.isConnected) {
-        console.log('WiFi is not connected');
-        files.forEach(r => console.log(r.path));
-        alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
-        return;
-      }
-
-      for (const r of files) {
-        console.log(r.path);
-        try {
-          const text = await RNFS.readFile(r.path);
-          let rawText = text.trim();
-          if (rawText.endsWith(',')) rawText = rawText.slice(0, -1);
-
-          let data = JSON.parse('[' + rawText + ']');
-          if (!data || data.length === 0) {
-            await RNFS.unlink(r.path); // Remove empty files
-            continue;
-          }
-
-          const content = {
-            data: data,
-            id_customer: data[0].id_customer || this.props.user.id_customer,
-            session_id: this.currentSessionId || Date.now().toString(),
-            id_device: '',
-            type: 1, // for medical
-            product_number: this.props.productNumber,
-            bluetooth_left_id: this.props.leftDevice, // Fixed swapped Left/Right mapping
-            bluetooth_right_id: this.props.rightDevice,
-            shoe_size: this.state.shoeSize || 0,
-          };
-          console.log('addjson payload summary', {
-            records: data.length,
-            id_customer: content.id_customer,
-            session_id: content.session_id,
-            product_number: content.product_number,
-            bluetooth_left_id: content.bluetooth_left_id,
-            bluetooth_right_id: content.bluetooth_right_id,
-            first_left_sensor: data[0]?.left?.sensor,
-            first_right_sensor: data[0]?.right?.sensor,
-          });
-
-          const addRespRaw = await fetch(`${API}/addjson`, {
-            method: 'POST',
-            headers: {
-              Accept: 'application/json',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(content),
-          });
-
-          const addRespText = await addRespRaw.text();
-          console.log('addjson HTTP', addRespRaw.status, addRespText.substring(0, 500));
-
-          let addResp;
-          try {
-            addResp = JSON.parse(addRespText);
-          } catch (parseError) {
-            console.warn('addjson returned invalid JSON; keeping file:', r.path);
-            continue;
-          }
-
-          if (isAddJsonSuccess(addRespRaw, addResp)) {
-            console.log(`Clear : ${r.path}`);
-            await RNFS.unlink(r.path);
-          } else {
-            console.warn('addjson did not confirm success; keeping file:', r.path, addResp);
-            ToastAndroid.show('Upload failed. Keeping data for retry.', ToastAndroid.SHORT);
-          }
-        } catch (e) {
-          console.error(`Error processing file ${r.path}:`, e);
-          this.setState({ isLoading: false });
-          ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
-        }
-      }
-    } catch (e) {
-      console.log('Error reading directory:', e);
+    if (result.uploaded > 0 || result.deleted > 0) {
+      ToastAndroid.show(this.props.lang ? Lang.alert.thai : Lang.alert.eng, ToastAndroid.SHORT);
+    } else if (result.failed > 0) {
+      ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
     }
-
-    alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
   }
 
   actionDashboard = () => {

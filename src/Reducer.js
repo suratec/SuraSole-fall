@@ -20,7 +20,7 @@ const INIT_STATE = {
   patient_token: null,
 };
 
-export default (Reducer = (state = INIT_STATE, action = {}) => {
+const Reducer = (state = INIT_STATE, action = {}) => {
   switch (action.type) {
     case 'ADD_LEFT_DEVICE':
       return {
@@ -143,4 +143,6 @@ export default (Reducer = (state = INIT_STATE, action = {}) => {
     default:
       return state;
   }
-});
+};
+
+export default Reducer;

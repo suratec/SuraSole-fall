@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { NavigationActions } from 'react-navigation';
@@ -20,30 +19,36 @@ import messaging from '@react-native-firebase/messaging';
 import API from '../../../config/Api';
 import Lang from '../../../assets/language/auth/lang_singln';
 import LanguagePickerFix from '../../common/LanguagePickerFix';
-import {
-  getLocalizedText,
-  getLangKeysSize,
-} from '../../../assets/language/langUtils';
+import {getLocalizedText} from '../../../assets/language/langUtils';
 
 import {connect} from 'react-redux';
 
+const buildApiUrl = path =>
+  `${API.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
+
 class SignIn extends Component {
+  isScreenMounted = false;
+
   state = {
     username: '',
     password: '',
     isFocused: null,
     langPickerVisible: false, // Add this for modal visibility
+    isSigningIn: false,
   };
 
-  async componentDidMount() {
-    const permission = await messaging().requestPermission();
-    console.log('Messaging permission:', permission);
-    const token = await messaging().getToken();
-    console.log('Device Token:', token);
+  componentDidMount() {
+    this.isScreenMounted = true;
+  }
+
+  componentWillUnmount() {
+    this.isScreenMounted = false;
   }
 
   addDeviceToken = async (userId, device_token, deviceType, roleInfo) => {
-    fetch(`${API}/addDevice`, {
+    if (!device_token) return;
+
+    return fetch(buildApiUrl('addDevice'), {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -58,8 +63,24 @@ class SignIn extends Component {
       }),
     })
       .then(res => res.json())
-      .then(console.log)
+      .then(() => {})
       .catch(err => console.log('Device ID Registration Error', err));
+  };
+
+  registerDeviceToken = async (memberInfo, deviceType) => {
+    try {
+      await messaging().requestPermission();
+      const deviceToken = await messaging().getToken();
+
+      await this.addDeviceToken(
+        memberInfo.id_data_role,
+        deviceToken,
+        deviceType,
+        memberInfo.data_role,
+      );
+    } catch (err) {
+      console.log('Device token registration skipped', err);
+    }
   };
 
   actionSignIn = async (username, password) => {
@@ -73,8 +94,12 @@ class SignIn extends Component {
       return;
     }
 
+    if (this.state.isSigningIn) return;
+
+    this.setState({isSigningIn: true});
+
     try {
-      const response = await fetch(`${API}/check/login`, {
+      const response = await fetch(buildApiUrl('check/login'), {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -84,8 +109,6 @@ class SignIn extends Component {
       });
 
       const data = await response.json();
-      console.log('Login response:', data);
-
       if (data.status === 'ผิดพลาด') {
         AlertFix.alertBasic(
           Lang.alertErrorTitle?.[langKey] || 'Error',
@@ -96,33 +119,25 @@ class SignIn extends Component {
       }
 
       const deviceType = Platform.OS === 'ios' ? 2 : 1;
-      const deviceToken = await messaging().getToken();
-
-      await this.addDeviceToken(
-        data.member_info.id_data_role,
-        deviceToken,
-        deviceType,
-        data.member_info.data_role,
-      );
 
       const userInfo = {
         ...data.user_info,
         role: data.member_info.data_role,
         iddatarole: data.member_info.id_data_role,
-        device_token: deviceToken,
+        device_token: null,
         deviceType,
         security_token: data.data,
       };
       if (data.patients) userInfo.patients = data.patients;
 
       if (userInfo.role === 'mod_employee') {
-        await AsyncStorage.setItem('doctor_username', username);
-        await AsyncStorage.setItem('doctor_password', password);
+        AsyncStorage.multiSet([
+          ['doctor_username', username],
+          ['doctor_password', password],
+        ]).catch(err => console.log('Doctor credential cache error', err));
       }
 
       this.props.addUser({user: userInfo, token: data.data});
-      console.log('USER ID:', userInfo.id_customer);
-      console.log('SECURITY TOKEN:', data.data);
 
       if (userInfo.role === 'mod_employee') {
         this.props.navigation.navigate('App', {screen: 'PatientList'});
@@ -134,12 +149,18 @@ class SignIn extends Component {
           'You do not have access rights assigned.',
         );
       }
+
+      this.registerDeviceToken(data.member_info, deviceType);
     } catch (err) {
       console.error('Sign-in error ➜', err);
       AlertFix.alertBasic(
         'Login failed',
         'Network or server error. Please retry.',
       );
+    } finally {
+      if (!this.isScreenMounted) return;
+
+      this.setState({isSigningIn: false});
     }
   };
 
@@ -169,10 +190,7 @@ class SignIn extends Component {
 
   render() {
     const {lang} = this.props;
-    const {username, password, isFocused, langPickerVisible} = this.state;
-
-    // Dynamically get language options from lang_singln.js
-    const languageOptions = this.getLanguageOptions();
+    const {username, password, isFocused, isSigningIn} = this.state;
 
     return (
       <KeyboardAvoidingView
@@ -240,7 +258,8 @@ class SignIn extends Component {
               </View>
 
               <TouchableOpacity
-                style={styles.button}
+                style={[styles.button, isSigningIn && styles.buttonDisabled]}
+                disabled={isSigningIn}
                 onPress={() => {
                   this.props.addRightDevice(undefined);
                   this.props.addLeftDevice(undefined);
@@ -373,6 +392,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 5,
+  },
+  buttonDisabled: {
+    opacity: 0.65,
   },
   buttonText: {
     color: '#FFF',

@@ -1,5 +1,5 @@
 //import liraries
-import React, {Component, useEffect, useRef, useState} from 'react';
+import React, {Component, useCallback, useEffect, useRef, useState} from 'react';
 
 import {
   View,
@@ -68,6 +68,9 @@ const Footscreen = ({user, navigation}) => {
   const [visiblesnack, setVisiblesnack] = useState(false);
   const [snackmsg, setSnackmsg] = useState('');
   const [success, setSuccess] = useState(false);
+  const userId = user?.id_customer;
+  const userRole = user?.role;
+  const userName = user?.fname || 'user';
 
   // const [user, setUser] = React.useState('');
 
@@ -130,11 +133,6 @@ const Footscreen = ({user, navigation}) => {
       return frontimage;
     }
   };
-
-  useEffect(() => {
-    getImage();
-    // console.log(user);
-  }, []);
 
   const chooseImage = para => {
     ImagePicker.openPicker({
@@ -235,15 +233,18 @@ const Footscreen = ({user, navigation}) => {
     //   .finally(close);
   };
 
-  const getImage = () => {
-    console.log(user.id_customer, 'id_customer');
-    console.log(user.role, 'user.role');
+  const getImage = useCallback(() => {
+    if (!userId || !userRole) {
+      return;
+    }
+    console.log(userId, 'id_customer');
+    console.log(userRole, 'user.role');
     axios({
       method: 'POST',
       url: 'https://api1.suratec.co.th/member/getUserDetails',
       data: {
-        id: user.id_customer,
-        role: user.role,
+        id: userId,
+        role: userRole,
       },
       headers: {
         // 'Authorization': "Bearer  "  +  YOUR_BEARER_TOKEN,
@@ -274,11 +275,20 @@ const Footscreen = ({user, navigation}) => {
     //     setFrontimage(frontdefault);
     //     setBackimage(backdefault);
     // }
-  };
+  }, [userId, userRole]);
+
+  useEffect(() => {
+    getImage();
+  }, [getImage]);
 
   const upload = () => {
     setSuccess(false);
     console.log('frontobj------------------');
+    if (!userId || !userRole) {
+      setSnackmsg('User data is not ready');
+      setVisiblesnack(true);
+      return;
+    }
     if (
       frontobj === '' &&
       backobj === '' &&
@@ -306,7 +316,7 @@ const Footscreen = ({user, navigation}) => {
       photo1 = {
         uri: frontimage,
         type: 'image/jpg',
-        name: `${user.fname}f`,
+        name: `${userName}f`,
       };
     }
     if (backobj) {
@@ -314,7 +324,7 @@ const Footscreen = ({user, navigation}) => {
       photo2 = {
         uri: backimage,
         type: backobj.mime,
-        name: `${user.fname}b`,
+        name: `${userName}b`,
       };
     }
     if (rightLateralobj) {
@@ -322,7 +332,7 @@ const Footscreen = ({user, navigation}) => {
       photo3 = {
         uri: rightLateralimage,
         type: rightLateralobj.mime,
-        name: `${user.fname}rl`,
+        name: `${userName}rl`,
       };
     }
     if (leftMedialobj) {
@@ -330,7 +340,7 @@ const Footscreen = ({user, navigation}) => {
       photo4 = {
         uri: leftMedialimage,
         type: leftMedialobj.mime,
-        name: `${user.fname}lm`,
+        name: `${userName}lm`,
       };
     }
     if (leftLateralobj) {
@@ -338,7 +348,7 @@ const Footscreen = ({user, navigation}) => {
       photo5 = {
         uri: leftLateralimage,
         type: leftLateralobj.mime,
-        name: `${user.fname}ll`,
+        name: `${userName}ll`,
       };
     }
     if (rightMedialobj) {
@@ -346,7 +356,7 @@ const Footscreen = ({user, navigation}) => {
       photo6 = {
         uri: rightMedialimage,
         type: rightMedialobj.mime,
-        name: `${user.fname}rm`,
+        name: `${userName}rm`,
       };
     }
     if (plantarFootobj) {
@@ -354,7 +364,7 @@ const Footscreen = ({user, navigation}) => {
       photo7 = {
         uri: plantarFootimage,
         type: plantarFootobj.mime,
-        name: `${user.fname}pt`,
+        name: `${userName}pt`,
       };
     }
     //   else {
@@ -364,8 +374,8 @@ const Footscreen = ({user, navigation}) => {
     var formData = new FormData();
     //append created photo{} to formdata
     formData.append('front_img', photo1);
-    formData.append('id', user.id_customer);
-    formData.append('type', user.role);
+    formData.append('id', userId);
+    formData.append('type', userRole);
     formData.append('back_img', photo2);
     formData.append('img3', photo3);
     formData.append('img4', photo4);
@@ -544,9 +554,6 @@ const Footscreen = ({user, navigation}) => {
           style={{
             padding: 10,
             // flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: '#F5FCFF',
             justifyContent: 'center',
             alignItems: 'center',
             width: 150,
@@ -936,7 +943,6 @@ const Footscreen = ({user, navigation}) => {
                 style={{
                   padding: 10,
                   // flex: 1,
-                  backgroundColor: '#F5FCFF',
                   justifyContent: 'center',
                   alignItems: 'center',
                   width: 150,
@@ -966,7 +972,6 @@ const Footscreen = ({user, navigation}) => {
                 // flex: 1,
                 justifyContent: 'center',
                 alignItems: 'center',
-                backgroundColor: '#F5FCFF',
                 width: 150,
                 backgroundColor: UI.color_Gradient[1],
                 borderRadius: 75,

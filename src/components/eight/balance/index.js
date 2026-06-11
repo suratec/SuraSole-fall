@@ -9,6 +9,7 @@ import {
   NativeModules,
   NativeEventEmitter,
   Vibration,
+  ScrollView,
   TouchableOpacity,
   Text as RNText,
   Alert,
@@ -23,7 +24,6 @@ import { connect } from 'react-redux';
 
 import HeaderFix from '../../common/HeaderFix';
 import NotificationsState from '../../shared/Notification';
-import Text from '../../common/TextFix';
 import ButtonFix from '../../common/ButtonFix';
 import RadarChartFix from '../../common/RadarChartFix';
 import CardStatusFix from '../../common/CardStatusFix';
@@ -131,6 +131,36 @@ class index extends Component {
     return '#6c757d';
   };
 
+  clampValue = (value, min, max) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return min;
+    return Math.min(max, Math.max(min, numeric));
+  };
+
+  getBalancePosition = (lsensor = [], rsensor = []) => {
+    const sumright =
+      (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) / 5 +
+      (rsensor[5] + rsensor[6]) / 2 +
+      rsensor[7];
+    const sumleft =
+      (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) / 5 +
+      (lsensor[5] + lsensor[6]) / 2 +
+      lsensor[7];
+    const sumup =
+      (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) / 5 +
+      (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) / 5;
+    const sumdown = lsensor[7] + rsensor[7];
+    const xPos = (sumright - sumleft) / 23.4;
+    const yPos = (sumup - sumdown) / -15.6;
+
+    return {
+      xPos,
+      yPos,
+      xPosN: this.clampValue((xPos + 100) * 1.5, 10, 290),
+      yPosN: this.clampValue((yPos + 100) * 1.5, 10, 290),
+    };
+  };
+
 
   calMeasurePressure = value => {
     return 2.206 * Math.exp(0.0068 * value);
@@ -172,37 +202,49 @@ class index extends Component {
     noti !== null ? this.setState({ notiAlarm: parseInt(noti) }) : 100;
     NetInfo.addEventListener(this.handleConnectivityChange);
     const { navigation } = this.props;
+    
+    setTimeout(() => {
+      if (!this.isInitialReadingStarted) {
+        this.isInitialReadingStarted = true;
+        this.startReading();
+      }
+    }, 500);
+
     this.focusListener = navigation.addListener('focus', () => {
-      this.retrieveConnected();
-      this.startReading();
+      if (this.isInitialReadingStarted) {
+        this.startReading();
+      }
       this.setState({ focus: true });
     });
+    
     this.zoneInterval = setInterval(() => {
       var score =
-          (this.state.balance + Number.parseInt(this.state.score)) / this.counter;
+        (this.state.balance + Number.parseInt(this.state.score)) / this.counter;
       this.setState({ score: score.toFixed(0) }, () => this.counter++);
     }, 1000);
   };
 
   getRecordButtonLabel = () => {
-  const { isRecording } = this.state;
+    const { isRecording } = this.state;
 
-  // Define appropriate keys in BalanceLang: recordButton & stopButton
-  const labelKey = isRecording
-    ? BalanceLang.stopButton   // e.g. { eng: 'Stop', thai: 'หยุด', ... }
-    : BalanceLang.recordButton; // e.g. { eng: 'Record', thai: 'บันทึก', ... }
+    // Define appropriate keys in BalanceLang: recordButton & stopButton
+    const labelKey = isRecording
+      ? BalanceLang.stopButton   // e.g. { eng: 'Stop', thai: 'หยุด', ... }
+      : BalanceLang.recordButton; // e.g. { eng: 'Record', thai: 'บันทึก', ... }
 
-  return getLocalizedText(this.props.lang, labelKey);
-};
+    return getLocalizedText(this.props.lang, labelKey);
+  };
 
+  flushBufferToDisk = async () => Promise.resolve();
 
   componentWillUnmount = () => {
     clearInterval(this.readInterval);
     clearInterval(this.flushInterval);
     this.flushBufferToDisk(); // Flush remaining data before unmount
     clearInterval(this.zoneInterval);
-    if (this.dataRecord) {
+    if (this.dataRecord && typeof this.dataRecord.remove === 'function') {
       this.dataRecord.remove();
+      this.dataRecord = null;
     }
     if (typeof this.focusListener === 'function') {
       this.focusListener();
@@ -212,54 +254,45 @@ class index extends Component {
   };
 
   actionConnectDevice(peripheral) {
-    if (peripheral) {
-      if (peripheral.connected) {
-        BleManager.disconnect(peripheral.id);
-      } else {
-        BleManager.connect(peripheral.id)
-            .then(() => {
-              let peripherals = this.state.peripherals;
-              let p = peripherals.get(peripheral.id);
-              if (p) {
-                p.connected = true;
-                peripherals.set(peripheral.id, p);
-                this.setState({ peripherals });
-              }
-              if (peripheral.name[peripheral.name.length - 1] === 'L') {
-                this.props.addLeftDevice(peripheral.id);
-                const sz = parseSizeFromPeripheralName(peripheral.name);
-                if (sz && !this.state.shoeSize) this.setState({ shoeSize: sz });
-              } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
-                this.props.addRightDevice(peripheral.id);
-                const sz = parseSizeFromPeripheralName(peripheral.name);
-                if (sz && !this.state.shoeSize) this.setState({ shoeSize: sz });
-              }
+    if (!peripheral) return;
 
-              setTimeout(() => {
-                BleManager.retrieveServices(peripheral.id).then(
-                    peripheralInfo => {
-                      var service;
-                      var bakeCharacteristic;
-                      var crustCharacteristic;
-                      if (Platform.OS === 'android') {
-                        service = '0000FFE0-0000-1000-8000-00805F9B34FB';
-                        bakeCharacteristic = '0000FFE1-0000-1000-8000-00805F9B34FB';
-                        crustCharacteristic =
-                            '0000FFE1-0000-1000-8000-00805F9B34FB';
-                      } else {
-                        service = 'FFE0';
-                        bakeCharacteristic = 'FFE1';
-                        crustCharacteristic = 'FFE1';
-                      }
-                    },
-                );
-              }, 900);
-            })
-            .catch(error => {
-              console.log('Connection error', error);
-            });
+    const registerPeripheral = () => {
+      const peripherals = this.state.peripherals;
+      const connectedPeripheral = {
+        ...peripheral,
+        connected: true,
+      };
+      peripherals.set(peripheral.id, connectedPeripheral);
+      this.setState({ peripherals });
+
+      if (peripheral.name?.[peripheral.name.length - 1] === 'L') {
+        this.props.addLeftDevice(peripheral.id);
+        const sz = parseSizeFromPeripheralName(peripheral.name);
+        if (sz && !this.state.shoeSize) this.setState({ shoeSize: sz });
+      } else if (peripheral.name?.[peripheral.name.length - 1] === 'R') {
+        this.props.addRightDevice(peripheral.id);
+        const sz = parseSizeFromPeripheralName(peripheral.name);
+        if (sz && !this.state.shoeSize) this.setState({ shoeSize: sz });
       }
+    };
+
+    if (peripheral.connected) {
+      registerPeripheral();
+      return;
     }
+
+    BleManager.connect(peripheral.id)
+      .then(() => {
+        registerPeripheral();
+        setTimeout(() => {
+          BleManager.retrieveServices(peripheral.id).catch(error => {
+            console.log('Retrieve services error', error);
+          });
+        }, 900);
+      })
+      .catch(error => {
+        console.log('Connection error', error);
+      });
   }
 
   retrieveConnected() {
@@ -279,94 +312,78 @@ class index extends Component {
   }
 
   async startReading() {
-    this.dataRecord = bleManagerEmitter.addListener(
-        'BleManagerDidUpdateValueForCharacteristic',
-        ({ value, peripheral, characteristic, service }) => {
-          let time = new Date();
-          if (peripheral === this.props.rightDevice) {
-            let rsensor = this.toDecimalArray(value);
-            this.recordData(rsensor, 'R');
-            if (time - this.rtime > 250) {
-              let lsensor = this.state.lsensor;
-              let shouldVibrate = this.shouldBeVibration(lsensor);
-              let sumright =
-                  (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
-                  5 +
-                  (rsensor[5] + rsensor[6]) / 2 +
-                  rsensor[7];
-              let sumleft =
-                  (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
-                  5 +
-                  (lsensor[5] + lsensor[6]) / 2 +
-                  lsensor[7];
-              let sumup =
-                  (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
-                  5 +
-                  (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
-                  5;
-              let sumdown = lsensor[7] + rsensor[7];
-              let xPos = (sumright - sumleft) / 23.4;
-              let yPos = (sumup - sumdown) / -15.6;
-              let xPosN = (xPos + 100) * 1.5;
-              let yPosN = (yPos + 100) * 1.5;
-              let rphase = rsensor.reduce((a, b) => a + b, 0);
-              let { txt, status, balance } = this.setStatus(xPos, yPos);
-              this.setState({
-                xPosN,
-                yPosN,
-                rphase,
-                rsensor,
-                shouldVibrate,
-                txt,
-                status,
-                balance,
-              });
-              this.rtime = time;
-            }
-          }
-          if (peripheral === this.props.leftDevice) {
-            let lsensor = this.toDecimalArray(value);
-            this.recordData(lsensor, 'L');
-            if (time - this.ltime > 250) {
-              let rsensor = this.state.rsensor;
-              let shouldVibrate = this.shouldBeVibration(lsensor);
-              let sumright =
-                  (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
-                  5 +
-                  (rsensor[5] + rsensor[6]) / 2 +
-                  rsensor[7];
-              let sumleft =
-                  (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
-                  5 +
-                  (lsensor[5] + lsensor[6]) / 2 +
-                  lsensor[7];
-              let sumup =
-                  (rsensor[0] + rsensor[1] + rsensor[2] + rsensor[3] + rsensor[4]) /
-                  5 +
-                  (lsensor[0] + lsensor[1] + lsensor[2] + lsensor[3] + lsensor[4]) /
-                  5;
-              let sumdown = lsensor[7] + rsensor[7];
-              let xPos = (sumright - sumleft) / 23.4;
-              let yPos = (sumup - sumdown) / -15.6;
-              let xPosN = (xPos + 100) * 1.5;
-              let yPosN = (yPos + 100) * 1.5;
+    if (this.isStartingReading) return;
+    this.isStartingReading = true;
+    try {
+      if (this.dataRecord && typeof this.dataRecord.remove === 'function') {
+        this.dataRecord.remove();
+        this.dataRecord = null;
+      }
 
-              let lphase = lsensor.reduce((a, b) => a + b, 0);
-              let { txt, status, balance } = this.setStatus(xPos, yPos);
-              this.setState({
-                xPosN,
-                yPosN,
-                lphase,
-                lsensor,
-                shouldVibrate,
-                txt,
-                status,
-                balance,
-              });
-              this.ltime = time;
-            }
+      if (typeof this.props.rightDevice !== 'undefined') {
+        try {
+          await BleManager.retrieveServices(this.props.rightDevice);
+        } catch (err) {}
+      }
+      if (typeof this.props.leftDevice !== 'undefined') {
+        try {
+          await BleManager.retrieveServices(this.props.leftDevice);
+        } catch (err) {}
+      }
+    } finally {
+      this.isStartingReading = false;
+    }
+
+    this.dataRecord = bleManagerEmitter.addListener(
+      'BleManagerDidUpdateValueForCharacteristic',
+      ({ value, peripheral, characteristic, service }) => {
+        let time = new Date();
+        if (peripheral === this.props.rightDevice) {
+          let rsensor = this.toDecimalArray(value);
+          this.recordData(rsensor, 'R');
+          if (time - this.rtime > 250) {
+            let lsensor = this.state.lsensor;
+            let shouldVibrate = this.shouldBeVibration(lsensor);
+            let { xPos, yPos, xPosN, yPosN } = this.getBalancePosition(lsensor, rsensor);
+            let rphase = rsensor.reduce((a, b) => a + b, 0);
+            let { txt, status, balance } = this.setStatus(xPos, yPos);
+            this.setState({
+              xPosN,
+              yPosN,
+              rphase,
+              rsensor,
+              shouldVibrate,
+              txt,
+              status,
+              balance,
+            });
+            this.rtime = time;
           }
-        },
+        }
+        if (peripheral === this.props.leftDevice) {
+          let lsensor = this.toDecimalArray(value);
+          this.recordData(lsensor, 'L');
+          if (time - this.ltime > 250) {
+            let rsensor = this.state.rsensor;
+            let shouldVibrate = this.shouldBeVibration(lsensor);
+            let { xPos, yPos, xPosN, yPosN } = this.getBalancePosition(lsensor, rsensor);
+
+            let lphase = lsensor.reduce((a, b) => a + b, 0);
+            let { txt, status, balance } = this.setStatus(xPos, yPos);
+            this.setState({
+              xPosN,
+              yPosN,
+              lphase,
+              lsensor,
+              shouldVibrate,
+              txt,
+              status,
+              balance,
+            });
+            this.ltime = time;
+          }
+        }
+      },
     );
   }
 
@@ -389,23 +406,25 @@ class index extends Component {
     } else {
       persent = Math.abs(y);
     }
-    if (100 - persent >= 80) {
+    const balance = this.clampValue(Math.round(100 - persent), 0, 100);
+
+    if (balance >= 80) {
       return {
         txt: getLocalizedText(this.props.lang, BalanceLang.goodBalance),
         status: getLocalizedText(this.props.lang, BalanceLang.good),
-        balance: Math.round(100 - persent),
+        balance,
       };
-    } else if (100 - persent >= 40) {
+    } else if (balance >= 40) {
       return {
         txt: getLocalizedText(this.props.lang, BalanceLang.mediumBalance),
         status: getLocalizedText(this.props.lang, BalanceLang.medium),
-        balance: Math.round(100 - persent),
+        balance,
       };
     } else {
       return {
         txt: getLocalizedText(this.props.lang, BalanceLang.badBalance),
         status: getLocalizedText(this.props.lang, BalanceLang.poor),
-        balance: Math.round(100 - persent),
+        balance,
       };
     }
   }
@@ -416,96 +435,96 @@ class index extends Component {
   };
 
   actionRecording = async () => {
-  const { rightDevice, leftDevice, user } = this.props;
-  const { isRecording } = this.state;
+    const { rightDevice, leftDevice, user } = this.props;
+    const { isRecording } = this.state;
 
-  // 1. Check connected devices
-  if (typeof rightDevice === 'undefined' && typeof leftDevice === 'undefined') {
-    Alert.alert(
-      getLocalizedText(this.props.lang, BalanceLang.warning),
-      getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert),
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            this.props.navigation.navigate('Device', {
-              name: this.props.lang
-                ? LangHome.addDeviceButton.thai
-                : LangHome.addDeviceButton.eng,
-            });
+    // 1. Check connected devices
+    if (typeof rightDevice === 'undefined' && typeof leftDevice === 'undefined') {
+      Alert.alert(
+        getLocalizedText(this.props.lang, BalanceLang.warning),
+        getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert),
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              this.props.navigation.navigate('Device', {
+                name: this.props.lang
+                  ? LangHome.addDeviceButton.thai
+                  : LangHome.addDeviceButton.eng,
+              });
+            },
           },
-        },
-      ],
-    );
-    return;
-  }
+        ],
+      );
+      return;
+    }
 
-  // 2. Toggle logic is now purely boolean-based
-  if (!isRecording) {
-    // START recording
-    this.setState({ isRecording: true });
-    this.currentSessionId = Date.now().toString();
-    this.props.actionRecordingButton('Stop'); // or some neutral value like 'recording'
+    // 2. Toggle logic is now purely boolean-based
+    if (!isRecording) {
+      // START recording
+      this.setState({ isRecording: true });
+      this.currentSessionId = Date.now().toString();
+      this.props.actionRecordingButton('Stop'); // or some neutral value like 'recording'
 
-    let initTime = new Date();
-    this.start = initTime;
-    this.lastLtime = initTime;
-    this.lastRtime = initTime;
+      let initTime = new Date();
+      this.start = initTime;
+      this.lastLtime = initTime;
+      this.lastRtime = initTime;
 
-    this.readInterval = setInterval(async () => {
-      const time = new Date();
-      const data = {
-        stamp: time.getTime(),
-        timestamp: time,
-        duration: Math.floor((time - this.start) / 1000),
-        left: {
-          sensor: this.lsensor,
-          swing: this.leftSwingTime,
-          stance: this.leftStanceTime,
-        },
-        right: {
-          sensor: this.rsensor,
-          swing: this.rightSwingTime,
-          stance: this.rightStanceTime,
-        },
-        id_customer: user.id_customer,
-        session_id: this.currentSessionId,
-      };
+      this.readInterval = setInterval(async () => {
+        const time = new Date();
+        const data = {
+          stamp: time.getTime(),
+          timestamp: time,
+          duration: Math.floor((time - this.start) / 1000),
+          left: {
+            sensor: this.lsensor,
+            swing: this.leftSwingTime,
+            stance: this.leftStanceTime,
+          },
+          right: {
+            sensor: this.rsensor,
+            swing: this.rightSwingTime,
+            stance: this.rightStanceTime,
+          },
+          id_customer: user.id_customer,
+          session_id: this.currentSessionId,
+        };
 
-      try {
-        await RNFS.appendFile(
-          RNFS.CachesDirectoryPath +
+        try {
+          await RNFS.appendFile(
+            RNFS.CachesDirectoryPath +
             '/suratechM/' +
             this.start.getFullYear() +
             this.start.getMonth() +
             this.start.getDate() +
             this.round,
-          JSON.stringify(data) + ',',
-        );
-      } catch {
-        await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
-        await RNFS.appendFile(
-          RNFS.CachesDirectoryPath +
+            JSON.stringify(data) + ',',
+          );
+        } catch {
+          await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
+          await RNFS.appendFile(
+            RNFS.CachesDirectoryPath +
             '/suratechM/' +
             this.start.getFullYear() +
             this.start.getMonth() +
             this.start.getDate() +
             this.round,
-          JSON.stringify(data) + ',',
-        );
-      }
-    }, 100);
-  } else {
-    // STOP recording
-    this.setState({ isRecording: false });
-    this.props.actionRecordingButton('Record'); // or 'idle'
+            JSON.stringify(data) + ',',
+          );
+        }
+      }, 100);
+    } else {
+      // STOP recording
+      this.setState({ isRecording: false });
+      this.props.actionRecordingButton('Record'); // or 'idle'
 
-    clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
-    this.sendDataToSetver();  // still shows alert in correct language
-  }
-};
+      clearInterval(this.readInterval);
+      clearInterval(this.flushInterval);
+      this.flushBufferToDisk(); // Flush remaining data before unmount
+      this.sendDataToSetver();
+    }
+  };
 
 
   // actionRecording = async () => {
@@ -593,7 +612,7 @@ class index extends Component {
 
 
   sendDataToSetver = async () => {
-    await uploadRecordingFiles({
+    const result = await uploadRecordingFiles({
       isConnected: this.state.isConnected,
       userId: this.props.user.id_customer,
       productNumber: this.props.productNumber,
@@ -604,11 +623,14 @@ class index extends Component {
       onError: error => {
         console.error('Error uploading balance data:', error);
         this.setState({ isLoading: false });
-        ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
       },
     });
 
-    alert(getLocalizedText(this.props.lang, Lang.alert));
+    if (result.uploaded > 0 || result.deleted > 0) {
+      ToastAndroid.show(getLocalizedText(this.props.lang, Lang.alert), ToastAndroid.SHORT);
+    } else if (result.failed > 0) {
+      ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
+    }
   }
 
   actionUpdate = content => {
@@ -628,27 +650,27 @@ class index extends Component {
       },
       body: JSON.stringify(content),
     })
-        .then(res => res.json())
-        .then(res => {
-          if (res.status === 'สำเร็จ') {
-            AlertFix.alertBasic(
-                getLocalizedText(this.state.lang, Lang.successTitle),
-                getLocalizedText(this.state.lang, Lang.successBody),
-            );
-            deleteFile(this.fileStamp_n);
-          } else {
-            AlertFix.alertBasic(
-                getLocalizedText(this.state.lang, Lang.errorTitle),
-                getLocalizedText(this.state.lang, Lang.errorBody1),
-            );
-          }
-        })
-        .catch(error => {
+      .then(res => res.json())
+      .then(res => {
+        if (res.status === 'สำเร็จ') {
           AlertFix.alertBasic(
-              getLocalizedText(this.state.lang, Lang.errorTitle),
-              getLocalizedText(this.state.lang, Lang.errorBody2),
+            getLocalizedText(this.state.lang, Lang.successTitle),
+            getLocalizedText(this.state.lang, Lang.successBody),
           );
-        });
+          deleteFile(this.fileStamp_n);
+        } else {
+          AlertFix.alertBasic(
+            getLocalizedText(this.state.lang, Lang.errorTitle),
+            getLocalizedText(this.state.lang, Lang.errorBody1),
+          );
+        }
+      })
+      .catch(error => {
+        AlertFix.alertBasic(
+          getLocalizedText(this.state.lang, Lang.errorTitle),
+          getLocalizedText(this.state.lang, Lang.errorBody2),
+        );
+      });
   };
 
   actionDashboard = () => {
@@ -666,115 +688,122 @@ class index extends Component {
   render() {
     this.canVibration(this.state.shouldVibrate, this.state.switch);
     return (
-        <View style={styles.container}>
-          <HeaderFix
-              icon_left={'left'}
-              onpress_left={() => {
-                this.props.navigation.goBack();
-              }}
-              title={this.props.route.params?.['name'] ?? ''}
-          />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <HeaderFix
+          icon_left={'left'}
+          onpress_left={() => {
+            this.props.navigation.goBack();
+          }}
+          title={this.props.route.params?.['name'] ?? ''}
+        />
 
-          {/* Main Content Container - Optimized for No Scrolling */}
-          <View style={styles.mainContentContainer}>
+        {/* Main Content Container - Optimized for No Scrolling */}
+        <View style={styles.mainContentContainer}>
 
-            {/* Radar Chart Section - More Space */}
-            <View style={styles.radarContainer}>
-              {this.state.focus ? (
-                  <RadarChartFix
-                      xPos={this.state.xPosN}
-                      yPos={this.state.yPosN}
-                  />
-              ) : (
-                  <View />
-              )}
-            </View>
-
-            {/* Enhanced Balance Grade Display - Positioned Much Lower & Smaller */}
-            <View style={styles.balanceGradeContainer}>
-              {/* Score and Status Row */}
-              <View style={styles.scoreStatusRow}>
-                {/* Balance Score */}
-                <View style={styles.scoreSection}>
-                  <RNText style={styles.sectionLabel}>
-                    {getLocalizedText(this.props.lang, BalanceLang.score)}
-                  </RNText>
-                  <View style={[styles.scoreBadge, { backgroundColor: this.getScoreColor(this.state.balance) }]}>
-                    <RNText style={styles.scoreText}>{this.state.balance}%</RNText>
-                  </View>
-                </View>
-
-                {/* Status Badge */}
-                <View style={styles.statusSection}>
-                  <RNText style={styles.sectionLabel}>
-                    {getLocalizedText(this.props.lang, BalanceLang.status)}
-                  </RNText>
-                  <View style={[styles.statusBadge, { backgroundColor: this.getStatusColor(this.state.status) }]}>
-                    <RNText style={styles.statusText}>{this.state.status}</RNText>
-                  </View>
-                </View>
-              </View>
-
-              {/* Compact Progress Bar */}
-              <View style={styles.progressContainer}>
-                <View style={styles.progressBarBackground}>
-                  <View style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${this.state.balance}%`,
-                      backgroundColor: this.getScoreColor(this.state.balance)
-                    }
-                  ]} />
-                </View>
-              </View>
-
-              {/* Description Text - Compact */}
-              <RNText style={styles.descriptionText}>{this.state.txt}</RNText>
-            </View>
-
-
-            {/* Left and Right foot buttons - Fixed Spacing */}
-            <View style={styles.buttonsContainer}>
-              <Grid style={styles.buttonsGrid}>
-                <Col>
-                  <BalanceButton
-                      bntName={getLocalizedText(this.props.lang, BalanceLang.leftButton)}
-                      onPress={() => {
-                        if (this.dataRecord) {
-                          this.dataRecord.remove();
-                        }
-                        this.setState({ focus: false });
-                        this.props.navigation.navigate('LeftFootsEight');
-                      }}
-                  />
-                </Col>
-                <Col>
-                  <BalanceButton
-                      bntName={getLocalizedText(this.props.lang, BalanceLang.rightButton)}
-                      onPress={() => {
-                        if (this.dataRecord) {
-                          this.dataRecord.remove();
-                        }
-                        this.setState({ focus: false });
-                        this.props.navigation.navigate('RigthFootsEight');
-                      }}
-                  />
-                </Col>
-              </Grid>
-            </View>
-
-
-            {/* Record button - Fixed Spacing */}
-            <View style={styles.recordButtonContainer}>
-              <ButtonFix
-                  action={true}
-                  rounded={true}
-                  title={this.getRecordButtonLabel()}
-                  onPress={() => this.actionRecording()}
+          {/* Radar Chart Section - More Space */}
+          <View style={styles.radarContainer}>
+            {this.state.focus ? (
+              <RadarChartFix
+                xPos={this.state.xPosN}
+                yPos={this.state.yPosN}
               />
+            ) : (
+              <View />
+            )}
+          </View>
+
+          {/* Enhanced Balance Grade Display - Positioned Much Lower & Smaller */}
+          <View style={styles.balanceGradeContainer}>
+            {/* Score and Status Row */}
+            <View style={styles.scoreStatusRow}>
+              {/* Balance Score */}
+              <View style={styles.scoreSection}>
+                <RNText style={styles.sectionLabel}>
+                  {getLocalizedText(this.props.lang, BalanceLang.score)}
+                </RNText>
+                <View style={[styles.scoreBadge, { backgroundColor: this.getScoreColor(this.state.balance) }]}>
+                  <RNText style={styles.scoreText}>{this.state.balance}%</RNText>
+                </View>
+              </View>
+
+              {/* Status Badge */}
+              <View style={styles.statusSection}>
+                <RNText style={styles.sectionLabel}>
+                  {getLocalizedText(this.props.lang, BalanceLang.status)}
+                </RNText>
+                <View style={[styles.statusBadge, { backgroundColor: this.getStatusColor(this.state.status) }]}>
+                  <RNText style={styles.statusText}>{this.state.status}</RNText>
+                </View>
+              </View>
             </View>
+
+            {/* Compact Progress Bar */}
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBarBackground}>
+                <View style={[
+                  styles.progressBarFill,
+                  {
+                    width: `${this.clampValue(this.state.balance, 0, 100)}%`,
+                    backgroundColor: this.getScoreColor(this.state.balance)
+                  }
+                ]} />
+              </View>
+            </View>
+
+            {/* Description Text - Compact */}
+            <RNText style={styles.descriptionText} numberOfLines={2}>
+              {this.state.txt}
+            </RNText>
+          </View>
+
+
+          {/* Left and Right foot buttons - Fixed Spacing */}
+          <View style={styles.buttonsContainer}>
+            <Grid style={styles.buttonsGrid}>
+              <Col>
+                <BalanceButton
+                  bntName={getLocalizedText(this.props.lang, BalanceLang.leftButton)}
+                  onPress={() => {
+                    if (this.dataRecord && typeof this.dataRecord.remove === 'function') {
+                      this.dataRecord.remove();
+                      this.dataRecord = null;
+                    }
+                    this.setState({ focus: false });
+                    this.props.navigation.navigate('LeftFootsEight');
+                  }}
+                />
+              </Col>
+              <Col>
+                <BalanceButton
+                  bntName={getLocalizedText(this.props.lang, BalanceLang.rightButton)}
+                  onPress={() => {
+                    if (this.dataRecord && typeof this.dataRecord.remove === 'function') {
+                      this.dataRecord.remove();
+                      this.dataRecord = null;
+                    }
+                    this.setState({ focus: false });
+                    this.props.navigation.navigate('RigthFootsEight');
+                  }}
+                />
+              </Col>
+            </Grid>
+          </View>
+
+
+          {/* Record button - Fixed Spacing */}
+          <View style={styles.recordButtonContainer}>
+            <ButtonFix
+              action={true}
+              rounded={true}
+              title={this.getRecordButtonLabel()}
+              onPress={() => this.actionRecording()}
+            />
           </View>
         </View>
+      </ScrollView>
     );
   }
 }
@@ -782,41 +811,47 @@ class index extends Component {
 class BalanceButton extends React.PureComponent {
   render() {
     return (
-        <TouchableOpacity
-            style={styles.balanceButtonContainer}
-            onPress={this.props.onPress}>
-          <View style={styles.balanceButton}>
-            <Text>{this.props.bntName}</Text>
-          </View>
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.balanceButtonContainer}
+        onPress={this.props.onPress}>
+        <View style={styles.balanceButton}>
+          <RNText style={styles.balanceButtonText}>{this.props.bntName}</RNText>
+        </View>
+      </TouchableOpacity>
     );
   }
 }
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 24,
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
   },
   mainContentContainer: {
-    flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    justifyContent: 'space-between',
+    paddingTop: 12,
+    paddingBottom: 28,
+    minHeight: Math.max(height - 96, 650),
+    justifyContent: 'flex-start',
   },
 
   // Radar chart styles - More Space
   radarContainer: {
     alignItems: 'center',
-    marginTop: 70,
-    marginBottom: 30, // Increased space after radar chart
-    flex: 0.5, // Increased chart space
+    justifyContent: 'center',
+    height: 310,
+    marginTop: 8,
+    marginBottom: 18,
   },
 
   // Balance grade styles - Positioned Much Lower & Smaller Size
   balanceGradeContainer: {
-    marginVertical: 5, // Reduced spacing
+    marginTop: 0,
+    marginBottom: 18,
     paddingHorizontal: 10, // Reduced width
     // paddingVertical: 8, // Reduced height
     paddingTop: 8,
@@ -831,14 +866,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 3,
-    flex: 0.15, // Much smaller space allocation
     alignSelf: 'center', // Center the card
-    width: '85%', // Reduced width to 85% of container
+    justifyContent: 'center',
+    minHeight: 112,
+    width: '88%', // Reduced width to 88% of container
   },
   scoreStatusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    height: 44,
     marginBottom: 6, // Reduced spacing
   },
   scoreSection: {
@@ -852,6 +889,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 10, // Smaller font
     color: '#666',
+    height: 14,
     marginBottom: 3, // Reduced spacing
     fontWeight: '500',
   },
@@ -859,15 +897,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, // Reduced padding
     paddingVertical: 4, // Reduced padding
     borderRadius: 15, // Smaller radius
-    minWidth: 50, // Smaller width
+    width: 64,
+    height: 28,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   statusBadge: {
     paddingHorizontal: 8, // Reduced padding
     paddingVertical: 4, // Reduced padding
     borderRadius: 15, // Smaller radius
-    minWidth: 60, // Smaller width
+    width: 92,
+    height: 28,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   scoreText: {
     fontSize: 14, // Smaller font
@@ -899,41 +941,56 @@ const styles = StyleSheet.create({
     marginTop: 5, // Reduced spacing
     fontStyle: 'italic',
     lineHeight: 14, // Tighter line height
+    minHeight: 30,
   },
 
   // Buttons styles - More Space
   buttonsContainer: {
-    marginTop: 10,
-    marginBottom: 10,
-    flex: 0.18, // Control button space
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 0,
+    marginBottom: 16,
   },
   buttonsGrid: {
-    paddingHorizontal: 10,
+    flexDirection: 'row',
+    width: '90%',
+    alignSelf: 'center',
+    paddingHorizontal: 0,
   },
   balanceButtonContainer: {
-    paddingHorizontal: 8,
     flex: 1,
+    paddingHorizontal: 6,
+    marginVertical: 4,
   },
   balanceButton: {
-    padding: 12,
+    minHeight: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
     backgroundColor: '#d2afa8',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 25,
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.12,
     shadowRadius: 2,
     elevation: 2,
+  },
+  balanceButtonText: {
+    fontSize: 14,
+    color: '#222',
+    fontWeight: '400',
+    textAlign: 'center',
   },
 
   // Record button styles - More Space
   recordButtonContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    flex: 0.08,
-    marginTop: -5,
+    minHeight: 58,
+    marginTop: 0,
+    marginBottom: 8,
   },
 });
 

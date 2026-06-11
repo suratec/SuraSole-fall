@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Image, TextInput, ActivityIndicator, Alert, AppState } from 'react-native';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Image, TextInput, ActivityIndicator, Alert } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import UI from '../../../config/styles/CommonStyles';
 import { connect } from 'react-redux';
@@ -11,10 +11,6 @@ import {getLocalizedText} from '../../../assets/language/langUtils';
 const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPatientId, setPatientToken, lang, impersonating }) => {
     const [selectedId, setSelectedId] = useState(null);
     const [search, setSearch] = useState('');
-    const [patients, setPatients] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [appState, setAppState] = useState(AppState.currentState);
-    const [error, setError] = useState(null);
     const titleText = getLocalizedText(lang, langPatientList.title);
     const selectPatient = getLocalizedText(lang, langPatientList.selectPatient);
     const searchPatients = getLocalizedText(lang, langPatientList.searchPatients);
@@ -31,25 +27,25 @@ const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPa
         return () => clearExitFlag();   // leaving screen normally
     }, []);
 
-
-    useEffect(() => {
-        // Get patients from the user data that was stored during login
-        if (user && user.patients) {
-            setPatients(user.patients);
-        } else {
-            setError('No patient data available');
-        }
-    }, [user]);
-
-    const filteredPatients = patients.filter(
-        p =>
-            (p.name && p.name.toLowerCase().includes(search.toLowerCase())) ||
-            (p.user_member && p.user_member.toLowerCase().includes(search.toLowerCase()))
+    const patients = useMemo(
+        () => (Array.isArray(user?.patients) ? user.patients : []),
+        [user?.patients],
     );
 
-    const handleSelectPatient = (item) => {
+    const filteredPatients = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
+        if (!keyword) return patients;
+
+        return patients.filter(
+            p =>
+                (p.name && p.name.toLowerCase().includes(keyword)) ||
+                (p.user_member && p.user_member.toLowerCase().includes(keyword)),
+        );
+    }, [patients, search]);
+
+    const handleSelectPatient = useCallback((item) => {
         setSelectedId(item.id_data_role);
-    };
+    }, []);
 
     // const handleSelectButton = async () => {
     //     const selected = patients.find(p => p.id_data_role === selectedId);
@@ -132,9 +128,6 @@ const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPa
             await AsyncStorage.setItem('doctor_token', token);
             setImpersonation(true);
 
-            console.log('Selected patient:', selected);
-            console.log('Doctor Token:', token);
-
             // Make API call to switch to patient
             const fetchResponse = await fetch('https://api1.suratec.co.th/api/doctor/switch-to-patient', {
                 method: 'POST',
@@ -148,12 +141,10 @@ const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPa
             });
 
             const rawText = await fetchResponse.text();
-            console.log('🔍 Raw response text:', rawText);
 
             let data;
             try {
                 data = JSON.parse(rawText);
-                console.log('✅ Parsed response:', data);
             } catch (e) {
                 console.error('❌ Failed to parse JSON:', e);
                 Alert.alert('Error', 'Invalid JSON response from server.');
@@ -210,7 +201,7 @@ const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPa
 
 
 
-    const renderPatient = ({ item }) => {
+    const renderPatient = useCallback(({ item }) => {
         const isSelected = selectedId === item.id_data_role;
         return (
             <TouchableOpacity
@@ -222,14 +213,15 @@ const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPa
                 <Text style={styles.cell}>{item.user_member || ''}</Text>
             </TouchableOpacity>
         );
-    };
+    }, [handleSelectPatient, selectedId]);
 
-    console.log('Rendering PatientList', user && user.role, user && user.patients);
+    const keyExtractor = useCallback(item => item.id_data_role, []);
+
     if (!user || (!impersonating && user.role !== 'mod_employee')) {
         return null;
     }
 
-    if (loading || (user && user.role === 'mod_employee' && !user.patients)) {
+    if (user.role === 'mod_employee' && !Array.isArray(user.patients)) {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#00bfc5" />
@@ -237,10 +229,10 @@ const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPa
         );
     }
 
-    if (error) {
+    if (user.role === 'mod_employee' && patients.length === 0) {
         return (
             <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>No patient data available</Text>
             </View>
         );
     }
@@ -275,7 +267,12 @@ const PatientList = ({ navigation, user, token, addUser, setImpersonation, setPa
               <FlatList
                 data={filteredPatients}
                 renderItem={renderPatient}
-                keyExtractor={item => item.id_data_role}
+                keyExtractor={keyExtractor}
+                initialNumToRender={12}
+                maxToRenderPerBatch={12}
+                windowSize={5}
+                removeClippedSubviews={true}
+                keyboardShouldPersistTaps="handled"
                 style={{flexGrow: 0}}
                 contentContainerStyle={{paddingBottom: 8}}
               />

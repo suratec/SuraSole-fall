@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, Image, ImageBackground, TouchableOpacity, ScrollView, TextInput, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -43,6 +43,8 @@ const MonofilamentNew = ({ user, navigation }) => {
     const [snackmsg, setSnackmsg] = useState('');
     const [currentTab, setCurrentTab] = useState(0);
     const [currentPage, setCurrentPage] = useState(0);
+    const userId = user?.id_customer;
+    const userRole = user?.role;
 
 
 
@@ -134,18 +136,21 @@ const MonofilamentNew = ({ user, navigation }) => {
             });
     }
 
-    const monofilamentDetails = async () => {
+    const monofilamentDetails = useCallback(async () => {
+        if (!userId || !userRole) {
+            return;
+        }
         // let form = new FormData();
         // form.append('user_id',user.id_customer);
         // form.append('role',user.role);
-        console.log(user.id_customer, ' user.id_customer')
-        console.log(user.role, 'user.role')
+        console.log(userId, ' user.id_customer')
+        console.log(userRole, 'user.role')
         await axios({
             method: 'POST',
             url: `${ROOT_API}foot_pain_location`,
             data: {
-                "user_id": user.id_customer,
-                "role": user.role,
+                "user_id": userId,
+                "role": userRole,
             },
             headers: {
                 // 'Authorization': "Bearer  "  +  YOUR_BEARER_TOKEN,
@@ -229,7 +234,7 @@ const MonofilamentNew = ({ user, navigation }) => {
                 })
 
             });
-    }
+    }, [userId, userRole])
 
     const saveDetails = async () => {
 
@@ -265,7 +270,13 @@ const MonofilamentNew = ({ user, navigation }) => {
         // form.append('rm9', legData.rm9);
 
         form.append('doctor_id', doctorData.user_info.id_employee);
-        form.append('user_id', user.id_customer);
+        if (!userId) {
+            setSnackmsg('User data is not ready');
+            setVisiblesnack(true);
+            return;
+        }
+
+        form.append('user_id', userId);
         form.append('role', 'doctor');
         // form.append('l_status', "1");
         // form.append('r_status', "1");
@@ -321,9 +332,8 @@ const MonofilamentNew = ({ user, navigation }) => {
     }
 
     useEffect(() => {
-        console.log(user, 'userff2')
         monofilamentDetails();
-    }, [])
+    }, [monofilamentDetails])
 
     return (
         <View style={{
@@ -402,9 +412,6 @@ const MonofilamentNew = ({ user, navigation }) => {
                         style={{
                             padding: 10,
                             // flex: 1,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            backgroundColor: '#F5FCFF',
                             justifyContent: 'center',
                             alignItems: 'center',
                             width: 150,
@@ -654,9 +661,6 @@ const MonofilamentNew = ({ user, navigation }) => {
                         style={{
                             padding: 10,
                             // flex: 1,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            backgroundColor: '#F5FCFF',
                             justifyContent: 'center',
                             alignItems: 'center',
                             width: 150,
@@ -944,9 +948,6 @@ const MonofilamentNew = ({ user, navigation }) => {
                         // flex: 1,
                         justifyContent: 'center',
                         alignItems: 'center',
-                        backgroundColor: '#F5FCFF',
-                        justifyContent: 'center',
-                        alignItems: 'center',
                         width: 150,
                         backgroundColor: UI.color_Gradient[1],
                         borderRadius: 75,
@@ -997,8 +998,6 @@ const MonofilamentNew = ({ user, navigation }) => {
                         justifyContent: 'center',
                         alignItems: 'center',
                         // backgroundColor: '#F5FCFF',
-                        justifyContent: 'center',
-                        alignItems: 'center',
                         width: 150,
 
                         borderRadius: 75,
@@ -1099,9 +1098,6 @@ const MonofilamentNew = ({ user, navigation }) => {
                         style={{
                             padding: 10,
                             // flex: 1,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            backgroundColor: '#F5FCFF',
                             justifyContent: 'center',
                             alignItems: 'center',
                             width: 150,

@@ -37,7 +37,7 @@ class TenMeterWalkTest extends Component {
 
         this.round = Math.floor(1000 + Math.random() * 9000);
 
-  dataBuffer = []; // Buffer for sensor data to reduce file I/O
+        this.dataBuffer = []; // Buffer for sensor data to reduce file I/O
         this.lsensor = [0, 0, 0, 0, 0];
         this.rsensor = [0, 0, 0, 0, 0];
         this.sampleSeq = 0;
@@ -157,7 +157,6 @@ class TenMeterWalkTest extends Component {
           session_id: this.currentSessionId || Date.now().toString(),
                         id_device: "",
                         type: 1, // medical
-              session_id: typeof data !== "undefined" && data[0] ? data[0].session_id : "",
                         product_number: this.props.productNumber,
                         bluetooth_left_id: this.props.leftDevice,
                         bluetooth_right_id: this.props.rightDevice,

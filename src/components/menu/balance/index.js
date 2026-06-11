@@ -1,6 +1,6 @@
 //5.11.62
 
-import React, {Component} from 'react';
+import React, { Component } from 'react';
 import {
   View,
   Image,
@@ -18,12 +18,11 @@ import {
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import {Col, Grid} from '../../common/NativeBaseShim';
-import {connect} from 'react-redux';
+import { Col, Grid } from '../../common/NativeBaseShim';
+import { connect } from 'react-redux';
 
 import HeaderFix from '../../common/HeaderFix';
 import NotificationsState from '../../shared/Notification';
-import Text from '../../common/TextFix';
 import ButtonFix from '../../common/ButtonFix';
 import RadarChartFix from '../../common/RadarChartFix';
 import CardStatusFix from '../../common/CardStatusFix';
@@ -38,12 +37,12 @@ import {
   deleteFile,
   readFile,
 } from '../../../FileManager';
-import {TabHeading} from '../../common/NativeBaseShim';
+import { TabHeading } from '../../common/NativeBaseShim';
 
 import BalanceLang from '../../../assets/language/menu/lang_balance';
 import Lang from '../../../assets/language/menu/lang_record';
 import LangHome from '../../../assets/language/screen/lang_home';
-import {getLocalizedText} from "../../../assets/language/langUtils";
+import { getLocalizedText } from "../../../assets/language/langUtils";
 
 var RNFS = require('react-native-fs');
 
@@ -68,8 +67,8 @@ class index extends Component {
   rightStanceTime = 0;
   durationTime = 0;
 
-  lsensor = [0, 0, 0, 0, 0];
-  rsensor = [0, 0, 0, 0, 0];
+  lsensor = [0, 0, 0, 0, 0, 0, 0, 0];
+  rsensor = [0, 0, 0, 0, 0, 0, 0, 0];
 
   readDelay = new Date();
   start = new Date();
@@ -84,6 +83,9 @@ class index extends Component {
   rtime = new Date();
 
   counter = 1;
+  notificationStarted = new Set();
+  leftDeviceId = undefined;
+  rightDeviceId = undefined;
 
   state = {
     textAction: getLocalizedText(this.props.lang, BalanceLang.recordButton),
@@ -94,8 +96,8 @@ class index extends Component {
     focus: true,
     lphase: 0,
     rphase: 0,
-    rsensor: [0, 0, 0, 0, 0],
-    lsensor: [0, 0, 0, 0, 0],
+    rsensor: [0, 0, 0, 0, 0, 0, 0, 0],
+    lsensor: [0, 0, 0, 0, 0, 0, 0, 0],
     shouldVibrate: false,
     score: 0,
     balance: 0,
@@ -103,14 +105,14 @@ class index extends Component {
     status: getLocalizedText(this.props.lang, BalanceLang.waiting),
     isConnected: true,
     peripherals: new Map(),
-    shoeSize:0,
+    shoeSize: 0,
     notiAlarm: 0,
     selectedMenu: 1,
     menuAction: [
-      {key: 1, title: getLocalizedText(this.props.lang, BalanceLang.dynamic)},
-      {key: 2, title: getLocalizedText(this.props.lang, BalanceLang.staticMode)},
+      { key: 1, title: getLocalizedText(this.props.lang, BalanceLang.dynamic) },
+      { key: 2, title: getLocalizedText(this.props.lang, BalanceLang.staticMode) },
     ],
-    countDownTimer:10,
+    countDownTimer: 10,
     isCalibrated: false,
     leftLegCalibrated: false,
     rightLegCalibrated: false,
@@ -170,35 +172,131 @@ class index extends Component {
     return false;
   };
 
+  clampValue = (value, min, max) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return min;
+    return Math.min(max, Math.max(min, numeric));
+  };
+
+  getBalancePosition = (lsensor = [], rsensor = []) => {
+    const l = index => Number(lsensor[index] || 0);
+    const r = index => Number(rsensor[index] || 0);
+    const sumright = (r(0) + r(1) + r(2) + r(3) + r(4)) / 5 + (r(5) + r(6)) / 2 + r(7);
+    const sumleft = (l(0) + l(1) + l(2) + l(3) + l(4)) / 5 + (l(5) + l(6)) / 2 + l(7);
+    const sumup = (r(0) + r(1) + r(2) + r(3) + r(4)) / 5 + (l(0) + l(1) + l(2) + l(3) + l(4)) / 5;
+    const sumdown = l(7) + r(7);
+    const xPos = (sumright - sumleft) / 23.4;
+    const yPos = (sumup - sumdown) / -15.6;
+
+    return {
+      xPos,
+      yPos,
+      xPosN: this.clampValue((xPos + 100) * 1.5, 10, 290),
+      yPosN: this.clampValue((yPos + 100) * 1.5, 10, 290),
+    };
+  };
+
+  getBleConfig = () => {
+    if (Platform.OS === 'android') {
+      return {
+        service: '0000FFE0-0000-1000-8000-00805F9B34FB',
+        characteristic: '0000FFE1-0000-1000-8000-00805F9B34FB',
+      };
+    }
+
+    return {
+      service: 'FFE0',
+      characteristic: 'FFE1',
+    };
+  };
+
+  registerConnectedPeripheral = peripheral => {
+    if (!peripheral?.id) return;
+
+    const peripherals = this.state.peripherals;
+    peripheral.connected = true;
+    peripherals.set(peripheral.id, peripheral);
+
+    if (peripheral.name?.endsWith('L')) {
+      this.leftDeviceId = peripheral.id;
+      if (typeof this.props.addLeftDevice === 'function') {
+        this.props.addLeftDevice(peripheral.id);
+      }
+      const sz = parseSizeFromPeripheralName(peripheral.name);
+      if (sz && !this.state.shoeSize) this.setState({ shoeSize: sz });
+    } else if (peripheral.name?.endsWith('R')) {
+      this.rightDeviceId = peripheral.id;
+      if (typeof this.props.addRightDevice === 'function') {
+        this.props.addRightDevice(peripheral.id);
+      }
+      const sz = parseSizeFromPeripheralName(peripheral.name);
+      if (sz && !this.state.shoeSize) this.setState({ shoeSize: sz });
+    }
+
+    this.setState({ peripherals });
+  };
+
+  hasConnectedBalanceDevices = () => (
+    Boolean(this.props.leftDevice || this.leftDeviceId) ||
+    Boolean(this.props.rightDevice || this.rightDeviceId)
+  );
+
+  prepareDeviceNotifications = async peripheralId => {
+    if (!peripheralId) return;
+
+    const { service, characteristic } = this.getBleConfig();
+
+    try {
+      await BleManager.retrieveServices(peripheralId);
+      if (!this.notificationStarted.has(peripheralId)) {
+        await BleManager.startNotification(peripheralId, service, characteristic);
+        this.notificationStarted.add(peripheralId);
+      }
+      await BleManager.write(peripheralId, service, characteristic, [0]);
+      await BleManager.write(peripheralId, service, characteristic, [1, 95]);
+    } catch (error) {
+      console.log('Balance notification setup skipped:', peripheralId, error);
+    }
+  };
+
   componentDidMount = async () => {
     // notiAlarm
     let noti = await AsyncStorage.getItem('notiSetting');
-    noti !== null ? this.setState({notiAlarm: parseInt(noti)}) : 100;
+    noti !== null ? this.setState({ notiAlarm: parseInt(noti) }) : 100;
     NetInfo.addEventListener(this.handleConnectivityChange);
-    const {navigation} = this.props;
-    
+    const { navigation } = this.props;
+
     // Initial fetch to load data immediately
-    this.retrieveConnected();
-    this.startReading();
+    
+    setTimeout(() => {
+      if (!this.isInitialReadingStarted) {
+        this.isInitialReadingStarted = true;
+        this.startReading();
+      }
+    }, 500);
 
     this.focusListener = navigation.addListener('focus', () => {
-      this.retrieveConnected();
-      this.startReading();
-      this.setState({focus: true});
+      if (this.isInitialReadingStarted) {
+        this.startReading();
+      }
+      this.setState({ focus: true });
     });
+    
     this.zoneInterval = setInterval(() => {
       var score =
-          (this.state.balance + Number.parseInt(this.state.score)) / this.counter;
-      this.setState({score: score.toFixed(0)}, () => this.counter++);
+        (this.state.balance + Number.parseInt(this.state.score)) / this.counter;
+      this.setState({ score: score.toFixed(0) }, () => this.counter++);
     }, 1000);
   };
 
   componentWillUnmount = () => {
     clearInterval(this.readInterval);
     clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
+    if (typeof this.flushBufferToDisk === 'function') {
+      this.flushBufferToDisk();
+    }
     clearInterval(this.zoneInterval);
-    if (this.dataRecord) {
+    if (this.dataRecord && typeof this.dataRecord.remove === 'function') {
       this.dataRecord.remove();
     }
     if (typeof this.focusListener === 'function') {
@@ -208,58 +306,24 @@ class index extends Component {
     }
   };
 
-  actionConnectDevice(peripheral) {
-    if (peripheral) {
-      if (peripheral.connected) {
-        BleManager.disconnect(peripheral.id);
-      } else {
-        BleManager.connect(peripheral.id)
-            .then(() => {
-              let peripherals = this.state.peripherals;
-              let p = peripherals.get(peripheral.id);
-              if (p) {
-                p.connected = true;
-                peripherals.set(peripheral.id, p);
-                this.setState({peripherals});
-              }
-              if (peripheral.name[peripheral.name.length - 1] === 'L') {
-                this.props.addLeftDevice(peripheral.id);
-                const sz = parseSizeFromPeripheralName(peripheral.name);
-                if (sz && !this.state.shoeSize) this.setState({ shoeSize: sz });
-              } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
-                this.props.addRightDevice(peripheral.id);
-                const sz = parseSizeFromPeripheralName(peripheral.name);
-                if (sz && !this.state.shoeSize) this.setState({ shoeSize: sz });
-              }
-              setTimeout(() => {
-                BleManager.retrieveServices(peripheral.id).then(
-                    peripheralInfo => {
-                      var service;
-                      var bakeCharacteristic;
-                      var crustCharacteristic;
-                      if (Platform.OS === 'android') {
-                        service = '0000FFE0-0000-1000-8000-00805F9B34FB';
-                        bakeCharacteristic = '0000FFE1-0000-1000-8000-00805F9B34FB';
-                        crustCharacteristic =
-                            '0000FFE1-0000-1000-8000-00805F9B34FB';
-                      } else {
-                        service = 'FFE0';
-                        bakeCharacteristic = 'FFE1';
-                        crustCharacteristic = 'FFE1';
-                      }
-                    },
-                );
-              }, 900);
-            })
-            .catch(error => {
-              console.log('Connection error', error);
-            });
+  async actionConnectDevice(peripheral) {
+    if (!peripheral) return;
+
+    try {
+      if (!peripheral.connected) {
+        await BleManager.connect(peripheral.id);
       }
+
+      this.registerConnectedPeripheral(peripheral);
+      await this.prepareDeviceNotifications(peripheral.id);
+    } catch (error) {
+      console.log('Connection error', error);
     }
   }
 
-  retrieveConnected() {
-    BleManager.getConnectedPeripherals([]).then(results => {
+  async retrieveConnected() {
+    try {
+      const results = await BleManager.getConnectedPeripherals([]);
       if (results.length == 0) {
         console.log('No connected peripherals');
       }
@@ -267,85 +331,105 @@ class index extends Component {
       var peripherals = this.state.peripherals;
       for (var i = 0; i < results.length; i++) {
         var peripheral = results[i];
-        this.actionConnectDevice(peripheral);
         peripheral.connected = true;
         peripherals.set(peripheral.id, peripheral);
-        this.setState({peripherals});
+        await this.actionConnectDevice(peripheral);
       }
-    });
+      this.setState({ peripherals });
+    } catch (error) {
+      console.log('retrieveConnected error:', error);
+    }
   }
 
   async startReading() {
-    this.dataRecord = bleManagerEmitter.addListener(
-        'BleManagerDidUpdateValueForCharacteristic',
-        ({value, peripheral, characteristic, service}) => {
-          let time = new Date();
-          if (peripheral === this.props.rightDevice) {
-            let rsensor = this.toDecimalArray(value);
-            this.recordData(rsensor, 'R');
-            if (time - this.rtime > 250) {
-              let lsensor = this.state.lsensor;
-              let shouldVibrate = this.shouldBeVibration(lsensor);
-              let sumright =
-                  ((rsensor[0] + rsensor[1] + rsensor[2]) / 3) + rsensor[3] + rsensor[4];
-              let sumleft =
-                  ((lsensor[0] + lsensor[1] + lsensor[2]) / 3) + lsensor[3] + lsensor[4];
-              let sumup =
-                  (rsensor[1] + rsensor[2]) / 2 + (lsensor[1] + lsensor[2]) / 2;
-              let sumdown = lsensor[4] + rsensor[4];
-              let xPos = (sumright - sumleft) / 23.4;
-              let yPos = (sumup - sumdown) / -15.6;
-              let xPosN = (xPos + 100) * 1.5;
-              let yPosN = (yPos + 100) * 1.5;
-              let rphase = rsensor.reduce((a, b) => a + b, 0);
-              let {txt, status, balance} = this.setStatus(xPos, yPos);
-              this.setState({
-                xPosN,
-                yPosN,
-                rphase,
-                rsensor,
-                shouldVibrate,
-                txt,
-                status,
-                balance,
-              });
-              this.rtime = time;
-            }
-          }
-          if (peripheral === this.props.leftDevice) {
-            let lsensor = this.toDecimalArray(value);
-            this.recordData(lsensor, 'L');
-            if (time - this.ltime > 250) {
-              let rsensor = this.state.rsensor;
-              let shouldVibrate = this.shouldBeVibration(lsensor);
-              let sumright =
-                  ((rsensor[0] + rsensor[1] + rsensor[2]) / 3) + rsensor[3] + rsensor[4];
-              let sumleft =
-                  ((lsensor[0] + lsensor[1] + lsensor[2]) / 3) + lsensor[3] + lsensor[4];
-              let sumup =
-                  (rsensor[1] + rsensor[2]) / 2 + (lsensor[1] + lsensor[2]) / 2;
-              let sumdown = lsensor[4] + rsensor[4];
-              let xPos = (sumright - sumleft) / 23.4;
-              let yPos = (sumup - sumdown) / -15.6;
-              let xPosN = (xPos + 100) * 1.5;
-              let yPosN = (yPos + 100) * 1.5;
+    console.log('[startReading] Called. isStartingReading:', this.isStartingReading);
+    if (this.isStartingReading) return;
+    this.isStartingReading = true;
+    try {
+      if (this.dataRecord && typeof this.dataRecord.remove === 'function') {
+        this.dataRecord.remove();
+      }
 
-              let lphase = lsensor.reduce((a, b) => a + b, 0);
-              let {txt, status, balance} = this.setStatus(xPos, yPos);
-              this.setState({
-                xPosN,
-                yPosN,
-                lphase,
-                lsensor,
-                shouldVibrate,
-                txt,
-                status,
-                balance,
-              });
-              this.ltime = time;
-            }
+      const rd = this.props.rightDevice || this.rightDeviceId;
+      const ld = this.props.leftDevice || this.leftDeviceId;
+      console.log('[startReading] rd:', rd, 'ld:', ld);
+
+      if (typeof rd !== 'undefined' && rd) {
+        try { 
+          console.log('[startReading] Retrieving services for rd');
+          await BleManager.retrieveServices(rd); 
+          console.log('[startReading] rd services retrieved');
+        } catch(e) {
+          console.log('[startReading] rd retrieve err:', e);
+        }
+      }
+      if (typeof ld !== 'undefined' && ld) {
+        try { 
+          console.log('[startReading] Retrieving services for ld');
+          await BleManager.retrieveServices(ld); 
+          console.log('[startReading] ld services retrieved');
+        } catch(e) {
+          console.log('[startReading] ld retrieve err:', e);
+        }
+      }
+    } finally {
+      this.isStartingReading = false;
+    }
+
+    console.log('[startReading] Adding bleManagerEmitter listener');
+    this.dataRecord = bleManagerEmitter.addListener(
+      'BleManagerDidUpdateValueForCharacteristic',
+      ({ value, peripheral, characteristic, service }) => {
+        const rightDevice = this.props.rightDevice || this.rightDeviceId;
+        const leftDevice = this.props.leftDevice || this.leftDeviceId;
+        let time = new Date();
+        // console.log('[startReading] Event from:', peripheral, 'rd:', rightDevice, 'ld:', leftDevice);
+        if (peripheral === rightDevice) {
+          let rsensor = this.toDecimalArray(value);
+          this.recordData(rsensor, 'R');
+          if (time - this.rtime > 250) {
+            let lsensor = this.state.lsensor;
+            let shouldVibrate = this.shouldBeVibration(lsensor);
+            let { xPos, yPos, xPosN, yPosN } = this.getBalancePosition(lsensor, rsensor);
+            let rphase = rsensor.reduce((a, b) => a + b, 0);
+            let { txt, status, balance } = this.setStatus(xPos, yPos);
+            this.setState({
+              xPosN,
+              yPosN,
+              rphase,
+              rsensor,
+              shouldVibrate,
+              txt,
+              status,
+              balance,
+            });
+            this.rtime = time;
           }
-        },
+        }
+        if (peripheral === leftDevice) {
+          let lsensor = this.toDecimalArray(value);
+          this.recordData(lsensor, 'L');
+          if (time - this.ltime > 250) {
+            let rsensor = this.state.rsensor;
+            let shouldVibrate = this.shouldBeVibration(lsensor);
+            let { xPos, yPos, xPosN, yPosN } = this.getBalancePosition(lsensor, rsensor);
+
+            let lphase = lsensor.reduce((a, b) => a + b, 0);
+            let { txt, status, balance } = this.setStatus(xPos, yPos);
+            this.setState({
+              xPosN,
+              yPosN,
+              lphase,
+              lsensor,
+              shouldVibrate,
+              txt,
+              status,
+              balance,
+            });
+            this.ltime = time;
+          }
+        }
+      },
     );
   }
 
@@ -368,41 +452,40 @@ class index extends Component {
     } else {
       persent = Math.abs(y);
     }
-    if (100 - persent >= 80) {
+    const balance = this.clampValue(Math.round(100 - persent), 0, 100);
+
+    if (balance >= 80) {
       return {
         txt: getLocalizedText(this.props.lang || 0, BalanceLang.goodBalance),
         status: getLocalizedText(this.props.lang, BalanceLang.good),
-        balance: Math.round(100 - persent),
+        balance,
       };
-    } else if (100 - persent >= 40) {
+    } else if (balance >= 40) {
       return {
         txt: getLocalizedText(this.props.lang || 0, BalanceLang.mediumBalance),
         status: getLocalizedText(this.props.lang, BalanceLang.medium),
-        balance: Math.round(100 - persent),
+        balance,
       };
     } else {
       return {
         txt: getLocalizedText(this.props.lang || 0, BalanceLang.badBalance),
         status: getLocalizedText(this.props.lang, BalanceLang.poor),
-        balance: Math.round(100 - persent),
+        balance,
       };
     }
   }
 
   handleConnectivityChange = status => {
-    this.setState({isConnected: status.isConnected});
+    this.setState({ isConnected: status.isConnected });
     console.log(`Wifi Status : ${this.state.isConnected}`);
   };
 
   showStages = () => {
-    this.setState({calibrationPhase:2})
+    this.setState({ calibrationPhase: 2 })
   }
 
   handleStartCalibration = () => {
-    if (
-        typeof this.props.rightDevice === 'undefined' &&
-        typeof this.props.leftDevice === 'undefined'
-    ) {
+    if (!this.hasConnectedBalanceDevices()) {
       Alert.alert(getLocalizedText(this.props.lang, BalanceLang.warning), getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert), [
         {
           text: 'OK',
@@ -415,44 +498,41 @@ class index extends Component {
       ]);
       return;
     } else {
-      this.setState({ calibrationPhase: 1});
+      this.setState({ calibrationPhase: 1 });
     }
   };
 
-  handleSaveData = (calibrationStatus,butonLabel) => {
+  handleSaveData = (calibrationStatus, butonLabel) => {
     this.props.actionRecordingButton(butonLabel);
-    this.setState({isCalibrated: calibrationStatus,textAction:butonLabel});
+    this.setState({ isCalibrated: calibrationStatus, textAction: butonLabel });
   }
 
   changeMenu = value => {
-    this.setState({selectedMenu: value});
+    this.setState({ selectedMenu: value });
   };
 
   actionRecording = async () => {
-    if (
-        typeof this.props.rightDevice === 'undefined' &&
-        typeof this.props.leftDevice === 'undefined'
-    ) {
+    if (!this.hasConnectedBalanceDevices()) {
       Alert.alert(
-          getLocalizedText(this.props.lang, BalanceLang.warning),
-          getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert),
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                this.props.navigation.navigate('Device', {
-                  name: this.props.lang
-                      ? LangHome.addDeviceButton.thai
-                      : LangHome.addDeviceButton.eng,
-                });
-              },
+        getLocalizedText(this.props.lang, BalanceLang.warning),
+        getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert),
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              this.props.navigation.navigate('Device', {
+                name: this.props.lang
+                  ? LangHome.addDeviceButton.thai
+                  : LangHome.addDeviceButton.eng,
+              });
             },
-          ]);
+          },
+        ]);
       return;
     }
     if (this.state.textAction == 'Record') {
       this.sampleSeq = 0;
-      this.setState({textAction: 'Stop'});
+      this.setState({ textAction: 'Stop' });
       this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton('Stop');
       let initTime = new Date();
@@ -489,21 +569,39 @@ class index extends Component {
         this.flushBufferToDisk();
       }, 2000);
     } else {
-      this.setState({textAction: 'Record'});
+      this.setState({ textAction: 'Record' });
       this.props.actionRecordingButton('Record');
       clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
-      this.sendDataToSetver();
+      clearInterval(this.flushInterval);
+      await this.flushBufferToDisk();
+      await this.sendDataToSetver();
     }
   };
 
+  async flushBufferToDisk() {
+    if (!Array.isArray(this.dataBuffer) || this.dataBuffer.length === 0 || !this.start) return;
+
+    const toFlush = this.dataBuffer.splice(0);
+    const filePath =
+      RNFS.CachesDirectoryPath +
+      '/suratechM/' +
+      this.start.getFullYear() +
+      this.start.getMonth() +
+      this.start.getDate() +
+      this.round;
+    const chunk = toFlush.map(d => JSON.stringify(d)).join(',') + ',';
+
+    try {
+      await RNFS.appendFile(filePath, chunk);
+    } catch {
+      await RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
+      await RNFS.appendFile(filePath, chunk);
+    }
+  }
+
 
   actionRecordingFor10 = async () => {
-    if (
-        typeof this.props.rightDevice === 'undefined' &&
-        typeof this.props.leftDevice === 'undefined'
-    ) {
+    if (!this.hasConnectedBalanceDevices()) {
       Alert.alert(getLocalizedText(this.props.lang, BalanceLang.warning), getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert), [
         {
           text: 'OK',
@@ -518,7 +616,7 @@ class index extends Component {
     }
     if (this.state.textAction == getLocalizedText(this.props.lang, BalanceLang.recordButton)) {
       this.sampleSeq = 0;
-      this.setState({textAction: getLocalizedText(this.props.lang, BalanceLang.stopButton)});
+      this.setState({ textAction: getLocalizedText(this.props.lang, BalanceLang.stopButton) });
       this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton(getLocalizedText(this.props.lang, BalanceLang.stopButton));
       var initTime = new Date();
@@ -528,11 +626,11 @@ class index extends Component {
 
       let count = 10;
       var timer = setInterval(() => {
-        if(this.state.countDownTimer >= 1) {
+        if (this.state.countDownTimer >= 1) {
 
-          var timer2 = setInterval(()=>{
+          var timer2 = setInterval(() => {
             var time = new Date();
-            if(Math.floor((time - start) / 1000) < 11){
+            if (Math.floor((time - start) / 1000) < 11) {
               var data = {
                 seq: this.sampleSeq++,
                 stamp: time.getTime(),
@@ -549,152 +647,152 @@ class index extends Component {
                   stance: this.rightStanceTime,
                 },
                 id_customer: this.props.user.id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
+                session_id: this.currentSessionId || Date.now().toString(),
               };
               try {
                 RNFS.appendFile(
-                    RNFS.CachesDirectoryPath +
-                    '/suratechM/' +
-                    start.getFullYear() +
-                    start.getMonth() +
-                    start.getDate() +
-                    this.round,
-                    JSON.stringify(data) + ',',
+                  RNFS.CachesDirectoryPath +
+                  '/suratechM/' +
+                  start.getFullYear() +
+                  start.getMonth() +
+                  start.getDate() +
+                  this.round,
+                  JSON.stringify(data) + ',',
                 );
               } catch {
                 RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
                 RNFS.appendFile(
-                    RNFS.CachesDirectoryPath +
-                    '/suratechM/' +
-                    start.getFullYear() +
-                    start.getMonth() +
-                    start.getDate() +
-                    this.round,
-                    JSON.stringify(data) + ',',
+                  RNFS.CachesDirectoryPath +
+                  '/suratechM/' +
+                  start.getFullYear() +
+                  start.getMonth() +
+                  start.getDate() +
+                  this.round,
+                  JSON.stringify(data) + ',',
                 );
               }
             }
 
-          },100);
+          }, 100);
 
           setTimeout(() => {
             clearInterval(timer2);
           }, 1000);
 
-          this.setState({countDownTimer:parseInt(this.state.countDownTimer) - 1})
+          this.setState({ countDownTimer: parseInt(this.state.countDownTimer) - 1 })
         }
 
       }, 1000);
 
-      setTimeout(() => {
-        this.setState({textAction: 'Record',countDownTimer:10});
+      setTimeout(async () => {
+        this.setState({ textAction: 'Record', countDownTimer: 10 });
         this.props.actionRecordingButton('Record');
-        this.sendDataToSetverCalibration('S');
-        clearInterval(this.readInterval)
+        clearInterval(this.readInterval);
         clearInterval(timer);
         // clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
+        clearInterval(this.flushInterval);
+        await this.flushBufferToDisk();
+        await this.sendDataToSetverCalibration('S');
       }, 11000);
 
     } else {
-      this.setState({textAction: getLocalizedText(this.props.lang, BalanceLang.recordButton)});
+      this.setState({ textAction: getLocalizedText(this.props.lang, BalanceLang.recordButton) });
       this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton(getLocalizedText(this.props.lang, BalanceLang.recordButton));
       // clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
-      this.sendDataToSetverCalibration('S');
+      clearInterval(this.flushInterval);
+      await this.flushBufferToDisk();
+      await this.sendDataToSetverCalibration('S');
     }
   };
 
 
   sendDataToSetverCalibration = async (legValue) => {
-     // legValue expected: 'L' | 'R' | 'S'
-        await this.uploadCachedFilesInOrder(legValue);
-    }
+    // legValue expected: 'L' | 'R' | 'S'
+    await this.uploadCachedFilesInOrder(legValue);
+  }
 
-uploadCachedFilesInOrder = async (legType = '') => {
+  uploadCachedFilesInOrder = async (legType = '') => {
     try {
       const dir = `${RNFS.CachesDirectoryPath}/suratechM/`;
       const files = await RNFS.readDir(dir).catch(() => []);
       if (!files || !files.length) return;
 
-          // sort files lexicographically so older sessions go first
-              const sortedFiles = files.sort((a, b) => a.name.localeCompare(b.name));
+      // sort files lexicographically so older sessions go first
+      const sortedFiles = files.sort((a, b) => a.name.localeCompare(b.name));
 
-          for (const f of sortedFiles) {
+      for (const f of sortedFiles) {
         try {
           const raw = await RNFS.readFile(f.path);
           if (!raw || !raw.trim()) {
             console.log('Skipping empty file:', f.path);
             continue;
-            }
+          }
           // trim trailing comma
-              const trimmed = raw.endsWith(',') ? raw.slice(0, -1) : raw;
+          const trimmed = raw.endsWith(',') ? raw.slice(0, -1) : raw;
 
-              let data = [];
+          let data = [];
           try {
             data = JSON.parse(`[${trimmed}]`).sort((a, b) => {
               if (a.seq != null && b.seq != null) return a.seq - b.seq;
               return (a.stamp || 0) - (b.stamp || 0);
-              });
-            } catch (e) {
+            });
+          } catch (e) {
             console.warn('JSON parse error for file:', f.path, e);
             continue; // keep file for later/manual inspection
-            }
+          }
 
-              if (!data.length) {
+          if (!data.length) {
             console.log('No samples in file:', f.path);
             await RNFS.unlink(f.path).catch(e => { console.error('Unhandled error:', e); });
             continue;
-            }
+          }
 
-              const content = {
-                  data,
-              id_customer: data[0]?.id_customer ?? this.props.user.id_customer,
-              session_id: data[0]?.session_id || this.currentSessionId || Date.now().toString(),
-              id_device: '',
-              type: 1, // medical
-              product_number: this.props.productNumber,
-              bluetooth_left_id: this.props.leftDevice,
-              bluetooth_right_id: this.props.rightDevice,
-               shoe_size: this.state.shoeSize || 0,
-              leg_type: legType, // '', 'L', 'R', 'S'
-              };
+          const content = {
+            data,
+            id_customer: data[0]?.id_customer ?? this.props.user.id_customer,
+            session_id: data[0]?.session_id || this.currentSessionId || Date.now().toString(),
+            id_device: '',
+            type: 1, // medical
+            product_number: this.props.productNumber,
+            bluetooth_left_id: this.props.leftDevice || this.leftDeviceId,
+            bluetooth_right_id: this.props.rightDevice || this.rightDeviceId,
+            shoe_size: this.state.shoeSize || 0,
+            leg_type: legType, // '', 'L', 'R', 'S'
+          };
 
-               const resp = await fetch(`${API}/addjson`, {
-              method: 'POST',
-              headers: {
-            Accept: 'application/json',
-                'Content-Type': 'application/json',
-                },
-          body: JSON.stringify(content),
-              });
+          const resp = await fetch(`${API}/addjson`, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(content),
+          });
 
-               // server may reply text or JSON
-                  const text = await resp.text();
+          // server may reply text or JSON
+          const text = await resp.text();
           let json;
           try {
             json = JSON.parse(text);
-            } catch {
+          } catch {
             console.error('Non-JSON server response, keeping file:', f.path, text);
             continue;
-            }
-
-              if (json.status !== 'ผิดพลาด') {
-            await RNFS.unlink(f.path).catch(e => { console.error('Unhandled error:', e); });
-            } else {
-            console.warn('Server returned error status; keeping file:', f.path);
-            }
-          } catch (e) {
-          console.error('Error uploading file:', f?.path, e);
           }
-         }
-      } catch (e) {
-      console.error('uploadCachedFilesInOrder failed:', e);
+
+          if (json.status !== 'ผิดพลาด') {
+            await RNFS.unlink(f.path).catch(e => { console.error('Unhandled error:', e); });
+          } else {
+            console.warn('Server returned error status; keeping file:', f.path);
+          }
+        } catch (e) {
+          console.error('Error uploading file:', f?.path, e);
+        }
       }
-    };
+    } catch (e) {
+      console.error('uploadCachedFilesInOrder failed:', e);
+    }
+  };
 
 
   sendDataToSetver = async () => {
@@ -718,27 +816,27 @@ uploadCachedFilesInOrder = async (legType = '') => {
       },
       body: JSON.stringify(content),
     })
-        .then(res => res.json())
-        .then(res => {
-          if (res.status === 'สำเร็จ') {
-            AlertFix.alertBasic(
-                getLocalizedText(this.props.lang || 0, Lang.successTitle),
-                getLocalizedText(this.props.lang || 0, Lang.successBody),
-            );
-            deleteFile(this.fileStamp_n);
-          } else {
-            AlertFix.alertBasic(
-                getLocalizedText(this.props.lang || 0, Lang.errorTitle),
-                getLocalizedText(this.props.lang || 0, Lang.errorBody1),
-            );
-          }
-        })
-        .catch(error => {
+      .then(res => res.json())
+      .then(res => {
+        if (res.status === 'สำเร็จ') {
           AlertFix.alertBasic(
-              getLocalizedText(this.props.lang || 0, Lang.errorTitle),
-              getLocalizedText(this.props.lang || 0, Lang.errorBody2),
+            getLocalizedText(this.props.lang || 0, Lang.successTitle),
+            getLocalizedText(this.props.lang || 0, Lang.successBody),
           );
-        });
+          deleteFile(this.fileStamp_n);
+        } else {
+          AlertFix.alertBasic(
+            getLocalizedText(this.props.lang || 0, Lang.errorTitle),
+            getLocalizedText(this.props.lang || 0, Lang.errorBody1),
+          );
+        }
+      })
+      .catch(error => {
+        AlertFix.alertBasic(
+          getLocalizedText(this.props.lang || 0, Lang.errorTitle),
+          getLocalizedText(this.props.lang || 0, Lang.errorBody2),
+        );
+      });
   };
 
   actionDashboard = () => {
@@ -746,15 +844,12 @@ uploadCachedFilesInOrder = async (legType = '') => {
   };
 
   startCalibration = () => {
-    this.setState({calibrationScreenOn: true});
+    this.setState({ calibrationScreenOn: true });
   };
 
   handleStartLeftLegCalibration = () => {
 
-    if (
-        typeof this.props.rightDevice === 'undefined' &&
-        typeof this.props.leftDevice === 'undefined'
-    ) {
+    if (!this.hasConnectedBalanceDevices()) {
       Alert.alert(getLocalizedText(this.props.lang, BalanceLang.warning), getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert), [
         {
           text: 'OK',
@@ -767,8 +862,8 @@ uploadCachedFilesInOrder = async (legType = '') => {
       ]);
       return;
     } else {
-      this.setState({showButton:false});
-      this.handleSaveData(true,'Stop');
+      this.setState({ showButton: false });
+      this.handleSaveData(true, 'Stop');
 
       let progMargin = 20;
       let totalCount = 0;
@@ -785,11 +880,11 @@ uploadCachedFilesInOrder = async (legType = '') => {
       // this.actionRecording();
       var timer = setInterval(() => {
 
-        if(count >= 1) {
+        if (count >= 1) {
 
-          var timer2 = setInterval(()=>{
+          var timer2 = setInterval(() => {
             var time = new Date();
-            if(Math.floor((time - start) / 1000) < 6){
+            if (Math.floor((time - start) / 1000) < 6) {
               var data = {
                 seq: this.sampleSeq++,
                 stamp: time.getTime(),
@@ -806,34 +901,34 @@ uploadCachedFilesInOrder = async (legType = '') => {
                   stance: this.rightStanceTime,
                 },
                 id_customer: this.props.user.id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
+                session_id: this.currentSessionId || Date.now().toString(),
               };
 
               try {
                 RNFS.appendFile(
-                    RNFS.CachesDirectoryPath +
-                    '/suratechM/' +
-                    start.getFullYear() +
-                    start.getMonth() +
-                    start.getDate() +
-                    this.round,
-                    JSON.stringify(data) + ',',
+                  RNFS.CachesDirectoryPath +
+                  '/suratechM/' +
+                  start.getFullYear() +
+                  start.getMonth() +
+                  start.getDate() +
+                  this.round,
+                  JSON.stringify(data) + ',',
                 );
               } catch {
                 RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
                 RNFS.appendFile(
-                    RNFS.CachesDirectoryPath +
-                    '/suratechM/' +
-                    start.getFullYear() +
-                    start.getMonth() +
-                    start.getDate() +
-                    this.round,
-                    JSON.stringify(data) + ',',
+                  RNFS.CachesDirectoryPath +
+                  '/suratechM/' +
+                  start.getFullYear() +
+                  start.getMonth() +
+                  start.getDate() +
+                  this.round,
+                  JSON.stringify(data) + ',',
                 );
               }
             }
 
-          },100);
+          }, 100);
 
           setTimeout(() => {
             clearInterval(timer2);
@@ -846,22 +941,22 @@ uploadCachedFilesInOrder = async (legType = '') => {
           actualValue = 0;
           progMargin = 20;
 
-        }else
-        if (totalCount < 5) {
-          totalCount = totalCount + 1;
-          actualValue = parseInt(actualValue) + parseInt(progMargin);
-          progressValue = actualValue + '%';
-          this.setState({
-            percentageCompleted: progressValue,
-          });
+        } else
+          if (totalCount < 5) {
+            totalCount = totalCount + 1;
+            actualValue = parseInt(actualValue) + parseInt(progMargin);
+            progressValue = actualValue + '%';
+            this.setState({
+              percentageCompleted: progressValue,
+            });
 
-        }
+          }
 
       }, 1000);
 
-      setTimeout( ()=> {
-        this.setState({leftLegCalibrated: true, calibrationPhase: 2,percentageCompleted:0,showButton:true});
-        this.handleSaveData(true,'Record');
+      setTimeout(() => {
+        this.setState({ leftLegCalibrated: true, calibrationPhase: 2, percentageCompleted: 0, showButton: true });
+        this.handleSaveData(true, 'Record');
         this.sendDataToSetverCalibration('L');
         clearInterval(timer);
 
@@ -871,10 +966,7 @@ uploadCachedFilesInOrder = async (legType = '') => {
   }
 
   handleStartRightLegCalibration = () => {
-    if (
-        typeof this.props.rightDevice === 'undefined' &&
-        typeof this.props.leftDevice === 'undefined'
-    ) {
+    if (!this.hasConnectedBalanceDevices()) {
       Alert.alert(getLocalizedText(this.props.lang, BalanceLang.warning), getLocalizedText(this.props.lang, BalanceLang.bluetoothAlert), [
         {
           text: 'OK',
@@ -887,8 +979,8 @@ uploadCachedFilesInOrder = async (legType = '') => {
       ]);
       return;
     } else {
-      this.setState({showButton:false});
-      this.handleSaveData(true,'Stop');
+      this.setState({ showButton: false });
+      this.handleSaveData(true, 'Stop');
 
       let progMargin = 20;
       let totalCount = 0;
@@ -904,11 +996,11 @@ uploadCachedFilesInOrder = async (legType = '') => {
 
       var timer = setInterval(() => {
 
-        if(count >= 1) {
+        if (count >= 1) {
 
-          var timer2 = setInterval(()=>{
+          var timer2 = setInterval(() => {
             var time = new Date();
-            if(Math.floor((time - start) / 1000) < 6){
+            if (Math.floor((time - start) / 1000) < 6) {
               var data = {
                 stamp: time.getTime(),
                 timestamp: time,
@@ -924,34 +1016,34 @@ uploadCachedFilesInOrder = async (legType = '') => {
                   stance: this.rightStanceTime,
                 },
                 id_customer: this.props.user.id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
+                session_id: this.currentSessionId || Date.now().toString(),
               };
 
               try {
                 RNFS.appendFile(
-                    RNFS.CachesDirectoryPath +
-                    '/suratechM/' +
-                    start.getFullYear() +
-                    start.getMonth() +
-                    start.getDate() +
-                    this.round,
-                    JSON.stringify(data) + ',',
+                  RNFS.CachesDirectoryPath +
+                  '/suratechM/' +
+                  start.getFullYear() +
+                  start.getMonth() +
+                  start.getDate() +
+                  this.round,
+                  JSON.stringify(data) + ',',
                 );
               } catch {
                 RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
                 RNFS.appendFile(
-                    RNFS.CachesDirectoryPath +
-                    '/suratechM/' +
-                    start.getFullYear() +
-                    start.getMonth() +
-                    start.getDate() +
-                    this.round,
-                    JSON.stringify(data) + ',',
+                  RNFS.CachesDirectoryPath +
+                  '/suratechM/' +
+                  start.getFullYear() +
+                  start.getMonth() +
+                  start.getDate() +
+                  this.round,
+                  JSON.stringify(data) + ',',
                 );
               }
             }
 
-          },100);
+          }, 100);
 
           setTimeout(() => {
             clearInterval(timer2);
@@ -964,22 +1056,22 @@ uploadCachedFilesInOrder = async (legType = '') => {
           actualValue = 0;
           progMargin = 20;
 
-        }else
-        if (totalCount < 5) {
-          totalCount = totalCount + 1;
-          actualValue = parseInt(actualValue) + parseInt(progMargin);
-          progressValue = actualValue + '%';
-          this.setState({
-            percentageCompleted: progressValue,
-          });
+        } else
+          if (totalCount < 5) {
+            totalCount = totalCount + 1;
+            actualValue = parseInt(actualValue) + parseInt(progMargin);
+            progressValue = actualValue + '%';
+            this.setState({
+              percentageCompleted: progressValue,
+            });
 
-        }
+          }
 
       }, 1000);
 
-      setTimeout( ()=> {
-        this.setState({rightLegCalibrated: true, calibrationPhase: 3,percentageCompleted:0,showButton:true});
-        this.handleSaveData(true,'Record');
+      setTimeout(() => {
+        this.setState({ rightLegCalibrated: true, calibrationPhase: 3, percentageCompleted: 0, showButton: true });
+        this.handleSaveData(true, 'Record');
         this.sendDataToSetverCalibration('R');
         clearInterval(timer);
 
@@ -1000,240 +1092,239 @@ uploadCachedFilesInOrder = async (legType = '') => {
     this.canVibration(this.state.shouldVibrate, this.state.switch);
 
     return (
-        <ScrollView
-            style={{ flex: 1, backgroundColor: '#fff' }}
-            contentContainerStyle={{ flexGrow: 1 }}   // <- new
-        >
-          {this.state.calibrationScreenOn ? (
-              <HeaderFix
-                  icon_left={'left'}
-                  onpress_left={() => {
-                    // this.props.navigation.goBack();
-                    this.setState({calibrationScreenOn: false});
-                  }}
-                  title={'Calibration'}
-              />
-          ) : (
-              <HeaderFix
-                  icon_left={'left'}
-                  onpress_left={() => {
-                    this.props.navigation.goBack();
-                  }}
-                  title={this.props.route.params?.['name'] ?? ''}
-              />
-          )}
-          {this.state.calibrationScreenOn ? (
-              <>
-                {(this.state.calibrationPhase == 0 && (
-                        <View
-                            style={{
-                              // flex: 1,
-                              height: 700,
-                              marginVertical: 10,
-                              flexDirection: 'column',
-                              justifyContent: 'space-evenly',
-                              marginHorizontal: 20,
+      <ScrollView
+        style={{ flex: 1, backgroundColor: '#fff' }}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {this.state.calibrationScreenOn ? (
+          <HeaderFix
+            icon_left={'left'}
+            onpress_left={() => {
+              // this.props.navigation.goBack();
+              this.setState({ calibrationScreenOn: false });
+            }}
+            title={'Calibration'}
+          />
+        ) : (
+          <HeaderFix
+            icon_left={'left'}
+            onpress_left={() => {
+              this.props.navigation.goBack();
+            }}
+            title={this.props.route.params?.['name'] ?? ''}
+          />
+        )}
+        {this.state.calibrationScreenOn ? (
+          <>
+            {(this.state.calibrationPhase == 0 && (
+              <View
+                style={{
+                  // flex: 1,
+                  height: 700,
+                  marginVertical: 10,
+                  flexDirection: 'column',
+                  justifyContent: 'space-evenly',
+                  marginHorizontal: 20,
 
-                            }}>
-                          <View style={{justifyContent:"center",alignItems:"center" }}>
-                            <RNText
-                                style={{fontSize: 20, color: '#00A2A2', fontWeight: '700',textAlign:"left"}}>
-                              Start calibration of SURASOLE
-                            </RNText>
-                            <Image source={require('../../../assets/image/start.png')} style={{height:400,width:400,resizeMode:"center"}}/>
+                }}>
+                <View style={{ justifyContent: "center", alignItems: "center" }}>
+                  <RNText
+                    style={{ fontSize: 20, color: '#00A2A2', fontWeight: '700', textAlign: "left" }}>
+                    Start calibration of SURASOLE
+                  </RNText>
+                  <Image source={require('../../../assets/image/start.png')} style={{ height: 400, width: 400, resizeMode: "center" }} />
 
-                            <RNText
-                                style={{
-                                  fontSize: 20,
-                                  color: '#00A2A2',
-                                  fontWeight: '700',
-                                  marginVertical: 10,
-                                }}>
-                              Please stand up and follow the guide to perform calibration
-                            </RNText>
-                          </View>
-                          <View style={{justifyContent:"center",alignItems:"center"}}>
-                            <TouchableOpacity
-                                onPress={() =>
-                                {
-                                  if(this.props.user.height != null && this.props.user.height != 0){
-                                    this.setState({calibrationPhase:1})
-                                  }else{
-                                    Alert.alert("Please Update Height in profile section to get customized result","Do you want to provide Height",[
-                                      {
-                                        text: 'Yes',
-                                        onPress: () =>  this.props.navigation.navigate('Profile'),
-                                      },
-                                      {
-                                        text: 'No',
-                                        onPress: () => this.setState({calibrationPhase:1}),
-                                        style: 'cancel',
-                                      }])
+                  <RNText
+                    style={{
+                      fontSize: 20,
+                      color: '#00A2A2',
+                      fontWeight: '700',
+                      marginVertical: 10,
+                    }}>
+                    Please stand up and follow the guide to perform calibration
+                  </RNText>
+                </View>
+                <View style={{ justifyContent: "center", alignItems: "center" }}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (this.props.user.height != null && this.props.user.height != 0) {
+                        this.setState({ calibrationPhase: 1 })
+                      } else {
+                        Alert.alert("Please Update Height in profile section to get customized result", "Do you want to provide Height", [
+                          {
+                            text: 'Yes',
+                            onPress: () => this.props.navigation.navigate('Profile'),
+                          },
+                          {
+                            text: 'No',
+                            onPress: () => this.setState({ calibrationPhase: 1 }),
+                            style: 'cancel',
+                          }])
 
-                                  }
-                                } }
-                                style={{
-                                  alignItems: 'center',
-                                }}>
-                              <RNText style={{fontSize: 18, color: '#fff'}}>
-                                Calibration
-                              </RNText>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                    )) ||
-                    (this.state.calibrationPhase == 1 && (
-                        <View
-                            style={{
-                              // flex: 1,
-                              height: 700,
-                              marginVertical: 10,
-                              flexDirection: 'column',
-                              justifyContent: 'space-evenly',
-                              marginHorizontal: 20,
+                      }
+                    }}
+                    style={{
+                      alignItems: 'center',
+                    }}>
+                    <RNText style={{ fontSize: 18, color: '#fff' }}>
+                      Calibration
+                    </RNText>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )) ||
+              (this.state.calibrationPhase == 1 && (
+                <View
+                  style={{
+                    // flex: 1,
+                    height: 700,
+                    marginVertical: 10,
+                    flexDirection: 'column',
+                    justifyContent: 'space-evenly',
+                    marginHorizontal: 20,
 
-                            }}>
-                          <View style={{}}>
-                            <RNText
-                                style={{fontSize: 20, color: '#00A2A2', fontWeight: '700',textAlign:"left"}}>
-                              Please Keep your left foot off from the ground
-                            </RNText>
-                            <Image source={require('../../../assets/image/left_leg_up.png')}
-                                   style={{height:400,width:400,resizeMode:"center",alignSelf:"center"}}/>
-                            <View
-                                style={{
-                                  marginHorizontal: 20,
-                                  marginVertical: 20,
-                                  borderRadius: 20,
-                                  borderWidth: 0.5,
-                                  borderColor: '#ccc',
-                                }}>
-                              <View
-                                  style={{
-                                    padding: 20,
-                                    backgroundColor: '#00A2A2',
-                                    borderRadius: 20,
-                                    width: this.state.percentageCompleted,
-                                    // width:"60%",
-                                  }}
-                              />
-                            </View>
-                            {this.state.percentageCompleted != 0 &&  <RNText
-                                style={{
-                                  fontSize: 20,
-                                  color: '#00A2A2',
-                                  fontWeight: '700',
-                                  textAlign:"center",
-                                }}>
-                              left foot calibrating...
-                            </RNText>}
+                  }}>
+                  <View style={{}}>
+                    <RNText
+                      style={{ fontSize: 20, color: '#00A2A2', fontWeight: '700', textAlign: "left" }}>
+                      Please Keep your left foot off from the ground
+                    </RNText>
+                    <Image source={require('../../../assets/image/left_leg_up.png')}
+                      style={{ height: 400, width: 400, resizeMode: "center", alignSelf: "center" }} />
+                    <View
+                      style={{
+                        marginHorizontal: 20,
+                        marginVertical: 20,
+                        borderRadius: 20,
+                        borderWidth: 0.5,
+                        borderColor: '#ccc',
+                      }}>
+                      <View
+                        style={{
+                          padding: 20,
+                          backgroundColor: '#00A2A2',
+                          borderRadius: 20,
+                          width: this.state.percentageCompleted,
+                          // width:"60%",
+                        }}
+                      />
+                    </View>
+                    {this.state.percentageCompleted != 0 && <RNText
+                      style={{
+                        fontSize: 20,
+                        color: '#00A2A2',
+                        fontWeight: '700',
+                        textAlign: "center",
+                      }}>
+                      left foot calibrating...
+                    </RNText>}
 
 
-                          </View>
-                          {this.state.showButton && <View style={{justifyContent:"center",alignItems:"center"}}>
-                            <TouchableOpacity
-                                onPress={() => this.handleStartLeftLegCalibration()}
-                                style={{
-                                  marginHorizontal: 10,
-                                  paddingHorizontal: 20,
-                                  paddingVertical: 10,
-                                  width:"60%",
-                                  backgroundColor: '#00A2A2',
-                                  borderRadius: 20,
-                                  marginVertical: 40,
-                                  justifyContent: 'center',
-                                  alignItems: 'center',
-                                }}>
-                              <RNText style={{fontSize: 18, color: '#fff'}}>
-                                Start Calibration
-                              </RNText>
-                            </TouchableOpacity>
-                          </View>}
+                  </View>
+                  {this.state.showButton && <View style={{ justifyContent: "center", alignItems: "center" }}>
+                    <TouchableOpacity
+                      onPress={() => this.handleStartLeftLegCalibration()}
+                      style={{
+                        marginHorizontal: 10,
+                        paddingHorizontal: 20,
+                        paddingVertical: 10,
+                        width: "60%",
+                        backgroundColor: '#00A2A2',
+                        borderRadius: 20,
+                        marginVertical: 40,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}>
+                      <RNText style={{ fontSize: 18, color: '#fff' }}>
+                        Start Calibration
+                      </RNText>
+                    </TouchableOpacity>
+                  </View>}
 
-                        </View>
-                    )) ||
-                    (this.state.calibrationPhase == 2 && (
-                        <View
-                            style={{
-                              // flex: 1,
-                              height: 700,
-                              marginVertical: 10,
-                              flexDirection: 'column',
-                              justifyContent: 'space-evenly',
-                              marginHorizontal: 20,
+                </View>
+              )) ||
+              (this.state.calibrationPhase == 2 && (
+                <View
+                  style={{
+                    // flex: 1,
+                    height: 700,
+                    marginVertical: 10,
+                    flexDirection: 'column',
+                    justifyContent: 'space-evenly',
+                    marginHorizontal: 20,
 
-                            }}>
-                          <View style={{}}>
-                            <RNText
-                                style={{fontSize: 20, color: '#00A2A2', fontWeight: '700',textAlign:"left"}}>
-                              Please Keep your right foot off from the ground
-                            </RNText>
-                            <Image source={require('../../../assets/image/right_leg_up.png')}
-                                   style={{height:400,width:400,resizeMode:"center",alignSelf:"center"}}/>
-                            <View
-                                style={{
-                                  marginHorizontal: 20,
-                                  marginVertical: 20,
-                                  borderRadius: 20,
-                                  borderWidth: 0.5,
-                                  borderColor: '#ccc',
-                                }}>
-                              <View
-                                  style={{
-                                    padding: 20,
-                                    backgroundColor: '#00A2A2',
-                                    borderRadius: 20,
-                                    width: this.state.percentageCompleted,
-                                    // width:"60%",
-                                  }}
-                              />
-                            </View>
-                            {this.state.percentageCompleted != 0 &&  <RNText
-                                style={{
-                                  fontSize: 20,
-                                  color: '#00A2A2',
-                                  fontWeight: '700',
-                                  textAlign:"center",
-                                }}>
-                              right foot calibrating...
-                            </RNText>}
+                  }}>
+                  <View style={{}}>
+                    <RNText
+                      style={{ fontSize: 20, color: '#00A2A2', fontWeight: '700', textAlign: "left" }}>
+                      Please Keep your right foot off from the ground
+                    </RNText>
+                    <Image source={require('../../../assets/image/right_leg_up.png')}
+                      style={{ height: 400, width: 400, resizeMode: "center", alignSelf: "center" }} />
+                    <View
+                      style={{
+                        marginHorizontal: 20,
+                        marginVertical: 20,
+                        borderRadius: 20,
+                        borderWidth: 0.5,
+                        borderColor: '#ccc',
+                      }}>
+                      <View
+                        style={{
+                          padding: 20,
+                          backgroundColor: '#00A2A2',
+                          borderRadius: 20,
+                          width: this.state.percentageCompleted,
+                          // width:"60%",
+                        }}
+                      />
+                    </View>
+                    {this.state.percentageCompleted != 0 && <RNText
+                      style={{
+                        fontSize: 20,
+                        color: '#00A2A2',
+                        fontWeight: '700',
+                        textAlign: "center",
+                      }}>
+                      right foot calibrating...
+                    </RNText>}
 
-                          </View>
-                          {this.state.showButton &&  <View style={{justifyContent:"center",alignItems:"center"}}>
-                            <TouchableOpacity
-                                onPress={() => this.handleStartRightLegCalibration()}
-                                style={{
-                                  marginHorizontal: 10,
-                                  paddingHorizontal: 20,
-                                  paddingVertical: 10,
-                                  width:"60%",
-                                  backgroundColor: '#00A2A2',
-                                  borderRadius: 20,
-                                  marginVertical: 40,
-                                  justifyContent: 'center',
-                                  alignItems: 'center',
-                                }}>
-                              <RNText style={{fontSize: 18, color: '#fff'}}>
-                                Start Calibration
-                              </RNText>
-                            </TouchableOpacity>
-                          </View>}
+                  </View>
+                  {this.state.showButton && <View style={{ justifyContent: "center", alignItems: "center" }}>
+                    <TouchableOpacity
+                      onPress={() => this.handleStartRightLegCalibration()}
+                      style={{
+                        marginHorizontal: 10,
+                        paddingHorizontal: 20,
+                        paddingVertical: 10,
+                        width: "60%",
+                        backgroundColor: '#00A2A2',
+                        borderRadius: 20,
+                        marginVertical: 40,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}>
+                      <RNText style={{ fontSize: 18, color: '#fff' }}>
+                        Start Calibration
+                      </RNText>
+                    </TouchableOpacity>
+                  </View>}
 
-                        </View>
-                    )) ||
-                    (this.state.calibrationPhase == 3 && (
-                        <View
-                            style={{
-                              flex: 1,
-                              height: 800,
-                              marginVertical: 10,
-                              flexDirection: 'column',
-                              justifyContent: 'space-evenly',
-                              alignItems: 'center',
-                              marginHorizontal: 20,
-                            }}>
-                          <View style={{}}>
-                            {/* <RNText
+                </View>
+              )) ||
+              (this.state.calibrationPhase == 3 && (
+                <View
+                  style={{
+                    flex: 1,
+                    height: 800,
+                    marginVertical: 10,
+                    flexDirection: 'column',
+                    justifyContent: 'space-evenly',
+                    alignItems: 'center',
+                    marginHorizontal: 20,
+                  }}>
+                  <View style={{}}>
+                    {/* <RNText
                       style={{
                         fontSize: 20,
                         color: '#027862',
@@ -1241,191 +1332,193 @@ uploadCachedFilesInOrder = async (legType = '') => {
                       }}>
                       Start calibration of SURASOLE
                     </RNText> */}
-                            <RNText
-                                style={{
-                                  fontSize: 18,
-                                  color: '#00A2A2',
-                                  fontWeight: '700',
-                                  marginVertical: 20,
-                                }}>
-                              Calibration of SURASOLE Completed
-                            </RNText>
-                          </View>
-                          <TouchableOpacity
-                              onPress={() =>
-                                  this.setState({
-                                    // calibrationPhase: 3,
-                                    calibrationScreenOn: false,
-                                  })
-                              }
-                              style={{
-                                marginHorizontal: 10,
-                                paddingHorizontal: 20,
-                                paddingVertical: 10,
-                                backgroundColor: '#00A2A2',
-                                borderRadius: 10,
-                                marginVertical: 40,
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                              }}>
-                            <RNText style={{fontSize: 18, color: '#fff'}}>
-                              Completed
-                            </RNText>
-                          </TouchableOpacity>
-                        </View>
-                    ))}
-              </>
-          ) : (
-              <>
-                <View style={styles.container}>
-                  {/* Main Content Container - Optimized for No Scrolling */}
-                  <View style={styles.mainContentContainer}>
-
-                    {/* Radar Chart Section - More Space */}
-                    <View style={styles.radarContainer}>
-                      {this.state.focus ? (
-                          <RadarChartFix
-                              xPos={this.state.xPosN}
-                              yPos={this.state.yPosN}
-                          />
-                      ) : (
-                          <View />
-                      )}
-                    </View>
-
-                    {/* Balance Grade Display */}
-
-                    <View style={styles.balanceGradeContainer}>
-                      {/* Score and Status Row */}
-                      <View style={styles.scoreStatusRow}>
-                        {/* Balance Score */}
-                        <View style={styles.scoreSection}>
-                          <RNText style={styles.sectionLabel}>
-                            {getLocalizedText(this.props.lang, BalanceLang.score)}
-                          </RNText>
-                          <View style={[styles.scoreBadge, { backgroundColor: this.getScoreColor(this.state.balance) }]}>
-                            <RNText style={styles.scoreText}>{this.state.balance}%</RNText>
-                          </View>
-                        </View>
-
-                        {/* Status Badge */}
-                        <View style={styles.statusSection}>
-                          <RNText style={styles.sectionLabel}>
-                            {getLocalizedText(this.props.lang, BalanceLang.status)}
-                          </RNText>
-                          <View style={[styles.statusBadge, { backgroundColor: this.getStatusColor(this.state.status) }]}>
-                            <RNText style={styles.statusText}>{this.state.status}</RNText>
-                          </View>
-                        </View>
-                      </View>
-
-                      {/* Compact Progress Bar */}
-                      <View style={styles.progressContainer}>
-                        <View style={styles.progressBarBackground}>
-                          <View style={[
-                            styles.progressBarFill,
-                            {
-                              width: `${this.state.balance}%`,
-                              backgroundColor: this.getScoreColor(this.state.balance)
-                            }
-                          ]} />
-                        </View>
-                      </View>
-
-                      {/* Description Text - Compact */}
-                      <RNText style={styles.descriptionText}>{this.state.txt}</RNText>
-                    </View>
-
-
-                    {/* Left and Right foot buttons - Fixed Spacing */}
-                    <View style={styles.buttonsContainer}>
-                      <Grid style={[styles.buttonsGrid, {flexDirection: 'row'}]}>
-                        <Col>
-                          <BalanceButton
-                              bntName={getLocalizedText(this.props.lang, BalanceLang.leftButton)}
-                              onPress={() => {
-                                if (this.dataRecord) {
-                                  this.dataRecord.remove();
-                                }
-                                this.setState({ focus: false });
-                                this.props.navigation.navigate('LeftFoots');
-                              }}
-                          />
-                        </Col>
-                        <Col>
-                          <BalanceButton
-                              bntName={getLocalizedText(this.props.lang, BalanceLang.rightButton)}
-                              onPress={() => {
-                                if (this.dataRecord) {
-                                  this.dataRecord.remove();
-                                }
-                                this.setState({ focus: false });
-                                this.props.navigation.navigate('RigthFoots');
-                              }}
-                          />
-                        </Col>
-                      </Grid>
-                    </View>
-
-                    {/* Record or Calibration buttons based on selected menu */}
-                    {this.state.selectedMenu === 1 ? (
-                        <View style={styles.recordButtonContainer}>
-                          <ButtonFix
-                              action={true}
-                              rounded={true}
-                              title={this.state.textAction}
-                              onPress={() => this.actionRecording()}
-                          />
-                        </View>
-                    ) : (
-                        <View style={styles.calibrationButtonsContainer}>
-                          <Grid style={styles.buttonsGrid}>
-                            <Col>
-                              <TouchableOpacity
-                                  onPress={this.startCalibration}
-                                  disabled={this.state.isCalibrated}
-                                  style={[
-                                    styles.calibrationButton,
-                                    { backgroundColor: this.state.isCalibrated ? '#ccc' : '#FF4433' }
-                                  ]}>
-                                <RNText style={styles.calibrationButtonText}>Calibration</RNText>
-                              </TouchableOpacity>
-                            </Col>
-
-                            <Col>
-                              <TouchableOpacity
-                                  onPress={this.actionRecordingFor10}
-                                  disabled={
-                                      !this.state.isCalibrated || this.state.textAction !== 'Record'
-                                  }
-                                  style={[
-                                    styles.calibrationButton,
-                                    {
-                                      backgroundColor:
-                                          !this.state.isCalibrated || this.state.textAction !== 'Record'
-                                              ? '#ccc'
-                                              : '#FF4433'
-                                    }
-                                  ]}>
-                                <RNText style={styles.calibrationButtonText}>
-                                  {this.state.textAction}
-                                </RNText>
-                                {this.state.selectedMenu === 2 &&
-                                    this.state.textAction === 'Stop' && (
-                                        <RNText style={styles.countdownText}>
-                                          {this.state.countDownTimer}
-                                        </RNText>
-                                    )}
-                              </TouchableOpacity>
-                            </Col>
-                          </Grid>
-                        </View>
-                    )}
+                    <RNText
+                      style={{
+                        fontSize: 18,
+                        color: '#00A2A2',
+                        fontWeight: '700',
+                        marginVertical: 20,
+                      }}>
+                      Calibration of SURASOLE Completed
+                    </RNText>
                   </View>
+                  <TouchableOpacity
+                    onPress={() =>
+                      this.setState({
+                        // calibrationPhase: 3,
+                        calibrationScreenOn: false,
+                      })
+                    }
+                    style={{
+                      marginHorizontal: 10,
+                      paddingHorizontal: 20,
+                      paddingVertical: 10,
+                      backgroundColor: '#00A2A2',
+                      borderRadius: 10,
+                      marginVertical: 40,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}>
+                    <RNText style={{ fontSize: 18, color: '#fff' }}>
+                      Completed
+                    </RNText>
+                  </TouchableOpacity>
                 </View>
-              </>
-          )}
-        </ScrollView>
+              ))}
+          </>
+        ) : (
+          <>
+            <View style={styles.container}>
+              {/* Main Content Container - Optimized for No Scrolling */}
+              <View style={styles.mainContentContainer}>
+
+                {/* Radar Chart Section - More Space */}
+                <View style={styles.radarContainer}>
+                  {this.state.focus ? (
+                    <RadarChartFix
+                      xPos={this.state.xPosN}
+                      yPos={this.state.yPosN}
+                    />
+                  ) : (
+                    <View />
+                  )}
+                </View>
+
+                {/* Balance Grade Display */}
+
+                <View style={styles.balanceGradeContainer}>
+                  {/* Score and Status Row */}
+                  <View style={styles.scoreStatusRow}>
+                    {/* Balance Score */}
+                    <View style={styles.scoreSection}>
+                      <RNText style={styles.sectionLabel}>
+                        {getLocalizedText(this.props.lang, BalanceLang.score)}
+                      </RNText>
+                      <View style={[styles.scoreBadge, { backgroundColor: this.getScoreColor(this.state.balance) }]}>
+                        <RNText style={styles.scoreText}>{this.state.balance}%</RNText>
+                      </View>
+                    </View>
+
+                    {/* Status Badge */}
+                    <View style={styles.statusSection}>
+                      <RNText style={styles.sectionLabel}>
+                        {getLocalizedText(this.props.lang, BalanceLang.status)}
+                      </RNText>
+                      <View style={[styles.statusBadge, { backgroundColor: this.getScoreColor(this.state.balance) }]}>
+                        <RNText style={styles.statusText}>{this.state.status}</RNText>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Compact Progress Bar */}
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressBarBackground}>
+                      <View style={[
+                        styles.progressBarFill,
+                        {
+                          width: `${this.clampValue(this.state.balance, 0, 100)}%`,
+                          backgroundColor: this.getScoreColor(this.state.balance)
+                        }
+                      ]} />
+                    </View>
+                  </View>
+
+                  {/* Description Text - Compact */}
+                  <RNText style={styles.descriptionText} numberOfLines={2}>
+                    {this.state.txt}
+                  </RNText>
+                </View>
+
+
+                {/* Left and Right foot buttons - Fixed Spacing */}
+                <View style={styles.buttonsContainer}>
+                  <Grid style={styles.buttonsGrid}>
+                    <Col>
+                      <BalanceButton
+                        bntName={getLocalizedText(this.props.lang, BalanceLang.leftButton)}
+                        onPress={() => {
+                          if (this.dataRecord && typeof this.dataRecord.remove === 'function') {
+                            this.dataRecord.remove();
+                          }
+                          this.setState({ focus: false });
+                          this.props.navigation.navigate('LeftFoots');
+                        }}
+                      />
+                    </Col>
+                    <Col>
+                      <BalanceButton
+                        bntName={getLocalizedText(this.props.lang, BalanceLang.rightButton)}
+                        onPress={() => {
+                          if (this.dataRecord && typeof this.dataRecord.remove === 'function') {
+                            this.dataRecord.remove();
+                          }
+                          this.setState({ focus: false });
+                          this.props.navigation.navigate('RigthFoots');
+                        }}
+                      />
+                    </Col>
+                  </Grid>
+                </View>
+
+                {/* Record or Calibration buttons based on selected menu */}
+                {this.state.selectedMenu === 1 ? (
+                  <View style={styles.recordButtonContainer}>
+                    <ButtonFix
+                      action={true}
+                      rounded={true}
+                      title={this.state.textAction}
+                      onPress={() => this.actionRecording()}
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.calibrationButtonsContainer}>
+                    <Grid style={styles.buttonsGrid}>
+                      <Col>
+                        <TouchableOpacity
+                          onPress={this.startCalibration}
+                          disabled={this.state.isCalibrated}
+                          style={[
+                            styles.calibrationButton,
+                            { backgroundColor: this.state.isCalibrated ? '#ccc' : '#FF4433' }
+                          ]}>
+                          <RNText style={styles.calibrationButtonText}>Calibration</RNText>
+                        </TouchableOpacity>
+                      </Col>
+
+                      <Col>
+                        <TouchableOpacity
+                          onPress={this.actionRecordingFor10}
+                          disabled={
+                            !this.state.isCalibrated || this.state.textAction !== 'Record'
+                          }
+                          style={[
+                            styles.calibrationButton,
+                            {
+                              backgroundColor:
+                                !this.state.isCalibrated || this.state.textAction !== 'Record'
+                                  ? '#ccc'
+                                  : '#FF4433'
+                            }
+                          ]}>
+                          <RNText style={styles.calibrationButtonText}>
+                            {this.state.textAction}
+                          </RNText>
+                          {this.state.selectedMenu === 2 &&
+                            this.state.textAction === 'Stop' && (
+                              <RNText style={styles.countdownText}>
+                                {this.state.countDownTimer}
+                              </RNText>
+                            )}
+                        </TouchableOpacity>
+                      </Col>
+                    </Grid>
+                  </View>
+                )}
+              </View>
+            </View>
+          </>
+        )}
+      </ScrollView>
     );
   }
 }
@@ -1433,39 +1526,44 @@ uploadCachedFilesInOrder = async (legType = '') => {
 class BalanceButton extends React.PureComponent {
   render() {
     return (
-        <TouchableOpacity
-            style={styles.balanceButtonContainer}
-            onPress={this.props.onPress}>
-          <View style={styles.balanceButton}>
-            <Text>{this.props.bntName}</Text>
-          </View>
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.balanceButtonContainer}
+        onPress={this.props.onPress}>
+        <View style={styles.balanceButton}>
+          <RNText style={styles.balanceButtonText}>{this.props.bntName}</RNText>
+        </View>
+      </TouchableOpacity>
     );
   }
 }
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 24,
+  },
   container: {
-    flex: 1,
     backgroundColor: '#fff',
   },
   mainContentContainer: {
-    flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-    justifyContent: 'flex-start'
+    paddingTop: 12,
+    paddingBottom: 28,
+    minHeight: Math.max(height - 96, 650),
+    justifyContent: 'flex-start',
   },
 
   radarContainer: {
     alignItems: 'center',
-    marginTop: 60,
-    marginBottom: 0,
-    flex: 0.55,
+    justifyContent: 'center',
+    height: 310,
+    marginTop: 8,
+    marginBottom: 18,
   },
 
   balanceGradeContainer: {
-    marginVertical: 5, // Reduced spacing
+    marginTop: 0,
+    marginBottom: 18,
     paddingHorizontal: 10, // Reduced width
     // paddingVertical: 8, // Reduced height
     paddingTop: 8,
@@ -1480,14 +1578,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 3,
-    flex: 0.15, // Much smaller space allocation
     alignSelf: 'center', // Center the card
-    width: '85%', // Reduced width to 85% of container
+    justifyContent: 'center',
+    minHeight: 112,
+    width: '88%', // Reduced width to 88% of container
   },
   scoreStatusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    height: 44,
     marginBottom: 6, // Reduced spacing
   },
   scoreSection: {
@@ -1501,6 +1601,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 10, // Smaller font
     color: '#666',
+    height: 14,
     marginBottom: 3, // Reduced spacing
     fontWeight: '500',
   },
@@ -1508,15 +1609,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, // Reduced padding
     paddingVertical: 4, // Reduced padding
     borderRadius: 15, // Smaller radius
-    minWidth: 50, // Smaller width
+    width: 64,
+    height: 28,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   statusBadge: {
     paddingHorizontal: 8, // Reduced padding
     paddingVertical: 4, // Reduced padding
     borderRadius: 15, // Smaller radius
-    minWidth: 60, // Smaller width
+    width: 92,
+    height: 28,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   scoreText: {
     fontSize: 14, // Smaller font
@@ -1548,41 +1653,56 @@ const styles = StyleSheet.create({
     marginTop: 5, // Reduced spacing
     fontStyle: 'italic',
     lineHeight: 14, // Tighter line height
+    minHeight: 30,
   },
 
   // Buttons styles - More Space
   buttonsContainer: {
-    marginTop: 10,
-    marginBottom: 10,
-    flex: 0.18, // Control button space
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 0,
+    marginBottom: 16,
   },
   buttonsGrid: {
-    paddingHorizontal: 10,
+    flexDirection: 'row',
+    width: '90%',
+    alignSelf: 'center',
+    paddingHorizontal: 0,
   },
   balanceButtonContainer: {
-    paddingHorizontal: 8,
     flex: 1,
+    paddingHorizontal: 6,
+    marginVertical: 4,
   },
   balanceButton: {
-    padding: 12,
+    minHeight: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
     backgroundColor: '#d2afa8',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 25,
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.12,
     shadowRadius: 2,
     elevation: 2,
+  },
+  balanceButtonText: {
+    fontSize: 14,
+    color: '#222',
+    fontWeight: '400',
+    textAlign: 'center',
   },
 
   // Record button styles - More Space
   recordButtonContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    flex: 2,
-
+    minHeight: 58,
+    marginTop: 0,
+    marginBottom: 8,
   },
 
   // Calibration buttons styles
@@ -1624,19 +1744,19 @@ const mapStateToProps = state => {
 const mapDisPatchToProps = dispatch => {
   return {
     addLeftDevice: device => {
-      return dispatch({type: 'ADD_LEFT_DEVICE', payload: device});
+      return dispatch({ type: 'ADD_LEFT_DEVICE', payload: device });
     },
     addRightDevice: device => {
-      return dispatch({type: 'ADD_RIGHT_DEVICE', payload: device});
+      return dispatch({ type: 'ADD_RIGHT_DEVICE', payload: device });
     },
     addDashBoardData: data => {
-      return dispatch({type: 'ADD_BLUETOOTH_DATA', payload: data});
+      return dispatch({ type: 'ADD_BLUETOOTH_DATA', payload: data });
     },
     actionRecordingButton: data => {
-      return dispatch({type: 'ACTION_BUTTON_RECORD', payload: data});
+      return dispatch({ type: 'ACTION_BUTTON_RECORD', payload: data });
     },
     actionNotificationButton: data => {
-      return dispatch({type: 'ACTION_BUTTON_NOTIFICATION', payload: data});
+      return dispatch({ type: 'ACTION_BUTTON_NOTIFICATION', payload: data });
     },
   };
 };

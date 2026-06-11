@@ -76,6 +76,14 @@ const withFAB = (ScreenComponent) => {
     );
 };
 
+const MedicalNotesScreen = (props) => {
+    const token = useSelector(state => state?.token);
+    const user = useSelector(state => state?.user);
+    const lang = useSelector(state => state?.lang);
+
+    return <MedicalNotes {...props} token={token} user={user} lang={lang} />;
+};
+
 const styles = StyleSheet.create({
     screenContainer: {
         flex: 1,
@@ -124,14 +132,7 @@ const AppStack = () => (
         <Stack.Screen name="CartScreen" component={withFAB(CartScreen)} />
         <Stack.Screen name="OrdersScreen" component={withFAB(OrdersScreen)} />
         <Stack.Screen name="Profile" component={withFAB(ProfileScreen)} />
-        <Stack.Screen name="MedicalNotes">
-            {(props) => {
-                const token = useSelector(state => state?.token);
-                const user = useSelector(state => state?.user);
-                const lang = useSelector(state => state?.lang);
-                return <MedicalNotes {...props} token={token} user={user} lang={lang} />;
-            }}
-        </Stack.Screen>
+        <Stack.Screen name="MedicalNotes" component={MedicalNotesScreen} />
         <Stack.Screen name="FootsBalance" component={withFAB(FootsBalanceScreen)} />
         <Stack.Screen name="Try" component={withFAB(Tryf)} />
         <Stack.Screen name="MonofilamentNew" component={withFAB(MonofilamentNew)} />

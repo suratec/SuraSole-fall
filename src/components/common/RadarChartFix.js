@@ -3,6 +3,11 @@ import React from 'react';
 
 const chartSize = 300;
 const numberOfScales = 4;
+const clampPoint = value => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return chartSize / 2;
+  return Math.min(chartSize - 10, Math.max(10, numeric));
+};
 const historyDot = (x, y, i) => (
   <Circle
     key={`scale-${x}${y}${i}`}
@@ -37,15 +42,17 @@ export default class RadarChart extends React.Component {
   //   this.setState({historyLine: [<G>{historyLine}</G>]});
   // }
   static getDerivedStateFromProps(props, state) {
-    let history = state.history;
-    let historyLine = [];
-    if (history.length > 10) {
-      history.shift();
-    }
-    history.push([props.xPos, props.yPos]);
-    for (i = 0; i < history.length; i++) {
-      historyLine.push(historyDot(history[i][0], history[i][1], i));
-    }
+    const nextPoint = [clampPoint(props.xPos), clampPoint(props.yPos)];
+    const lastPoint = state.history[state.history.length - 1];
+    const shouldAddPoint =
+      !lastPoint ||
+      Math.abs(lastPoint[0] - nextPoint[0]) >= 0.5 ||
+      Math.abs(lastPoint[1] - nextPoint[1]) >= 0.5;
+    const history = shouldAddPoint
+      ? [...state.history, nextPoint].slice(-10)
+      : state.history;
+    const historyLine = history.map((point, i) => historyDot(point[0], point[1], i));
+
     return {
       historyLine: [<G key="history-group">{historyLine}</G>],
       history,
@@ -89,8 +96,8 @@ export default class RadarChart extends React.Component {
   //   />
   // );
   preRender() {
-    scales = [];
-    groups = [];
+    const scales = [];
+    const groups = [];
     for (let i = numberOfScales; i > 0; i--) {
       i % 2 == 0
         ? scales.push(this.scale(i))
@@ -129,11 +136,11 @@ export default class RadarChart extends React.Component {
           strokeWidth="0.8"
         />
         <Circle
-          cx={this.props.xPos}
-          cy={this.props.yPos}
+          cx={clampPoint(this.props.xPos)}
+          cy={clampPoint(this.props.yPos)}
           r="10"
           stroke="green"
-          stroke-width="0.8"
+          strokeWidth="0.8"
           fill="red"
         />
       </Svg>
