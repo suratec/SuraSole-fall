@@ -81,7 +81,7 @@ android {
         applicationId "com.surasole.fallrisk"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 11
+        versionCode 13
         versionName "5.0.0"
         multiDexEnabled true
 
@@ -91,7 +91,7 @@ android {
                 // CMAKE_SHARED_LINKER_FLAGS injects -lc++_shared into EVERY shared lib link command
                 // (including autolinking sub-builds), which is the definitive NDK 27 fix
                 arguments "-DANDROID_STL=c++_shared",
-                          "-DCMAKE_SHARED_LINKER_FLAGS=-lc++_shared"
+                          "-DCMAKE_SHARED_LINKER_FLAGS=-lc++_shared -Wl,-z,max-page-size=16384"
                 // Suppress deprecated ContextContainer::Shared warning-as-error from picker
                 cppFlags "-Wno-deprecated-declarations"
             }
@@ -120,7 +120,7 @@ android {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
