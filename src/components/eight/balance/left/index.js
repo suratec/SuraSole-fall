@@ -573,8 +573,7 @@ class index extends Component {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                id: this.props.user.id_customer,
-                ...dashboardData
+                id: this.props.user.id_customer
               }),
             });
             const userData = JSON.parse(await userDataRaw.text());

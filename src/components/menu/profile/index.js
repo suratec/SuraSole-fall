@@ -43,6 +43,7 @@ class index extends Component {
     weigth: '',
     heigth: '',
     age: '',
+    grip_strength: '',
     sex: 0,
     id: '',
     img_path: '',
@@ -50,17 +51,20 @@ class index extends Component {
     loading: false,
   };
 
-  getImageSource = (img_path, role) => {
+  getImageSource = (img_path, role, cacheBuster) => {
     if (!img_path || (typeof img_path === 'string' && (img_path.includes('user.png') || img_path.includes('doctor.png')))) {
       return role === 'mod_employee'
         ? require('../../../assets/image/icons/doctor.png')
         : require('../../../assets/image/icons/user.png');
     }
-    return {
-      uri: img_path.startsWith('http')
-        ? img_path
-        : `https://api1.suratec.co.th/pic/${img_path}`,
-    };
+    const isLocalImage = img_path.startsWith('file://') || img_path.startsWith('/');
+    let uri = isLocalImage || img_path.startsWith('http')
+      ? img_path
+      : `https://api1.suratec.co.th/pic/${img_path}`;
+    if (!isLocalImage && cacheBuster) {
+      uri += `${uri.includes('?') ? '&' : '?'}v=${cacheBuster}`;
+    }
+    return {uri};
   };
 
   // Toggle language selection modal visibility
@@ -90,6 +94,7 @@ class index extends Component {
       gender: this.state.sex,
       weight: this.state.weigth,
       height: this.state.heigth,
+      grip_strength: this.state.grip_strength,
       congenital_disease_flg: '1', // set ไว้รู้จะใส่อะไร
       congenital_disease: 'ความดัน', // set ไว้รู้จะใส่อะไร
       emergency_contract: '150 ถ.ศรีธานี', // set ไว้รู้จะใส่อะไร
@@ -118,8 +123,13 @@ class index extends Component {
                 getLocalizedText(this.props.lang, Lang.alertSuccessTitle),
                 getLocalizedText(this.props.lang, Lang.successTitleContentAlert),
             );
-            let actualUser = res.customer_info;
-            actualUser.role = this.props.user.role;
+            const actualUser = {
+              ...this.props.user,
+              ...(res.customer_info || {}),
+              role: this.props.user.role,
+              grip_strength:
+                res.customer_info?.grip_strength ?? this.state.grip_strength,
+            };
             this.props.addUser({user: actualUser, token: this.props.token});
 
             this.props.navigation.goBack();
@@ -145,6 +155,8 @@ class index extends Component {
       heigth: user.height == null ? '0' : user.height.toString(),
       weigth: user.weight == null ? '0' : user.weight.toString(),
       age: user.age == null ? '0' : user.age.toString(),
+      grip_strength:
+          user.grip_strength == null ? '' : user.grip_strength.toString(),
     });
 
     let img = this.props.user.image;
@@ -269,8 +281,8 @@ class index extends Component {
     data.append('type', this.props.user.role);
     data.append('image', {
       uri: imagePath.startsWith('file://') ? imagePath : `file://${imagePath}`,
-      name: 'profile.jpg',
-      type: 'image/jpg',
+      name: `profile_${Date.now()}.jpg`,
+      type: mimeType || 'image/jpeg',
     });
 
     console.log('Uploading cropped image...');
@@ -282,18 +294,37 @@ class index extends Component {
       });
 
       const responseText = await res.text();
-      let json;
+      let json = {};
       try {
         json = JSON.parse(responseText);
       } catch (parseError) {
         console.log('Server returned non-JSON response:', responseText);
-        throw new Error('Server returned non-JSON response');
       }
       console.log('Upload Response:', json);
 
-      if (json.status === 'สำเร็จ') {
-        let updatedUser = { ...this.props.user, image: json.data };
-        this.setState({ img_path: json.data });
+      const responseSummary = `${json.status || ''} ${json.message || ''} ${responseText}`.toLowerCase();
+      const explicitlyFailed =
+          responseSummary.includes('ผิดพลาด') ||
+          responseSummary.includes('ไม่สำเร็จ') ||
+          responseSummary.includes('error') ||
+          responseSummary.includes('fail');
+
+      if (res.ok && !explicitlyFailed) {
+        const imageFromResponse =
+            (typeof json.data === 'string' ? json.data : json.data?.image) ||
+            json.image ||
+            json.customer_info?.image;
+        const imageVersion = Date.now();
+        const updatedImage = imageFromResponse || this.props.user.image || imagePath;
+        const updatedUser = {
+          ...this.props.user,
+          image: updatedImage,
+          image_cache_buster: imageVersion,
+        };
+        this.setState({
+          img_path: imageFromResponse || imagePath,
+          image_cache_buster: imageVersion,
+        });
         this.props.updatePath(updatedUser);
         AlertFix.alertBasic(
             getLocalizedText(this.props.lang, Lang.alertSuccessTitle),
@@ -333,6 +364,12 @@ class index extends Component {
       console.log('isNaN');
       data[key] = (0).toString();
       this.setState(data);
+    }
+  }
+
+  validateDecimalNumber(key, value) {
+    if (/^\d*(\.\d*)?$/.test(value)) {
+      this.setState({[key]: value});
     }
   }
 
@@ -382,7 +419,11 @@ class index extends Component {
               <View style={[styles.avatarFrame, avatarFrameStyle]}>
                 <Image
                     style={avatarStyle}
-                    source={this.getImageSource(this.state.img_path, this.props.user.role)}
+                    source={this.getImageSource(
+                        this.state.img_path,
+                        this.props.user.role,
+                        this.state.image_cache_buster || this.props.user.image_cache_buster,
+                    )}
                     onError={(e) => {
                       console.log('Image failed to load:', e.nativeEvent);
                     }}
@@ -431,6 +472,11 @@ class index extends Component {
                 inputValueAge={this.state.age}
                 inputAge={txt => {
                   this.validateNumber('age', txt);
+                }}
+                labelGripStrength={getLocalizedText(this.props.lang, Lang.gripStrengthLabel)}
+                inputValueGripStrength={this.state.grip_strength}
+                inputGripStrength={txt => {
+                  this.validateDecimalNumber('grip_strength', txt);
                 }}
                 labelTel={getLocalizedText(this.props.lang, Lang.emergencyLabel)}
                 inputValueTel={this.state.tel}

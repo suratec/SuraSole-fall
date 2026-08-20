@@ -19,11 +19,15 @@ import HeaderFix from '../../common/HeaderFix';
 import API from '../../../config/Api';
 import langAssessment from '../../../assets/language/menu/lang_assessmentTests';
 import {getLocalizedText} from '../../../assets/language/langUtils';
+import {
+    TEN_METER_CACHE_DIRECTORY,
+    TEN_METER_FILE_PREFIX,
+    enqueueAssessmentUploads,
+} from '../../../services/assessmentUploadApi';
 
 
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
-
 class TenMeterWalkTest extends Component {
     constructor(props) {
         super(props);
@@ -56,8 +60,11 @@ class TenMeterWalkTest extends Component {
 
     componentWillUnmount() {
         clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
+        clearInterval(this.flushInterval);
+        this.isRecordingTransition = false;
+        this.flushBufferToDisk().catch(error => {
+            console.log('Unable to flush 10MWT data during unmount:', error);
+        });
         if (this.dataRecord) this.dataRecord.remove();
         if (typeof this.focusListener === 'function') {
             this.focusListener();
@@ -121,11 +128,12 @@ class TenMeterWalkTest extends Component {
 
     sendDataToServer = async () => {
         try {
-            const dir = `${RNFS.CachesDirectoryPath}/suratechM/`;
-            const files = await RNFS.readDir(dir);
+            const files = await RNFS.readDir(TEN_METER_CACHE_DIRECTORY).catch(() => []);
 
             // Sort files by name so older sessions upload first
-            const sortedFiles = files.sort((a, b) => a.name.localeCompare(b.name));
+            const sortedFiles = files
+                .filter(file => file.name.startsWith(TEN_METER_FILE_PREFIX))
+                .sort((a, b) => a.name.localeCompare(b.name));
 
             for (const file of sortedFiles) {
                 try {
@@ -151,16 +159,27 @@ class TenMeterWalkTest extends Component {
                         continue;
                     }
 
+                    const firstSample = data[0] || {};
+                    const sessionId = String(firstSample.session_id || '');
+                    const isSingleSession = sessionId && data.every(sample =>
+                        String(sample.session_id || '') === sessionId,
+                    );
+
+                    if (!isSingleSession) {
+                        console.warn('10MWT file contains missing or mixed session IDs; keeping file:', file.path);
+                        continue;
+                    }
+
                     const content = {
                         data,
-                        id_customer: this.props.user.id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
+                        id_customer: firstSample.id_customer || this.props.user.id_customer,
+                        session_id: sessionId,
                         id_device: "",
                         type: 1, // medical
-                        product_number: this.props.productNumber,
-                        bluetooth_left_id: this.props.leftDevice,
-                        bluetooth_right_id: this.props.rightDevice,
-                        shoe_size: this.state.shoeSize || 0,
+                        product_number: firstSample.product_number || this.props.productNumber,
+                        bluetooth_left_id: firstSample.bluetooth_left_id || this.props.leftDevice,
+                        bluetooth_right_id: firstSample.bluetooth_right_id || this.props.rightDevice,
+                        shoe_size: firstSample.shoe_size || this.state.shoeSize || 0,
                         leg_type: "10MWT", // important: mark this as 10 Meter Walk Test
                     };
 
@@ -204,7 +223,7 @@ class TenMeterWalkTest extends Component {
                             });
 
                             console.log("===========API Response (getUserDashboardStatic)============");
-                            const dashStatJson = await dashStatResp.json();
+                            await dashStatResp.json();
 
                             // 3) Update / persist user dash data (same as pressure map)
                             const userDataResp = await fetch(`${API}member/get_user_data`, {
@@ -212,7 +231,6 @@ class TenMeterWalkTest extends Component {
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
                                     id: this.props.user.id_customer,
-                                    ...dashStatJson,
                                 }),
                             });
 
@@ -241,117 +259,118 @@ class TenMeterWalkTest extends Component {
 
 
 
-    handleStart = () => {
-        const { rightDevice, leftDevice } = this.props;
-        // if (!rightDevice && !leftDevice) {
-        //     Alert.alert('Warning!', 'Please Check Your Bluetooth Connect');
-        //     return;
-        // }
+    handleToggleRecording = async () => {
+        if (this.isRecordingTransition) return;
 
-        this.setState({ textAction: 'Recording...' });
-
-        const start = new Date();
-        this.readInterval = setInterval(() => {
-            const time = new Date();
-            const data = {
-                stamp: time.getTime(),
-                timestamp: time,
-                duration: Math.floor((time - start) / 1000),
-                left: {
-                    sensor: this.lsensor,
-                    swing: 0,
-                    stance: 0,
-                },
-                right: {
-                    sensor: this.rsensor,
-                    swing: 0,
-                    stance: 0,
-                },
-                id_customer: this.props.user.id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
-            };
-
-            RNFS.appendFile(
-                `${RNFS.CachesDirectoryPath}/suratechM/${start.getFullYear()}${start.getMonth()}${start.getDate()}${this.round}`,
-                JSON.stringify(data) + ',',
-            ).catch(() => {
-                RNFS.mkdir(`${RNFS.CachesDirectoryPath}/suratechM/`).then(() => {
-                    RNFS.appendFile(
-                        `${RNFS.CachesDirectoryPath}/suratechM/${start.getFullYear()}${start.getMonth()}${start.getDate()}${this.round}`,
-                        JSON.stringify(data) + ',',
-                    );
-                });
-            });
-        }, 100);
-
-        setTimeout(() => {
-            clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
-            this.setState({ textAction: 'Start' });
-            this.sendDataToServer();
-        }, 10000);
-    };
-
-    handleToggleRecording = () => {
         if (this.state.isRecording) {
-            clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
-            this.sendDataToServer();
-            this.setState({ isRecording: false });
-
-            setTimeout(() => {
-                this.props.navigation.goBack();
-            }, 500);
+            await this.finishAndReturnHome();
         } else {
             const { rightDevice, leftDevice } = this.props;
             if (!rightDevice && !leftDevice) {
                 Alert.alert('Warning!', 'Please check your Bluetooth connection.');
                 return;
             }
+            this.isRecordingTransition = true;
             this.sampleSeq = 0;
-            // console.log('DEBUGGING TESTING MODE: Bluetooth check disabled');
+            this.currentSessionId = Date.now().toString();
+            this.recordingStart = new Date();
+            this.recordingPath =
+                `${TEN_METER_CACHE_DIRECTORY}/${TEN_METER_FILE_PREFIX}${this.currentSessionId}`;
+            this.dataBuffer = [];
 
-            const start = new Date();
+            this.setState({ isRecording: true }, () => {
+                this.isRecordingTransition = false;
+            });
+
             this.readInterval = setInterval(() => {
                 const time = new Date();
                 const stamp = time.getTime();
-                const data = {
+                this.dataBuffer.push({
                     seq: this.sampleSeq++,
-                    stamp: time.getTime(),
+                    stamp,
                     timestamp: new Date(stamp).toISOString(),
-                    duration: Math.floor((time - start) / 1000),
+                    duration: Math.floor((time - this.recordingStart) / 1000),
                     left: {
-                        sensor: this.lsensor,
+                        sensor: [...this.lsensor],
                         swing: 0,
                         stance: 0,
                     },
                     right: {
-                        sensor: this.rsensor,
+                        sensor: [...this.rsensor],
                         swing: 0,
                         stance: 0,
                     },
                     id_customer: this.props.user.id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
-                };
-
-                RNFS.appendFile(
-                    `${RNFS.CachesDirectoryPath}/suratechM/${start.getFullYear()}${start.getMonth()}${start.getDate()}${this.round}`,
-                    JSON.stringify(data) + ',',
-                ).catch(() => {
-                    RNFS.mkdir(`${RNFS.CachesDirectoryPath}/suratechM/`).then(() => {
-                        RNFS.appendFile(
-                            `${RNFS.CachesDirectoryPath}/suratechM/${start.getFullYear()}${start.getMonth()}${start.getDate()}${this.round}`,
-                            JSON.stringify(data) + ',',
-                        );
-                    });
+                    session_id: this.currentSessionId,
+                    product_number: this.props.productNumber || '',
+                    bluetooth_left_id: this.props.leftDevice || '',
+                    bluetooth_right_id: this.props.rightDevice || '',
+                    shoe_size: this.state.shoeSize || 0,
                 });
             }, 100);
 
-            this.setState({ isRecording: true }); // Update the state to reflect recording has started
+            this.flushInterval = setInterval(() => {
+                this.flushBufferToDisk().catch(error => {
+                    console.log('10MWT buffer flush failed:', error);
+                });
+            }, 2000);
         }
     };
+
+    finishAndReturnHome = async () => {
+        if (this.isRecordingTransition) return;
+        this.isRecordingTransition = true;
+        clearInterval(this.readInterval);
+        clearInterval(this.flushInterval);
+
+        try {
+            await this.flushBufferToDisk();
+            enqueueAssessmentUploads({
+                isConnected: this.state.isConnected,
+                userId: this.props.user?.id_customer,
+                productNumber: this.props.productNumber,
+                leftDevice: this.props.leftDevice,
+                rightDevice: this.props.rightDevice,
+                shoeSize: this.state.shoeSize,
+            }).catch(error => {
+                console.log('Background 10MWT upload failed:', error);
+            });
+            this.setState({isRecording: false});
+            this.props.navigation.popTo('Home');
+        } catch (error) {
+            console.error('Unable to finish 10MWT:', error);
+            Alert.alert(getLocalizedText(this.props.lang, langAssessment.submissionFailed));
+            this.setState({isRecording: false});
+        } finally {
+            this.isRecordingTransition = false;
+        }
+    };
+
+    async flushBufferToDisk() {
+        if (this.flushInProgress) {
+            await this.flushInProgress;
+            if (this.dataBuffer.length > 0) return this.flushBufferToDisk();
+            return;
+        }
+        if (!this.recordingPath || this.dataBuffer.length === 0) return;
+
+        const toFlush = this.dataBuffer.splice(0);
+        const chunk = toFlush.map(sample => JSON.stringify(sample)).join(',') + ',';
+        const writePromise = (async () => {
+            await RNFS.mkdir(TEN_METER_CACHE_DIRECTORY);
+            await RNFS.appendFile(this.recordingPath, chunk);
+        })();
+        this.flushInProgress = writePromise;
+
+        try {
+            await writePromise;
+        } catch (error) {
+            this.dataBuffer = toFlush.concat(this.dataBuffer);
+            throw error;
+        } finally {
+            if (this.flushInProgress === writePromise) this.flushInProgress = null;
+        }
+    }
 
     render() {
 
@@ -362,7 +381,10 @@ class TenMeterWalkTest extends Component {
                     onpress_left={() => this.props.navigation.goBack()}
                     title={getLocalizedText(this.props.lang, langAssessment.tenMeterWalkTest)}
                     rightText={getLocalizedText(this.props.lang, langAssessment.finish)}
-                    onpress_right={() => Alert.alert(getLocalizedText(this.props.lang, langAssessment.testComplete))}
+                    onpress_right={() => {
+                        if (this.state.isRecording) this.finishAndReturnHome();
+                        else this.props.navigation.popTo('Home');
+                    }}
                 />
 
                 <ScrollView

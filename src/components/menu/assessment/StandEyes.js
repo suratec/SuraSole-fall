@@ -29,6 +29,11 @@ import langAssessment from '../../../assets/language/menu/lang_assessmentTests';
 import {getLocalizedText} from '../../../assets/language/langUtils';
 import ButtonFix from "../../common/ButtonFix";
 import Lang_pressuremap from "../../../assets/language/menu/lang_pressuremap";
+import {
+    EYES_CACHE_DIRECTORY,
+    EYES_FILE_PREFIX,
+    enqueueAssessmentUploads,
+} from '../../../services/assessmentUploadApi';
 
 var RNFS = require('react-native-fs');
 
@@ -38,6 +43,9 @@ const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
 const TIMER = 100;
 const TIMER_BIG = 1;
 const Duration = 1500;
+const ASSESSMENT_FILE_PREFIX = EYES_FILE_PREFIX;
+const ASSESSMENT_CACHE_DIRECTORY = EYES_CACHE_DIRECTORY;
+const ASSESSMENT_DURATION_MS = 20000;
 
 class StandEyes extends Component {
     leftSwingTime = 0;
@@ -172,8 +180,13 @@ class StandEyes extends Component {
 
     componentWillUnmount = () => {
         clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
+        clearInterval(this.flushInterval);
+        clearInterval(this.assessmentCountdownInterval);
+        clearTimeout(this.assessmentFinishTimeout);
+        this.isAssessmentRecording = false;
+        this.flushBufferToDisk().catch(error => {
+            console.log('Unable to flush assessment data during unmount:', error);
+        });
         clearInterval(this.zoneInterval);
         if (this.dataRecord) {
             this.dataRecord.remove();
@@ -433,7 +446,8 @@ class StandEyes extends Component {
         }
         if (this.state.textAction == 'Record') {
             this.setState({textAction: 'Stop'});
-      this.currentSessionId = Date.now().toString();
+            this.currentSessionId = Date.now().toString();
+            this.assessmentFilePath = null;
             this.props.actionRecordingButton('Stop');
             let initTime = new Date();
             this.start = initTime;
@@ -472,8 +486,8 @@ class StandEyes extends Component {
             this.setState({textAction: 'Record'});
             this.props.actionRecordingButton('Record');
             clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
+            clearInterval(this.flushInterval);
+            await this.flushBufferToDisk();
             this.sendDataToSetver();
         }
     };
@@ -495,128 +509,127 @@ class StandEyes extends Component {
             ]);
             return;
         }
-        // console.log('DEBUGGING TESTING MODE: Bluetooth check disabled');
-        if (this.state.textAction == 'Record') {
-            this.setState({textAction: 'Stop'});
-      this.currentSessionId = Date.now().toString();
-            this.props.actionRecordingButton('Stop');
-            var initTime = new Date();
-            var start = initTime;
-            let lastLtime = initTime;
-            let lastRtime = initTime;
+        if (this.isAssessmentRecording) return;
 
-            let count = 10;
-            var timer = setInterval(() => {
-                if (this.state.countDownTimer >= 1) {
-                    var timer2 = setInterval(() => {
-                        var time = new Date();
-                        if (Math.floor((time - start) / 1000) < 21) {
-                            var data = {
-                                stamp: time.getTime(),
-                                timestamp: time,
-                                duration: Math.floor((time - start) / 1000),
-                                left: {
-                                    sensor: this.lsensor,
-                                    swing: this.leftSwingTime,
-                                    stance: this.leftStanceTime,
-                                },
-                                right: {
-                                    sensor: this.rsensor,
-                                    swing: this.rightSwingTime,
-                                    stance: this.rightStanceTime,
-                                },
-                                id_customer: this.props.user.id_customer,
-          session_id: this.currentSessionId || Date.now().toString(),
-                            };
-                            try {
-                                RNFS.appendFile(
-                                    RNFS.CachesDirectoryPath +
-                                    '/suratechM/' +
-                                    start.getFullYear() +
-                                    start.getMonth() +
-                                    start.getDate() +
-                                    this.round,
-                                    JSON.stringify(data) + ',',
-                                );
-                            } catch {
-                                RNFS.mkdir(RNFS.CachesDirectoryPath + '/suratechM/');
-                                RNFS.appendFile(
-                                    RNFS.CachesDirectoryPath +
-                                    '/suratechM/' +
-                                    start.getFullYear() +
-                                    start.getMonth() +
-                                    start.getDate() +
-                                    this.round,
-                                    JSON.stringify(data) + ',',
-                                );
-                            }
-                        }
-                    }, 100);
+        this.isAssessmentRecording = true;
+        this.currentSessionId = Date.now().toString();
+        this.currentAssessmentLegType = this.props.type === 'open' ? 'SOE' : 'SCE';
+        this.start = new Date();
+        this.dataBuffer = [];
+        this.assessmentFilePath =
+            `${ASSESSMENT_CACHE_DIRECTORY}/` +
+            `${ASSESSMENT_FILE_PREFIX}${this.currentAssessmentLegType}-${this.currentSessionId}`;
 
-                    setTimeout(() => {
-                        clearInterval(timer2);
-                    }, 1000);
+        this.setState({textAction: 'Stop', countDownTimer: 20});
+        this.props.actionRecordingButton('Stop');
 
-                    this.setState({
-                        countDownTimer: parseInt(this.state.countDownTimer) - 1,
-                    });
-                }
-            }, 1000);
+        this.readInterval = setInterval(() => {
+            if (!this.isAssessmentRecording) return;
 
-            setTimeout(() => {
-                this.setState({textAction: 'Record', countDownTimer: 20});
-                this.props.actionRecordingButton('Record');
-                this.sendDataToSetverCalibration(
-                    this.props.type == 'open' ? 'SOE' : 'SCE',
-                );
-                clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
-                clearInterval(timer);
-                // clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
-                this.handleNavigationAfterTest()
-            }, 21000);
-        } else {
-            this.setState({textAction: 'Record'});
+            const time = new Date();
+            this.dataBuffer.push({
+                stamp: time.getTime(),
+                timestamp: time,
+                duration: Math.floor((time - this.start) / 1000),
+                left: {
+                    sensor: [...this.lsensor],
+                    swing: this.leftSwingTime,
+                    stance: this.leftStanceTime,
+                },
+                right: {
+                    sensor: [...this.rsensor],
+                    swing: this.rightSwingTime,
+                    stance: this.rightStanceTime,
+                },
+                id_customer: this.props.user.id_customer,
+                session_id: this.currentSessionId,
+                leg_type: this.currentAssessmentLegType,
+                product_number: this.props.productNumber || '',
+                bluetooth_left_id: this.props.leftDevice || '',
+                bluetooth_right_id: this.props.rightDevice || '',
+                shoe_size: this.state.shoeSize || 0,
+            });
+        }, 100);
+
+        this.flushInterval = setInterval(() => {
+            this.flushBufferToDisk().catch(error => {
+                console.log('Assessment buffer flush failed:', error);
+            });
+        }, 2000);
+
+        this.assessmentCountdownInterval = setInterval(() => {
+            const elapsed = Date.now() - this.start.getTime();
+            const secondsLeft = Math.max(0, Math.ceil((ASSESSMENT_DURATION_MS - elapsed) / 1000));
+            this.setState({countDownTimer: secondsLeft});
+        }, 250);
+
+        this.assessmentFinishTimeout = setTimeout(() => {
+            this.finishAssessmentRecording();
+        }, ASSESSMENT_DURATION_MS);
+    };
+
+    finishAssessmentRecording = async () => {
+        if (!this.isAssessmentRecording) return;
+
+        this.isAssessmentRecording = false;
+        clearInterval(this.readInterval);
+        clearInterval(this.flushInterval);
+        clearInterval(this.assessmentCountdownInterval);
+        clearTimeout(this.assessmentFinishTimeout);
+
+        try {
+            // Persist every sample before navigating; network sync continues in the queue.
+            await this.flushBufferToDisk();
+            enqueueAssessmentUploads({
+                isConnected: this.state.isConnected,
+                userId: this.props.user?.id_customer,
+                productNumber: this.props.productNumber,
+                leftDevice: this.props.leftDevice,
+                rightDevice: this.props.rightDevice,
+                shoeSize: this.state.shoeSize,
+            }).catch(error => {
+                console.log('Background assessment upload failed:', error);
+            });
+
+            this.setState({textAction: 'Record', countDownTimer: 20});
             this.props.actionRecordingButton('Record');
-            // clearInterval(this.readInterval);
-    clearInterval(this.flushInterval);
-    this.flushBufferToDisk(); // Flush remaining data before unmount
-            this.sendDataToSetverCalibration(
-                this.props.type == 'open' ? 'SOE' : 'SCE',
+            this.handleNavigationAfterTest();
+        } catch (error) {
+            console.log('Unable to finish assessment recording:', error);
+            this.setState({textAction: 'Record', countDownTimer: 20});
+            this.props.actionRecordingButton('Record');
+            AlertFix.alertBasic(
+                this.getLocalizedText(Lang.errorTitle),
+                this.getLocalizedText(Lang.errorBody2),
             );
         }
     };
 
     handleNavigationAfterTest = () => {
+        const currentType = this.props.type;
 
-        setTimeout(() => {
-            const currentType = this.props.type;
-
-            try {
-                if (currentType === 'open') {
-                    this.props.navigation.navigate('StandEyesClosed');
-                } else if (currentType === 'closed') {
-                    const result = this.props.navigation.navigate('TenMeterWalkTest');
-                } else {
-                    console.log('🧪 TEST: Unknown type:', currentType);
-                }
-            } catch (error) {
-                console.log('🚨 NAVIGATION ERROR:', error);
-                Alert.alert('Navigation Error', `Failed to navigate: ${error.message}`);
+        try {
+            if (currentType === 'open') {
+                this.props.navigation.navigate('StandEyesClosed');
+            } else if (currentType === 'closed') {
+                this.props.navigation.navigate('TenMeterWalkTest');
+            } else {
+                console.log('Unknown assessment type:', currentType);
             }
-        }, 1000);
+        } catch (error) {
+            console.log('Assessment navigation error:', error);
+            Alert.alert('Navigation Error', `Failed to navigate: ${error.message}`);
+        }
     };
 
-    sendDataToSetverCalibration = async (legValue) => {
-        const dir = `${RNFS.CachesDirectoryPath}/suratechM/`;
+    sendDataToSetverCalibration = async () => {
+        const dir = ASSESSMENT_CACHE_DIRECTORY;
 
         try {
             const online = this.state.isConnected;
-            const files = await RNFS.readDir(dir).catch(() => []);
-            console.log('Uploader online?', online, 'pending files:', files.length);
+            const files = (await RNFS.readDir(dir).catch(() => []))
+                .filter(file => file.name.startsWith(ASSESSMENT_FILE_PREFIX));
+            console.log('Assessment uploader online?', online, 'pending files:', files.length);
 
             if (!online || files.length === 0) return;
 
@@ -638,21 +651,33 @@ class StandEyes extends Component {
                         continue;
                     }
 
+                    const firstSample = data[0];
+                    const sessionId = String(firstSample.session_id || '');
+                    const legType = firstSample.leg_type;
+                    const metadataMatches = data.every(sample =>
+                        String(sample.session_id || '') === sessionId &&
+                        sample.leg_type === legType,
+                    );
+
+                    if (!sessionId || !['SOE', 'SCE'].includes(legType) || !metadataMatches) {
+                        console.log('Invalid or mixed assessment metadata; keeping file:', r.path);
+                        continue;
+                    }
+
                     const payload = {
                         data,
-                        id_customer: data[0]?.id_customer || this.props.user?.id_customer || '',
-          session_id: this.currentSessionId || Date.now().toString(),
+                        id_customer: firstSample.id_customer || this.props.user?.id_customer || '',
+                        session_id: sessionId,
                         id_device: '',
                         type: 1,
-                        product_number: this.props.productNumber || '',
-                        bluetooth_left_id: this.props.leftDevice || '',
-                        bluetooth_right_id: this.props.rightDevice || '',
-                        shoe_size: this.state.shoeSize || 0,
-                        leg_type: legValue,
+                        product_number: firstSample.product_number || this.props.productNumber || '',
+                        bluetooth_left_id: firstSample.bluetooth_left_id || this.props.leftDevice || '',
+                        bluetooth_right_id: firstSample.bluetooth_right_id || this.props.rightDevice || '',
+                        shoe_size: firstSample.shoe_size || this.state.shoeSize || 0,
+                        leg_type: legType,
                     };
 
-                    // sanity log
-                    console.log('POST /addjson len=', data.length, 'leg=', legValue, 'file=', r.path);
+                    console.log('POST /addjson len=', data.length, 'leg=', legType, 'session=', sessionId, 'file=', r.path);
 
                     const res = await fetch(`${API}/addjson`, {
                         method: 'POST',
@@ -662,11 +687,11 @@ class StandEyes extends Component {
 
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     const body = await res.json().catch(() => ({}));
-                    if (body.status !== 'ผิดพลาด') {
+                    if (body.status && body.status !== 'ผิดพลาด') {
                         console.log('Upload success, deleting', r.path);
                         await RNFS.unlink(r.path);
                     } else {
-                        console.log('Server reported error:', body);
+                        console.log('Server did not confirm upload success; keeping file:', body);
                     }
                 } catch (err) {
                     console.log('Upload attempt failed for', r.path, err);
@@ -1024,6 +1049,49 @@ class StandEyes extends Component {
             ? getLocalizedText(this.props.lang, langAssessment.startText)
             : getLocalizedText(this.props.lang, langAssessment.stopText);
     };
+
+    async flushBufferToDisk() {
+        if (this.flushInProgress) {
+            await this.flushInProgress;
+            if (Array.isArray(this.dataBuffer) && this.dataBuffer.length > 0) {
+                return this.flushBufferToDisk();
+            }
+            return;
+        }
+        if (!Array.isArray(this.dataBuffer) || this.dataBuffer.length === 0 || !this.start) {
+            return;
+        }
+
+        const toFlush = this.dataBuffer.splice(0);
+        const filePath = this.assessmentFilePath ||
+            RNFS.CachesDirectoryPath +
+                '/suratechM/' +
+                this.start.getFullYear() +
+                this.start.getMonth() +
+                this.start.getDate() +
+                this.round;
+        const chunk = toFlush.map(data => JSON.stringify(data)).join(',') + ',';
+        const writePromise = (async () => {
+            const targetDirectory = this.assessmentFilePath
+                ? ASSESSMENT_CACHE_DIRECTORY
+                : `${RNFS.CachesDirectoryPath}/suratechM/`;
+            await RNFS.mkdir(targetDirectory);
+            await RNFS.appendFile(filePath, chunk);
+        })();
+        this.flushInProgress = writePromise;
+
+        try {
+            await writePromise;
+        } catch (error) {
+            // Preserve unwritten samples in memory so a later flush can retry them.
+            this.dataBuffer = toFlush.concat(this.dataBuffer || []);
+            throw error;
+        } finally {
+            if (this.flushInProgress === writePromise) {
+                this.flushInProgress = null;
+            }
+        }
+    }
 
     render() {
         this.canVibration(this.state.shouldVibrate, this.state.switch);

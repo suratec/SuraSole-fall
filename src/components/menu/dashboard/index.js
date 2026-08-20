@@ -658,8 +658,8 @@ class index extends Component {
                         }}
                         title={getLocalizedText(this.props.lang, LangDashboard.dashboard)}
                     />
-                    <ScrollView contentContainerStyle={{ paddingBottom: 50 }}>
-                  <View style={{ flex: 1, paddingTop: 8 }}>
+                    <ScrollView contentContainerStyle={{ paddingBottom: 50, flexGrow: 1 }} bounces={false}>
+                  <View style={{ paddingTop: 8 }}>
                       <Text style={{ fontSize: 16, textAlign: 'right', marginRight: 10, color:'#005C51', fontWeight: 'bold' }}>
                           {this.state.currentDateTime || moment().format('DD/MM/YYYY')}
                       </Text>
@@ -1829,17 +1829,17 @@ class index extends Component {
                           }}
                           showsVerticalScrollIndicator={false}
                       >
-                      <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 20 }}>
+                      <View style={{ flexGrow: 1, width: '100%', alignItems: 'center' }}>
 
                           <View
                               style={{
-                                  width: 300,
-                                  height: 300,
-                                  borderRadius: 150,
+                                  width: 200,
+                                  height: 200,
+                                  borderRadius: 100,
                                   overflow: 'hidden',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  marginTop: 40,
+                                  marginTop: 60,
                               }}
                           >
                               <Image
@@ -1849,16 +1849,16 @@ class index extends Component {
                           </View>
 
                           {/* paragraph */}
-                          <View style={{ width: '85%', backgroundColor: '#fff', borderRadius: 16, padding: 18, marginVertical: 10, elevation: 2 }}>
+                          <View style={{ width: '96%', backgroundColor: '#fff', borderRadius: 16, padding: 18, marginTop: 20, marginBottom: 10, elevation: 2 }}>
                           <Text
                               style={{
-                                  width: 325,
                                   // marginTop: 24,
                                   fontFamily: 'BaiJamjuree-Medium',
-                                  fontSize: 16,
-                                  lineHeight: 16 * 1.53,
-                                  textAlign: 'justify',
+                                  fontSize: 14,
+                                  lineHeight: 14 * 1.53,
+                                  textAlign: 'left',
                                   color: '#333',
+                                  flexShrink: 1,
                               }}
                           >
                               {this.state.dashboardSummaryText || 'Loading summary...'}
@@ -1872,9 +1872,9 @@ class index extends Component {
                           <TouchableOpacity
                               activeOpacity={0.8}
                               style={{
-                                  width: 353,
-                                  height: 56.5,
-                                  borderRadius: 30,
+                                  width: 250,
+                                  height: 45,
+                                  borderRadius: 25,
                                   backgroundColor: '#00A2A2',
                                   justifyContent: 'center',
                                   alignItems: 'center',
@@ -1885,8 +1885,8 @@ class index extends Component {
                               <Text
                                   style={{
                                       fontFamily: 'BaiJamjuree-Bold', // 700 weight
-                                      fontSize: 30,
-                                      lineHeight: 30,                 // 100 % of font size
+                                      fontSize: 18,
+                                      lineHeight: 18,                 // 100 % of font size
                                       letterSpacing: -0.3,            // ≈ −1 % of 30 px
                                       color: '#FFFFFF',
                                       textAlign: 'center',

@@ -28,7 +28,7 @@ import BleManager from 'react-native-ble-manager';
 import { connect } from 'react-redux';
 
 import HeaderFix from '../../common/HeaderFix';
-import messaging from '@react-native-firebase/messaging';
+import {getMessaging, requestPermission} from '@react-native-firebase/messaging';
 import LanguagePickerFix from '../../common/LanguagePickerFix';
 import Lang from '../../../assets/language/screen/lang_home';
 import RecordLang from '../../../assets/language/menu/lang_record';
@@ -36,6 +36,7 @@ import RecordLang from '../../../assets/language/menu/lang_record';
 import LangAlert from '../../../assets/language/alert/lang_alert';
 import { getLocalizedText } from '../../../assets/language/langUtils';
 import { uploadRecordingFiles } from '../../../services/pressureDataApi';
+import {enqueueAssessmentUploads} from '../../../services/assessmentUploadApi';
 
 import Modal, {
   ModalTitle,
@@ -61,17 +62,20 @@ class index extends Component {
     this.lastAutoUploadAt = 0;
   }
 
-  getImageSource = (img_path, role) => {
+  getImageSource = (img_path, role, cacheBuster) => {
     if (!img_path || (typeof img_path === 'string' && (img_path.includes('user.png') || img_path.includes('doctor.png')))) {
       return role === 'mod_employee'
         ? require('../../../assets/image/icons/doctor.png')
         : require('../../../assets/image/icons/user.png');
     }
-    return {
-      uri: img_path.startsWith('http')
-        ? img_path
-        : `https://api1.suratec.co.th/pic/${img_path}`,
-    };
+    const isLocalImage = img_path.startsWith('file://') || img_path.startsWith('/');
+    let uri = isLocalImage || img_path.startsWith('http')
+      ? img_path
+      : `https://api1.suratec.co.th/pic/${img_path}`;
+    if (!isLocalImage && cacheBuster) {
+      uri += `${uri.includes('?') ? '&' : '?'}v=${cacheBuster}`;
+    }
+    return {uri};
   };
 
   actionProfile = () => {
@@ -137,6 +141,7 @@ class index extends Component {
       const backup = await AsyncStorage.getItem('doctor_user');
       this.setState({ showExitIcon: !!backup });
       console.log('[Home] Exit Icon:', !!backup);
+      this.syncPendingAssessments(true);
     });
 
     // Listen for orientation changes with proper event handling
@@ -152,9 +157,7 @@ class index extends Component {
       }
     });
 
-    messaging()
-      .requestPermission()
-      .then(() => messaging().hasPermission())
+    requestPermission(getMessaging())
       .catch(err => console.log('Messaging permission error:', err));
 
     // Add back button handler using the newer subscription pattern
@@ -172,6 +175,7 @@ class index extends Component {
     }
 
     this.sendDataToSetver({ silent: true });
+    this.syncPendingAssessments();
 
     if (Platform.OS === 'android') {
       PermissionsAndroid.requestMultiple([
@@ -277,7 +281,20 @@ class index extends Component {
     this.setState({ isConnected });
     if (isConnected) {
       this.sendDataToSetver({ silent: true });
+      this.syncPendingAssessments(isConnected);
     }
+  };
+
+  syncPendingAssessments = (isConnected = this.state.isConnected) => {
+    enqueueAssessmentUploads({
+      isConnected,
+      userId: this.props.user?.id_customer,
+      productNumber: this.props.productNumber,
+      leftDevice: this.props.leftDevice,
+      rightDevice: this.props.rightDevice,
+    }).catch(error => {
+      console.log('Pending assessment sync failed:', error);
+    });
   };
 
   async sendDataToSetver({ silent = true } = {}) {
@@ -494,7 +511,11 @@ class index extends Component {
                       padding: 2,
                       borderRadius: (screenWidth - 10) / 2,
                     }}
-                    source={this.getImageSource(this.props.user.image, this.props.user.role)}
+                    source={this.getImageSource(
+                      this.props.user.image,
+                      this.props.user.role,
+                      this.props.user.image_cache_buster,
+                    )}
                   />
                   <Image
                     onPress={() => this.actionProfile()}

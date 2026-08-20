@@ -119,6 +119,13 @@ export default class card_profile extends Component {
                                     this.props.inputAge,
                                     'decimal-pad',
                                 )}
+
+                                {this.renderField(
+                                    this.props.labelGripStrength,
+                                    this.props.inputValueGripStrength,
+                                    this.props.inputGripStrength,
+                                    'decimal-pad',
+                                )}
                             </>
                         }
 

@@ -103,6 +103,7 @@ class index extends Component {
     balance: 0,
     txt: '',
     status: getLocalizedText(this.props.lang, BalanceLang.waiting),
+    isRecording: false,
     isConnected: true,
     peripherals: new Map(),
     shoeSize: 0,
@@ -124,18 +125,18 @@ class index extends Component {
 
   // Helper methods for balance grade colors
   getScoreColor = (score) => {
+    if (!this.state.isRecording && score === 0) return '#dc3545'; // Red when not recording
     if (score >= 80) return '#28a745'; // Green for good
     if (score >= 40) return '#ffc107'; // Yellow for medium
     return '#dc3545'; // Red for bad
   };
 
-  getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case 'good': return '#28a745';
-      case 'medium': return '#ffc107';
-      case 'bad': return '#dc3545';
-      default: return '#6c757d';
-    }
+  getStatusBadgeColor = () => {
+    if (!this.state.isRecording) return '#495057'; // Dark gray when waiting
+    const score = this.state.balance;
+    if (score >= 80) return '#28a745';
+    if (score >= 40) return '#ffc107';
+    return '#dc3545';
   };
 
   calMeasurePressure = value => {
@@ -532,7 +533,7 @@ class index extends Component {
     }
     if (this.state.textAction == 'Record') {
       this.sampleSeq = 0;
-      this.setState({ textAction: 'Stop' });
+      this.setState({ textAction: 'Stop', isRecording: true });
       this.currentSessionId = Date.now().toString();
       this.props.actionRecordingButton('Stop');
       let initTime = new Date();
@@ -569,7 +570,7 @@ class index extends Component {
         this.flushBufferToDisk();
       }, 2000);
     } else {
-      this.setState({ textAction: 'Record' });
+      this.setState({ textAction: 'Record', isRecording: false });
       this.props.actionRecordingButton('Record');
       clearInterval(this.readInterval);
       clearInterval(this.flushInterval);
@@ -1094,7 +1095,10 @@ class index extends Component {
     return (
       <ScrollView
         style={{ flex: 1, backgroundColor: '#fff' }}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ flexGrow: 1 }}
+        bounces={false}
+        scrollEnabled={false}
+        showsVerticalScrollIndicator={false}
       >
         {this.state.calibrationScreenOn ? (
           <HeaderFix
@@ -1369,10 +1373,10 @@ class index extends Component {
         ) : (
           <>
             <View style={styles.container}>
-              {/* Main Content Container - Optimized for No Scrolling */}
+              {/* Main Content Container */}
               <View style={styles.mainContentContainer}>
 
-                {/* Radar Chart Section - More Space */}
+                {/* Radar Chart Section */}
                 <View style={styles.radarContainer}>
                   {this.state.focus ? (
                     <RadarChartFix
@@ -1384,12 +1388,10 @@ class index extends Component {
                   )}
                 </View>
 
-                {/* Balance Grade Display */}
-
+                {/* Score & Status Card */}
                 <View style={styles.balanceGradeContainer}>
-                  {/* Score and Status Row */}
                   <View style={styles.scoreStatusRow}>
-                    {/* Balance Score */}
+                    {/* Score */}
                     <View style={styles.scoreSection}>
                       <RNText style={styles.sectionLabel}>
                         {getLocalizedText(this.props.lang, BalanceLang.score)}
@@ -1399,18 +1401,18 @@ class index extends Component {
                       </View>
                     </View>
 
-                    {/* Status Badge */}
+                    {/* Status */}
                     <View style={styles.statusSection}>
                       <RNText style={styles.sectionLabel}>
                         {getLocalizedText(this.props.lang, BalanceLang.status)}
                       </RNText>
-                      <View style={[styles.statusBadge, { backgroundColor: this.getScoreColor(this.state.balance) }]}>
+                      <View style={[styles.statusBadge, { backgroundColor: this.getStatusBadgeColor() }]}>
                         <RNText style={styles.statusText}>{this.state.status}</RNText>
                       </View>
                     </View>
                   </View>
 
-                  {/* Compact Progress Bar */}
+                  {/* Progress Bar */}
                   <View style={styles.progressContainer}>
                     <View style={styles.progressBarBackground}>
                       <View style={[
@@ -1422,15 +1424,10 @@ class index extends Component {
                       ]} />
                     </View>
                   </View>
-
-                  {/* Description Text - Compact */}
-                  <RNText style={styles.descriptionText} numberOfLines={2}>
-                    {this.state.txt}
-                  </RNText>
                 </View>
 
 
-                {/* Left and Right foot buttons - Fixed Spacing */}
+                {/* Left / Right foot buttons */}
                 <View style={styles.buttonsContainer}>
                   <Grid style={styles.buttonsGrid}>
                     <Col>
@@ -1460,7 +1457,7 @@ class index extends Component {
                   </Grid>
                 </View>
 
-                {/* Record or Calibration buttons based on selected menu */}
+                {/* Record / Calibration buttons */}
                 {this.state.selectedMenu === 1 ? (
                   <View style={styles.recordButtonContainer}>
                     <ButtonFix
@@ -1540,55 +1537,49 @@ class BalanceButton extends React.PureComponent {
 const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 24,
+    paddingBottom: 20,
   },
   container: {
     backgroundColor: '#fff',
   },
   mainContentContainer: {
+    flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 28,
-    minHeight: Math.max(height - 96, 650),
+    paddingTop: 20,
+    paddingBottom: 20,
     justifyContent: 'flex-start',
   },
 
+  // Radar chart - centered with generous space
   radarContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    height: 310,
-    marginTop: 8,
-    marginBottom: 18,
+    marginTop: 30,
+    marginBottom: 10,
+    flex: 0.45,
   },
 
+  // Score & Status card
   balanceGradeContainer: {
-    marginTop: 0,
-    marginBottom: 18,
-    paddingHorizontal: 10, // Reduced width
-    // paddingVertical: 8, // Reduced height
+    marginVertical: 10,
+    paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 13,
     backgroundColor: '#ffffff',
-    borderRadius: 10, // Smaller radius
+    borderRadius: 10,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 3,
-    alignSelf: 'center', // Center the card
-    justifyContent: 'center',
-    minHeight: 112,
-    width: '88%', // Reduced width to 88% of container
+    flex: 0.15,
+    alignSelf: 'center',
+    width: '85%',
   },
   scoreStatusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    height: 44,
-    marginBottom: 6, // Reduced spacing
+    marginBottom: 6,
   },
   scoreSection: {
     alignItems: 'center',
@@ -1599,45 +1590,40 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sectionLabel: {
-    fontSize: 10, // Smaller font
+    fontSize: 10,
     color: '#666',
-    height: 14,
-    marginBottom: 3, // Reduced spacing
+    marginBottom: 3,
     fontWeight: '500',
   },
   scoreBadge: {
-    paddingHorizontal: 8, // Reduced padding
-    paddingVertical: 4, // Reduced padding
-    borderRadius: 15, // Smaller radius
-    width: 64,
-    height: 28,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 15,
+    minWidth: 50,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   statusBadge: {
-    paddingHorizontal: 8, // Reduced padding
-    paddingVertical: 4, // Reduced padding
-    borderRadius: 15, // Smaller radius
-    width: 92,
-    height: 28,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 15,
+    minWidth: 60,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   scoreText: {
-    fontSize: 14, // Smaller font
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#fff',
   },
   statusText: {
-    fontSize: 12, // Smaller font
+    fontSize: 12,
     fontWeight: '600',
     color: '#fff',
   },
   progressContainer: {
-    marginTop: 5, // Reduced spacing
+    marginTop: 5,
   },
   progressBarBackground: {
-    height: 4, // Thinner progress bar
+    height: 4,
     backgroundColor: '#e9ecef',
     borderRadius: 2,
     overflow: 'hidden',
@@ -1646,36 +1632,26 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 2,
   },
-  descriptionText: {
-    fontSize: 10, // Smaller font
-    color: '#495057',
-    textAlign: 'center',
-    marginTop: 5, // Reduced spacing
-    fontStyle: 'italic',
-    lineHeight: 14, // Tighter line height
-    minHeight: 30,
-  },
 
-  // Buttons styles - More Space
+  // Left / Right buttons
   buttonsContainer: {
     width: '100%',
     alignItems: 'center',
-    marginTop: 0,
-    marginBottom: 16,
+    marginTop: 10,
+    marginBottom: 10,
   },
   buttonsGrid: {
     flexDirection: 'row',
     width: '90%',
     alignSelf: 'center',
-    paddingHorizontal: 0,
   },
   balanceButtonContainer: {
     flex: 1,
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     marginVertical: 4,
   },
   balanceButton: {
-    minHeight: 44,
+    minHeight: 46,
     paddingHorizontal: 10,
     paddingVertical: 12,
     backgroundColor: '#d2afa8',
@@ -1690,22 +1666,22 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   balanceButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#222',
     fontWeight: '400',
     textAlign: 'center',
   },
 
-  // Record button styles - More Space
+  // Record button
   recordButtonContainer: {
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: 58,
-    marginTop: 0,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 15,
   },
 
-  // Calibration buttons styles
+  // Calibration buttons
   calibrationButtonsContainer: {
     justifyContent: 'center',
     alignItems: 'center',

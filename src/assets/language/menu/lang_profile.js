@@ -12,6 +12,7 @@ const Emaillabel = { eng: 'Email Address', thai: 'ที่อยู่อีเ
 const weightLabel = { eng: 'Weight (Kg.)', thai: 'น้ำหนัก ( กก. )', japanese: '重量（kg）' }
 const heigthLabel = { eng: 'Height (Cm.)', thai: 'ส่วนสูง ( ซม. )', japanese: '高さ（センチメートル）' }
 const ageLabel = { eng: 'Age (Yr)', thai: 'อายุ', japanese: '年齢（年）' }
+const gripStrengthLabel = { eng: 'Grip Strength (Kg.)', thai: 'แรงบีบมือ (กก.)', japanese: '握力（kg）' }
 const langTitle = { eng: 'Change Language', thai: 'เปลี่ยนภาษา', japanese: '言語を変更する' }
 const emergencyLabel = { eng: 'Contact No.', thai: 'เลขที่สัญญา', japanese: 'お問い合わせ番号' }
 const NotificationLabel = { eng: 'Notification Alarm', thai: 'ตั้งค่าการสั่นแจ้งเตือน', japanese: '通知アラーム' }
@@ -118,6 +119,7 @@ export default {
     heigthLabel,
     langTitle,
     ageLabel,
+    gripStrengthLabel,
     emergencyLabel,
     alertErrorTitle,
     alertSuccessTitle,
