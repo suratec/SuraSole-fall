@@ -34,6 +34,9 @@ import stanceStandImg  from '../../../assets/image/dashboard/stanceStand.png';
 import stanceWalkImg   from '../../../assets/image/dashboard/stanceWalk.png';
 import LangDashboard from '../../../assets/language/menu/lang_dashboard';
 import {getLocalizedText} from '../../../assets/language/langUtils';
+import {
+  enqueueAssessmentUploads,
+} from '../../../services/assessmentUploadApi';
 var RNFS = require('react-native-fs');
 
 const {height, width} = Dimensions.get('window');
@@ -86,8 +89,13 @@ class index extends Component {
       dataShow: false,
       dashboardSummaryText: '',
       currentPageIndex: 0,
-      currentDateTime: ''
+      currentDateTime: '',
+      dashboardUpdatedAt: ''
     };
+    // componentDidMount and the navigation focus event can fire together.
+    // Keep a single request sequence so an older response cannot overwrite
+    // the latest playback time.
+    this.dashboardRefreshInProgress = false;
     this.onPreLoad();
   }
 
@@ -310,28 +318,123 @@ class index extends Component {
   };
 
     // UPDATED: handleFetchDashboardData function with server time extraction
-    handleFetchDashboardData = async () => {
-        const { id_customer } = this.props.user;
+    fetchLatestPlaybackTime = async () => {
+        const idCustomer = this.props.user?.id_customer;
+        if (!idCustomer) return null;
+
         try {
             const response = await fetch(
-                `${API}/member/get_user_details?id=${id_customer}`,
-                { method: 'POST' },
+                `https://www.suratec.co.th/admin/mod_playback/report_test_time.php?id_customer=${encodeURIComponent(idCustomer)}`,
+                {method: 'GET'},
             );
+            if (!response.ok) {
+                throw new Error(`report_test_time HTTP ${response.status}`);
+            }
+
+            const html = await response.text();
+            const optionPattern = /<option\b([^>]*)>([\s\S]*?)<\/option>/gi;
+            let selectedOption = null;
+            let latestOption = null;
+            let recordingOptionCount = 0;
+            let match;
+
+            while ((match = optionPattern.exec(html))) {
+                const attributes = match[1] || '';
+                const label = match[2].replace(/<[^>]+>/g, '').trim();
+                if (!label || /^playback time$/i.test(label)) continue;
+
+                recordingOptionCount += 1;
+                latestOption = label;
+                if (/\bselected(?:\s|=|$)/i.test(attributes)) {
+                    selectedOption = label;
+                }
+            }
+
+            const playbackTime = selectedOption || latestOption;
+            console.log('[Dashboard] Playback endpoint response:', {
+                status: response.status,
+                recordingOptionCount,
+                selectedOption: selectedOption || null,
+            });
+            console.log('[Dashboard] Latest playback time:', playbackTime || 'not available');
+            return playbackTime || null;
+        } catch (error) {
+            console.warn('[Dashboard] Unable to load playback time:', error);
+            return null;
+        }
+    };
+
+    handleFetchDashboardData = async (playbackTime = null) => {
+        const { id_customer } = this.props.user;
+        try {
+            const requestedAt = new Date().toISOString();
+            const response = await fetch(
+                `${API}member/get_user_details`,
+                {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({id: id_customer}),
+                },
+            );
+            if (!response.ok) {
+                throw new Error(`get_user_details HTTP ${response.status}`);
+            }
             const res = await response.json();
 
-            console.log('res', res);
+            console.log('[Dashboard] Fetch latest result:', {
+                requestedAt,
+                message: res?.message,
+                created_at: res?.user_details?.created_at,
+                updated_at: res?.user_details?.updated_at,
+                session_id: res?.user_details?.session_id,
+                data_type: res?.user_details?.data_type,
+            });
 
             if (res.message === 'User Details Successfully') {
                 const user_details = res.user_details;
+                const dashboardUpdatedAt = user_details?.updated_at || user_details?.created_at
+                    ? moment(user_details?.updated_at || user_details?.created_at)
+                        .format('DD/MM/YYYY HH:mm:ss')
+                    : '';
 
-                // ✅ EXTRACT SERVER TIME FROM WORKING API
-                if (user_details && user_details.created_at) {
-                    const serverDateTime = moment(user_details.created_at).format('DD/MM/YYYY');
-                    console.log('🕐 ✅ Server time extracted from get_user_details:', serverDateTime);
-                    this.setState({ currentDateTime: serverDateTime });
+                // `updated_at` is the time the aggregate dashboard row was stored,
+                // not necessarily the time the patient performed the recording.
+                // Prefer a recording/session timestamp whenever the API provides it.
+                const sessionDataTimeCandidates = [
+                    user_details?.playback_time ||
+                    user_details?.recorded_at ||
+                    user_details?.record_time ||
+                    user_details?.measurement_time ||
+                    user_details?.session_time ||
+                    user_details?.session_started_at ||
+                    user_details?.timestamp,
+                ].filter(value => value !== null && value !== undefined && value !== '' && Number(value) !== 0);
+                const sessionDataTime = sessionDataTimeCandidates[0] || null;
+                const serverDateTime = playbackTime ||
+                    (sessionDataTime ? moment(sessionDataTime).format('DD/MM/YYYY HH:mm:ss') : null);
+
+                if (serverDateTime) {
+                    const timeFields = Object.fromEntries(
+                        Object.entries(user_details).filter(([key]) =>
+                            /(time|date|stamp|session)/i.test(key),
+                        ),
+                    );
+                    console.log('Dashboard time from get_user_details:', {
+                        displayed: serverDateTime,
+                        playbackTime,
+                        sessionDataTime,
+                        timeFields,
+                    });
+                    this.setState({ currentDateTime: serverDateTime, dashboardUpdatedAt });
                 } else {
-                    console.warn('🚨 No server time in user_details, using local time');
-                    this.setState({ currentDateTime: moment().format('DD/MM/YYYY HH:mm:ss') });
+                    // created_at / updated_at are the time get_user_data stored the
+                    // aggregate row. They must never be presented as the recording time.
+                    console.warn('[Dashboard] No recording time was returned by an accessible API.', {
+                        created_at: user_details?.created_at,
+                        updated_at: user_details?.updated_at,
+                        timestamp: user_details?.timestamp,
+                    });
+                    this.setState({ currentDateTime: '', dashboardUpdatedAt });
                 }
 
                 // Original data processing
@@ -352,7 +455,8 @@ class index extends Component {
                 this.setState({
                     dataShow: true,
                     isLoading: false,
-                    currentDateTime: moment().format('DD/MM/YYYY HH:mm:ss') // Fallback to local time
+                    currentDateTime: '',
+                    dashboardUpdatedAt: ''
                 });
             }
         } catch (error) {
@@ -360,25 +464,60 @@ class index extends Component {
             this.setState({
                 isLoading: false,
                 dataShow: true,
-                currentDateTime: moment().format('DD/MM/YYYY HH:mm:ss') // Fallback to local time
+                currentDateTime: '',
+                dashboardUpdatedAt: ''
             });
         }
     };
 
-// SIMPLIFIED: componentDidMount (remove the failing /record call)
+    refreshDashboard = async () => {
+        if (this.dashboardRefreshInProgress) {
+            console.log('[Dashboard] Refresh already in progress; skipping duplicate request.');
+            return;
+        }
+
+        this.dashboardRefreshInProgress = true;
+        this.setState({isLoading: true});
+
+        try {
+            // A recording can finish immediately before this screen is opened.
+            // Finish any pending assessment upload/rebuild first so the following
+            // dashboard requests do not read the previous session's data.
+            const assessmentUploadResult = await enqueueAssessmentUploads({
+                isConnected: this.state.isConnected !== false,
+                userId: this.props.user?.id_customer,
+                productNumber: this.props.productNumber,
+                leftDevice: this.props.leftDevice,
+                rightDevice: this.props.rightDevice,
+                shoeSize: Number(this.props.user?.shoe_size || this.props.user?.shoeSize || 0),
+            });
+            console.log('[Dashboard] Pending assessment workflow:', assessmentUploadResult);
+
+            const playbackTime = await this.fetchLatestPlaybackTime();
+
+            return await Promise.all([
+                this.handleFetchDashboardData(playbackTime),
+                this.fetchDashboardSummary(),
+                this.fetchDashboardReport(),
+            ]);
+        } finally {
+            this.dashboardRefreshInProgress = false;
+        }
+    };
+
     componentDidMount = () => {
-        NetInfo.addEventListener(this.handleConnectivityChange);
+        this.netInfoUnsubscribe = NetInfo.addEventListener(this.handleConnectivityChange);
+        this.focusListener = this.props.navigation.addListener('focus', this.refreshDashboard);
 
-        const { user, token } = this.props;
-        const { id_customer } = user;
+        console.log('Dashboard opened for user:', this.props.user?.id_customer);
+        console.log('[Dashboard][time-source-v2] Recording time only accepts playback/session data; created_at is not used.');
+        this.refreshDashboard();
+    };
 
-        console.log('🧾 Logged-in/Impersonated user details:', user);
-        console.log('🔐 Using token:', token);
-
-        this.handleFetchDashboardData();
-        this.fetchDashboardSummary();
-        this.fetchDashboardReport();
-
+    componentWillUnmount = () => {
+        if (this.netInfoUnsubscribe) this.netInfoUnsubscribe();
+        if (typeof this.focusListener === 'function') this.focusListener();
+        else if (this.focusListener?.remove) this.focusListener.remove();
     };
 
     fetchDashboardReport = async () => {
@@ -412,24 +551,18 @@ class index extends Component {
             const res = await response.json();
             console.log('🕐 Dashboard Report Response:', res);
 
-            // Extract date and time from created_at field
-            if (res.data_dashboard && res.data_dashboard.created_at) {
-                const createdAt = res.data_dashboard.created_at;
-
-                const formattedDateTime = moment(createdAt).format('DD/MM/YYYY HH:mm:ss');
-
-                console.log('🕐 Extracted date-time from created_at:', formattedDateTime);
-                this.setState({ currentDateTime: formattedDateTime });
+            // dashboard-report is supplementary content from a separate API.
+            // It must not overwrite the timestamp for cards rendered from
+            // get_user_details, otherwise an older report appears as fresh data.
+            if (res.data_dashboard) {
                 this.setState({ dashboardData: res.data_dashboard });
 
             } else {
                 console.warn('🚨 No created_at field found in data_dashboard');
-                this.setState({ currentDateTime: moment().format('DD/MM/YYYY HH:mm:ss') });
             }
 
         } catch (error) {
             console.error('❌ Error fetching dashboard report:', error);
-            this.setState({ currentDateTime: moment().format('DD/MM/YYYY HH:mm:ss') });
         } finally {
             this.setState({ timeLoading: false });
         }
@@ -441,9 +574,7 @@ class index extends Component {
         const lang_mode = this.props.lang || 0;
 
         console.log('🔁 Dashboard Summary');
-        console.log('User ID:', id_customer);
-        console.log('Security Token:', security_token);
-        console.log('Token:', token);
+        console.log('Dashboard Summary request for user:', id_customer);
 
         // ✅ Add the check here
         if (!id_customer || !security_token || !token) {
@@ -618,7 +749,9 @@ class index extends Component {
                   </TouchableOpacity>
                   <TouchableOpacity
                       onPress={() => {
-                        this.handleFetchDashboardData();
+                        // Use the same sequence as the initial screen load:
+                        // fetch raw playback time, then fetch dashboard data.
+                        this.refreshDashboard();
                       }}
                       style={{
                         width: '40%',
@@ -661,7 +794,11 @@ class index extends Component {
                     <ScrollView contentContainerStyle={{ paddingBottom: 50, flexGrow: 1 }} bounces={false}>
                   <View style={{ paddingTop: 8 }}>
                       <Text style={{ fontSize: 16, textAlign: 'right', marginRight: 10, color:'#005C51', fontWeight: 'bold' }}>
-                          {this.state.currentDateTime || moment().format('DD/MM/YYYY')}
+                          {this.state.currentDateTime
+                              ? `Recorded: ${this.state.currentDateTime}`
+                              : this.state.dashboardUpdatedAt
+                                  ? this.state.dashboardUpdatedAt
+                                  : '—'}
                       </Text>
 
                       {dataType === 2 && (

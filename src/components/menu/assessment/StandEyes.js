@@ -6,7 +6,6 @@ import {
     NativeModules,
     NativeEventEmitter,
     Vibration,
-    TouchableOpacity,
     Text,
     Alert,
     Platform,
@@ -27,7 +26,7 @@ import UI from '../../../config/styles/CommonStyles';
 
 import langAssessment from '../../../assets/language/menu/lang_assessmentTests';
 import {getLocalizedText} from '../../../assets/language/langUtils';
-import ButtonFix from "../../common/ButtonFix";
+import RecordStopButton from '../../common/RecordStopButton';
 import Lang_pressuremap from "../../../assets/language/menu/lang_pressuremap";
 import {
     EYES_CACHE_DIRECTORY,
@@ -65,6 +64,9 @@ class StandEyes extends Component {
     round = Math.floor(1000 + Math.random() * 9000);
 
   dataBuffer = []; // Buffer for sensor data to reduce file I/O
+    hasReceivedSensorData = false;
+    hasReceivedLeftSensorData = false;
+    hasReceivedRightSensorData = false;
 
     ltime = new Date();
     rtime = new Date();
@@ -140,12 +142,32 @@ class StandEyes extends Component {
     };
 
     toDecimalArray(byteArray) {
-        let dec = [];
+        const dec = [];
         for (let i = 0; i < byteArray.length - 1; i += 2) {
-            dec.push(byteArray[i] * 255 + byteArray[i + 1]);
+            dec.push(byteArray[i] * 256 + byteArray[i + 1]);
         }
         return dec;
     }
+
+    ensureSensorNotifications = async peripheralId => {
+        if (!peripheralId) return;
+
+        const service = Platform.OS === 'android'
+            ? '0000FFE0-0000-1000-8000-00805F9B34FB'
+            : 'FFE0';
+        const characteristic = Platform.OS === 'android'
+            ? '0000FFE1-0000-1000-8000-00805F9B34FB'
+            : 'FFE1';
+
+        try {
+            await BleManager.retrieveServices(peripheralId);
+            await BleManager.startNotification(peripheralId, service, characteristic);
+            await BleManager.write(peripheralId, service, characteristic, [0]);
+            await BleManager.write(peripheralId, service, characteristic, [1, 95]);
+        } catch (error) {
+            console.log('Unable to start assessment sensor notifications:', peripheralId, error);
+        }
+    };
 
     toKilo = value => {
         return (5.6 * 10 ** -4 * Math.exp(value / 53.36) + 6.72) / 0.796;
@@ -171,6 +193,8 @@ class StandEyes extends Component {
             this.startReading();
             this.setState({focus: true});
         });
+        this.retrieveConnected();
+        this.startReading();
         this.zoneInterval = setInterval(() => {
             var score =
                 (this.state.balance + Number.parseInt(this.state.score)) / this.counter;
@@ -213,6 +237,7 @@ class StandEyes extends Component {
                             this.setState({peripherals});
                         }
                         if (peripheral.name[peripheral.name.length - 1] === 'L') {
+                            this.leftPeripheralId = peripheral.id;
                             this.props.addLeftDevice(peripheral.id);
                             this.setState({
                                 shoeSize:
@@ -220,6 +245,7 @@ class StandEyes extends Component {
                                     peripheral.name[peripheral.name.length - 2],
                             });
                         } else if (peripheral.name[peripheral.name.length - 1] === 'R') {
+                            this.rightPeripheralId = peripheral.id;
                             this.props.addRightDevice(peripheral.id);
                         }
                         setTimeout(() => {
@@ -249,30 +275,49 @@ class StandEyes extends Component {
         }
     }
 
-    retrieveConnected() {
-        BleManager.getConnectedPeripherals([]).then(results => {
-            if (results.length == 0) {
-                console.log('No connected peripherals');
-            }
-            console.log(results);
-            var peripherals = this.state.peripherals;
-            for (var i = 0; i < results.length; i++) {
-                var peripheral = results[i];
-                this.actionConnectDevice(peripheral);
+    async retrieveConnected() {
+        try {
+            const results = await BleManager.getConnectedPeripherals([]);
+            if (results.length === 0) console.log('No connected peripherals');
+
+            const peripherals = this.state.peripherals;
+            for (const peripheral of results) {
+                // Redux updates props asynchronously. Retain the physical device
+                // IDs locally so incoming BLE samples are not discarded meanwhile.
+                if (peripheral.name?.endsWith('L')) {
+                    this.leftPeripheralId = peripheral.id;
+                    this.props.addLeftDevice(peripheral.id);
+                }
+                if (peripheral.name?.endsWith('R')) {
+                    this.rightPeripheralId = peripheral.id;
+                    this.props.addRightDevice(peripheral.id);
+                }
                 peripheral.connected = true;
                 peripherals.set(peripheral.id, peripheral);
-                this.setState({peripherals});
+                await this.ensureSensorNotifications(peripheral.id);
             }
-        });
+            this.setState({peripherals});
+        } catch (error) {
+            console.log('Unable to retrieve assessment peripherals:', error);
+        }
     }
 
     async startReading() {
+        if (this.dataRecord) this.dataRecord.remove();
         this.dataRecord = bleManagerEmitter.addListener(
             'BleManagerDidUpdateValueForCharacteristic',
             ({value, peripheral, characteristic, service}) => {
                 let time = new Date();
-                if (peripheral === this.props.rightDevice) {
+                const isRightSensor = peripheral === this.rightPeripheralId ||
+                    peripheral === this.props.rightDevice;
+                const isLeftSensor = peripheral === this.leftPeripheralId ||
+                    peripheral === this.props.leftDevice;
+
+                if (isRightSensor) {
                     let rsensor = this.toDecimalArray(value);
+                    if (rsensor.length < 5) return;
+                    this.hasReceivedSensorData = true;
+                    this.hasReceivedRightSensorData = true;
                     this.recordData(rsensor, 'R');
                     if (time - this.rtime > 250) {
                         let lsensor = this.state.lsensor;
@@ -307,8 +352,11 @@ class StandEyes extends Component {
                         this.rtime = time;
                     }
                 }
-                if (peripheral === this.props.leftDevice) {
+                if (isLeftSensor) {
                     let lsensor = this.toDecimalArray(value);
+                    if (lsensor.length < 5) return;
+                    this.hasReceivedSensorData = true;
+                    this.hasReceivedLeftSensorData = true;
                     this.recordData(lsensor, 'L');
                     if (time - this.ltime > 250) {
                         let rsensor = this.state.rsensor;
@@ -359,6 +407,14 @@ class StandEyes extends Component {
             this.measurePressure(data);
         }
     }
+
+    hasRequiredSensorData = () => {
+        const leftId = this.leftPeripheralId || this.props.leftDevice;
+        const rightId = this.rightPeripheralId || this.props.rightDevice;
+
+        return (!leftId || this.hasReceivedLeftSensorData) &&
+            (!rightId || this.hasReceivedRightSensorData);
+    };
 
     setStatus(x, y) {
         var persent = 0;
@@ -510,6 +566,10 @@ class StandEyes extends Component {
             return;
         }
         if (this.isAssessmentRecording) return;
+        if (!this.hasRequiredSensorData()) {
+            Alert.alert(this.getLocalizedText(langAssessment.warning), this.getLocalizedText(langAssessment.bluetoothAlert));
+            return;
+        }
 
         this.isAssessmentRecording = true;
         this.currentSessionId = Date.now().toString();
@@ -580,15 +640,15 @@ class StandEyes extends Component {
         try {
             // Persist every sample before navigating; network sync continues in the queue.
             await this.flushBufferToDisk();
-            enqueueAssessmentUploads({
+            // Wait for the upload and server-side dashboard rebuild before the
+            // next assessment/dashboard can read the new session.
+            await enqueueAssessmentUploads({
                 isConnected: this.state.isConnected,
                 userId: this.props.user?.id_customer,
                 productNumber: this.props.productNumber,
                 leftDevice: this.props.leftDevice,
                 rightDevice: this.props.rightDevice,
                 shoeSize: this.state.shoeSize,
-            }).catch(error => {
-                console.log('Background assessment upload failed:', error);
             });
 
             this.setState({textAction: 'Record', countDownTimer: 20});
@@ -1157,9 +1217,7 @@ class StandEyes extends Component {
                             </View>
                         ) : (
                             // Active button - normal ButtonFix
-                            <ButtonFix
-                                action={true}
-                                rounded={true}
+                            <RecordStopButton
                                 title={this.getButtonTitle()}
                                 onPress={() => this.actionRecordingFor20()}
                             />

@@ -2,7 +2,7 @@ import React, {Component} from 'react';
 import {Dimensions, ScrollView, View} from 'react-native';
 
 import SvgContourBasic from '../contourlib/screens/SvgD3ContourBasic';
-import ButtonFix from './ButtonFix';
+import RecordStopButton from './RecordStopButton';
 import HeaderFix from './HeaderFix';
 
 export default class PressureMapLayout extends Component {
@@ -40,9 +40,7 @@ export default class PressureMapLayout extends Component {
           </View>
 
           <View style={{padding: 15, alignItems: 'center'}}>
-            <ButtonFix
-              action={true}
-              rounded={true}
+            <RecordStopButton
               title={this.props.buttonTitle}
               onPress={this.props.onRecord}
             />

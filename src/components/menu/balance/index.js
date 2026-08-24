@@ -23,12 +23,13 @@ import { connect } from 'react-redux';
 
 import HeaderFix from '../../common/HeaderFix';
 import NotificationsState from '../../shared/Notification';
-import ButtonFix from '../../common/ButtonFix';
+import RecordStopButton from '../../common/RecordStopButton';
 import RadarChartFix from '../../common/RadarChartFix';
 import CardStatusFix from '../../common/CardStatusFix';
 import AlertFix from '../../common/AlertsFix';
 import ScoreFix from '../../common/ScoreFix';
 import API from '../../../config/Api';
+import {refreshUserDashboard} from '../../../services/assessmentUploadApi';
 import BleManager from 'react-native-ble-manager';
 
 import {
@@ -619,7 +620,7 @@ class index extends Component {
       this.sampleSeq = 0;
       this.setState({ textAction: getLocalizedText(this.props.lang, BalanceLang.stopButton) });
       this.currentSessionId = Date.now().toString();
-      this.props.actionRecordingButton(getLocalizedText(this.props.lang, BalanceLang.stopButton));
+      this.props.actionRecordingButton('Stop');
       var initTime = new Date();
       var start = initTime;
       let lastLtime = initTime;
@@ -699,7 +700,7 @@ class index extends Component {
     } else {
       this.setState({ textAction: getLocalizedText(this.props.lang, BalanceLang.recordButton) });
       this.currentSessionId = Date.now().toString();
-      this.props.actionRecordingButton(getLocalizedText(this.props.lang, BalanceLang.recordButton));
+      this.props.actionRecordingButton('Record');
       // clearInterval(this.readInterval);
       clearInterval(this.flushInterval);
       await this.flushBufferToDisk();
@@ -718,6 +719,7 @@ class index extends Component {
       const dir = `${RNFS.CachesDirectoryPath}/suratechM/`;
       const files = await RNFS.readDir(dir).catch(() => []);
       if (!files || !files.length) return;
+      let uploaded = 0;
 
       // sort files lexicographically so older sessions go first
       const sortedFiles = files.sort((a, b) => a.name.localeCompare(b.name));
@@ -783,12 +785,17 @@ class index extends Component {
 
           if (json.status !== 'ผิดพลาด') {
             await RNFS.unlink(f.path).catch(e => { console.error('Unhandled error:', e); });
+            uploaded += 1;
           } else {
             console.warn('Server returned error status; keeping file:', f.path);
           }
         } catch (e) {
           console.error('Error uploading file:', f?.path, e);
         }
+      }
+
+      if (uploaded > 0) {
+        await refreshUserDashboard(this.props.user?.id_customer);
       }
     } catch (e) {
       console.error('uploadCachedFilesInOrder failed:', e);
@@ -1460,9 +1467,7 @@ class index extends Component {
                 {/* Record / Calibration buttons */}
                 {this.state.selectedMenu === 1 ? (
                   <View style={styles.recordButtonContainer}>
-                    <ButtonFix
-                      action={true}
-                      rounded={true}
+                    <RecordStopButton
                       title={this.state.textAction}
                       onPress={() => this.actionRecording()}
                     />

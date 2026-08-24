@@ -138,6 +138,13 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                 limit: 20
             };
 
+            console.log('[Chat history] Request metadata:', {
+                userId: auth.userId,
+                hasSecurityToken: Boolean(auth.securityToken),
+                hasBearerToken: Boolean(auth.token),
+                skip,
+            });
+
             const response = await fetch('https://app.surasole.com/chat/history', {
                 method: 'POST',
                 headers: {
@@ -249,15 +256,15 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         fetchChatHistory(0);
     }, []);
 
-    const sendMessageToAPI = async (formData) => {
+    const sendMessageToAPI = async (body, request = {}) => {
         setIsTyping(true);
         try {
-            // debugFormData(formData);
+            const endpoint = request.endpoint || 'https://app.surasole.com/api/voice-chat/';
 
-            const res = await fetch('https://app.surasole.com/api/voice-chat/', {
+            const res = await fetch(endpoint, {
                 method: 'POST',
-                // headers: { 'Content-Type': 'multipart/form-data' },
-                body: formData,
+                headers: request.headers,
+                body,
             });
 
             const status = res.status;
@@ -282,8 +289,9 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                 return;
             }
 
-            if (data?.text_response) {
-                addMessage('bot', data.text_response, data.voice_url);
+            const responseText = data?.text_response || data?.response || data?.reply;
+            if (responseText) {
+                addMessage('bot', responseText, data.voice_url);
             } else {
                 ToastAndroid.show('No response from server', ToastAndroid.SHORT);
             }
@@ -306,12 +314,20 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
         const auth = getAuthFormData();
         if (!auth) return;
 
-        const formData = new FormData();
-        formData.append('text', message);
-        formData.append('security_token', auth.token);
-        formData.append('user_id', auth.userId);
-
-        await sendMessageToAPI(formData);
+        await sendMessageToAPI(
+            JSON.stringify({
+                message,
+                security_token: auth.securityToken,
+                user_id: auth.userId,
+            }),
+            {
+                endpoint: 'https://app.surasole.com/api/chat/',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${auth.token}`,
+                },
+            },
+        );
         setTimeout(() => setInputDisabled(false), 1000);
     };
 

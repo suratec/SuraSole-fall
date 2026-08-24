@@ -24,7 +24,7 @@ import { connect } from 'react-redux';
 
 import HeaderFix from '../../common/HeaderFix';
 import NotificationsState from '../../shared/Notification';
-import ButtonFix from '../../common/ButtonFix';
+import RecordStopButton from '../../common/RecordStopButton';
 import RadarChartFix from '../../common/RadarChartFix';
 import CardStatusFix from '../../common/CardStatusFix';
 import AlertFix from '../../common/AlertsFix';
@@ -795,9 +795,7 @@ class index extends Component {
 
           {/* Record button - Fixed Spacing */}
           <View style={styles.recordButtonContainer}>
-            <ButtonFix
-              action={true}
-              rounded={true}
+            <RecordStopButton
               title={this.getRecordButtonLabel()}
               onPress={() => this.actionRecording()}
             />

@@ -27,10 +27,6 @@ const {height: D_HEIGHT, width: D_WIDTH} = Dimensions.get('window');
 // import { withNavigation } from 'react-navigation';
 
 class listItem extends Component {
-  componentDidMount() {
-    console.log(this.props.eightSensor);
-  }
-
   actionDashboard = () => {
     // if (this.state.switch) {
     //   Vibration.vibrate(1500);

@@ -45,6 +45,9 @@ class TenMeterWalkTest extends Component {
         this.lsensor = [0, 0, 0, 0, 0];
         this.rsensor = [0, 0, 0, 0, 0];
         this.sampleSeq = 0;
+        this.hasReceivedSensorData = false;
+        this.hasReceivedLeftSensorData = false;
+        this.hasReceivedRightSensorData = false;
     }
 
     async componentDidMount() {
@@ -56,6 +59,8 @@ class TenMeterWalkTest extends Component {
             this.retrieveConnected();
             this.startReading();
         });
+        this.retrieveConnected();
+        this.startReading();
     }
 
     componentWillUnmount() {
@@ -78,50 +83,87 @@ class TenMeterWalkTest extends Component {
     };
 
     toDecimalArray(byteArray) {
-        let dec = [];
+        const dec = [];
         for (let i = 0; i < byteArray.length - 1; i += 2) {
-            dec.push(byteArray[i] * 255 + byteArray[i + 1]);
+            dec.push(byteArray[i] * 256 + byteArray[i + 1]);
         }
         return dec;
     }
+
+    ensureSensorNotifications = async peripheralId => {
+        if (!peripheralId) return;
+
+        const service = '0000FFE0-0000-1000-8000-00805F9B34FB';
+        const characteristic = '0000FFE1-0000-1000-8000-00805F9B34FB';
+
+        try {
+            await BleManager.retrieveServices(peripheralId);
+            await BleManager.startNotification(peripheralId, service, characteristic);
+            await BleManager.write(peripheralId, service, characteristic, [0]);
+            await BleManager.write(peripheralId, service, characteristic, [1, 95]);
+        } catch (error) {
+            console.log('Unable to start 10MWT sensor notifications:', peripheralId, error);
+        }
+    };
 
     recordData(data, sensor) {
         if (sensor === 'L') this.lsensor = data;
         else this.rsensor = data;
     }
 
-    retrieveConnected() {
-        BleManager.getConnectedPeripherals([]).then(results => {
-            results.forEach(peripheral => this.connectPeripheral(peripheral));
-        });
-    }
+    hasRequiredSensorData = () => {
+        const leftId = this.leftPeripheralId || this.props.leftDevice;
+        const rightId = this.rightPeripheralId || this.props.rightDevice;
 
-    connectPeripheral(peripheral) {
-        BleManager.connect(peripheral.id).then(() => {
-            if (peripheral.name?.endsWith('L')) {
-                this.props.addLeftDevice(peripheral.id);
-                // Extract last two chars before trailing 'L' (e.g., "39L" → "39")
-                const name = peripheral.name || '';
-                if (name.length >= 3) {
-                    const sz = name[name.length - 3] + name[name.length - 2];
-                    this.setState({ shoeSize: sz });
-                    } else {
-                    this.setState({ shoeSize: 0 });
-                    }
-            } else if (peripheral.name?.endsWith('R')) {
-                this.props.addRightDevice(peripheral.id);
+        return (!leftId || this.hasReceivedLeftSensorData) &&
+            (!rightId || this.hasReceivedRightSensorData);
+    };
+
+    async retrieveConnected() {
+        try {
+            const results = await BleManager.getConnectedPeripherals([]);
+            for (const peripheral of results) {
+                if (peripheral.name?.endsWith('L')) {
+                    // Keep a local ID as Redux props are updated asynchronously.
+                    // The notification listener must not miss samples during that update.
+                    this.leftPeripheralId = peripheral.id;
+                    this.props.addLeftDevice(peripheral.id);
+                    const name = peripheral.name || '';
+                    this.setState({shoeSize: name.length >= 3 ? name[name.length - 3] + name[name.length - 2] : 0});
+                } else if (peripheral.name?.endsWith('R')) {
+                    this.rightPeripheralId = peripheral.id;
+                    this.props.addRightDevice(peripheral.id);
+                }
+                await this.ensureSensorNotifications(peripheral.id);
             }
-        });
+        } catch (error) {
+            console.log('Unable to retrieve 10MWT peripherals:', error);
+        }
     }
 
     startReading() {
+        if (this.dataRecord) this.dataRecord.remove();
         this.dataRecord = bleManagerEmitter.addListener(
             'BleManagerDidUpdateValueForCharacteristic',
             ({ value, peripheral }) => {
-                const time = new Date();
                 const data = this.toDecimalArray(value);
-                if (peripheral === this.props.rightDevice) this.recordData(data, 'R');
-                if (peripheral === this.props.leftDevice) this.recordData(data, 'L');
+                if (!Array.isArray(data) || data.length < 5) return;
+
+                const isRightSensor = peripheral === this.rightPeripheralId ||
+                    peripheral === this.props.rightDevice;
+                const isLeftSensor = peripheral === this.leftPeripheralId ||
+                    peripheral === this.props.leftDevice;
+
+                if (isRightSensor) {
+                    this.recordData(data, 'R');
+                    this.hasReceivedSensorData = true;
+                    this.hasReceivedRightSensorData = true;
+                }
+                if (isLeftSensor) {
+                    this.recordData(data, 'L');
+                    this.hasReceivedSensorData = true;
+                    this.hasReceivedLeftSensorData = true;
+                }
             }
         );
     }
@@ -270,6 +312,10 @@ class TenMeterWalkTest extends Component {
                 Alert.alert('Warning!', 'Please check your Bluetooth connection.');
                 return;
             }
+            if (!this.hasRequiredSensorData()) {
+                Alert.alert('Warning!', 'Please wait until every connected sensor is sending data before starting the test.');
+                return;
+            }
             this.isRecordingTransition = true;
             this.sampleSeq = 0;
             this.currentSessionId = Date.now().toString();
@@ -325,15 +371,15 @@ class TenMeterWalkTest extends Component {
 
         try {
             await this.flushBufferToDisk();
-            enqueueAssessmentUploads({
+            // Do not return to Home (and allow Dashboard to load) until the raw
+            // samples have been uploaded and the server has refreshed its totals.
+            await enqueueAssessmentUploads({
                 isConnected: this.state.isConnected,
                 userId: this.props.user?.id_customer,
                 productNumber: this.props.productNumber,
                 leftDevice: this.props.leftDevice,
                 rightDevice: this.props.rightDevice,
                 shoeSize: this.state.shoeSize,
-            }).catch(error => {
-                console.log('Background 10MWT upload failed:', error);
             });
             this.setState({isRecording: false});
             this.props.navigation.popTo('Home');

@@ -10,6 +10,7 @@
  */
 
 import API from '../config/Api';
+import {refreshUserDashboard} from './assessmentUploadApi';
 
 var RNFS = require('react-native-fs');
 
@@ -73,6 +74,7 @@ function createUploadSummary() {
     kept: 0,
     failed: 0,
     offline: false,
+    dashboardRefreshed: false,
   };
 }
 
@@ -163,6 +165,12 @@ export async function uploadRecordingFiles(params) {
   const summary = createUploadSummary();
 
   try {
+    // A cache directory is only created after the first recording is saved.
+    // On a fresh install there is simply nothing to upload yet.
+    if (!(await RNFS.exists(cachePath))) {
+      return summary;
+    }
+
     const files = await RNFS.readDir(cachePath);
     summary.total = files.length;
 
@@ -188,12 +196,35 @@ export async function uploadRecordingFiles(params) {
       }
     }
   } catch (err) {
-    const message = String(err?.message || err || '');
-    if (message.includes('ENOENT') || message.includes('no such file')) {
+    const message = String(err?.message || err || '').toLowerCase();
+    if (
+      message.includes('ENOENT') ||
+      message.includes('no such file') ||
+      message.includes('folder does not exist')
+    ) {
       return summary;
     }
     console.log('Error reading cache directory:', err);
     if (onError) onError(err);
+  }
+
+  // A successful raw Pressure Map upload must rebuild and persist the
+  // dashboard, just like an Assessment upload. This is shared by the normal
+  // and 8-sensor Pressure Map screens because both use this service.
+  if (summary.uploaded > 0 && params.userId) {
+    console.log('[Pressure Map] addjson completed; starting dashboard Calculate/Store.', {
+      uploaded: summary.uploaded,
+      userId: params.userId,
+    });
+    summary.dashboardRefreshed = await refreshUserDashboard(params.userId);
+    console.log('[Pressure Map] dashboard Calculate/Store completed:', {
+      dashboardRefreshed: summary.dashboardRefreshed,
+    });
+  } else {
+    console.log('[Pressure Map] Skipping dashboard Calculate/Store:', {
+      uploaded: summary.uploaded,
+      hasUserId: Boolean(params.userId),
+    });
   }
 
   return summary;

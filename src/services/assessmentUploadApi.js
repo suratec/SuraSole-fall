@@ -20,6 +20,26 @@ async function fetchWithTimeout(url, options, timeoutMs = 15000) {
   }
 }
 
+async function parseSuccessfulResponse(response, label) {
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(`${label} HTTP ${response.status}: ${raw.substring(0, 200)}`);
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    throw new Error(`${label} returned invalid JSON: ${raw.substring(0, 200)}`);
+  }
+
+  if (responseExplicitlyFailed(payload)) {
+    throw new Error(`${label} did not confirm success: ${raw.substring(0, 200)}`);
+  }
+
+  return payload;
+}
+
 function responseConfirmsSuccess(payload) {
   const status = String(payload?.status ?? '').toLowerCase();
   const message = String(payload?.message ?? '').toLowerCase();
@@ -35,6 +55,20 @@ function responseConfirmsSuccess(payload) {
   }
 
   return Boolean(payload?.status || summary.includes('success') || summary.includes('สำเร็จ'));
+}
+
+function responseExplicitlyFailed(payload) {
+  const status = String(payload?.status ?? '').toLowerCase();
+  const message = String(payload?.message ?? '').toLowerCase();
+  const error = String(payload?.error ?? '').toLowerCase();
+  const summary = `${status} ${message} ${error}`;
+
+  return (
+    payload?.success === false ||
+    status === 'false' ||
+    summary.includes('error') ||
+    summary.includes('fail')
+  );
 }
 
 async function readRecording(filePath) {
@@ -87,6 +121,30 @@ async function uploadDirectory({directory, prefix, legType, params}) {
         leg_type: persistedLegType,
       };
 
+      // Keep the request observable without logging the complete sensor stream.
+      // This is the upload path used by the current Assessment screens.
+      const sampleHasLeftSensor = sample => Array.isArray(sample?.left?.sensor);
+      const sampleHasRightSensor = sample => Array.isArray(sample?.right?.sensor);
+      console.log('[Assessment][addjson] Payload summary:', {
+        endpoint: `${API}addjson`,
+        method: 'POST',
+        fileName: file.name,
+        payloadFields: Object.keys(payload),
+        sampleFields: Object.keys(firstSample || {}).sort(),
+        sampleCount: data.length,
+        sessionId: payload.session_id,
+        legType: payload.leg_type,
+        hasCustomerId: Boolean(payload.id_customer),
+        hasProductNumber: Boolean(payload.product_number),
+        hasLeftDevice: Boolean(payload.bluetooth_left_id),
+        hasRightDevice: Boolean(payload.bluetooth_right_id),
+        shoeSize: payload.shoe_size,
+        samplesWithLeftSensor: data.filter(sampleHasLeftSensor).length,
+        samplesWithRightSensor: data.filter(sampleHasRightSensor).length,
+        firstStamp: firstSample?.stamp || null,
+        lastStamp: data[data.length - 1]?.stamp || null,
+      });
+
       const response = await fetchWithTimeout(`${API}addjson`, {
         method: 'POST',
         headers: {Accept: 'application/json', 'Content-Type': 'application/json'},
@@ -101,6 +159,13 @@ async function uploadDirectory({directory, prefix, legType, params}) {
       } catch {
         throw new Error('addjson returned invalid JSON');
       }
+
+      console.log('[Assessment][addjson] Response summary:', {
+        httpStatus: response.status,
+        status: responseBody?.status,
+        message: responseBody?.message,
+        responseFields: Object.keys(responseBody || {}).sort(),
+      });
 
       if (!responseConfirmsSuccess(responseBody)) {
         console.warn('Server did not confirm assessment upload; keeping file:', file.path);
@@ -117,28 +182,79 @@ async function uploadDirectory({directory, prefix, legType, params}) {
   return uploaded;
 }
 
-async function refreshDashboard(userId) {
+export async function refreshAssessmentDashboard(userId) {
   if (!userId) return;
 
   try {
-    await fetchWithTimeout(`${API}member/getUserDashboardStatic`, {
+    // The backend sequence is intentional: calculate the latest metrics,
+    // persist them, then let the mobile Dashboard fetch the stored result.
+    const calculateUrl = `${API}member/getUserDashboardStatic`;
+    const calculateRequest = {id: userId};
+    console.log('[Assessment dashboard] Calculate request:', {
+      endpoint: calculateUrl,
+      method: 'POST',
+      body: calculateRequest,
+    });
+    const calculateResponse = await fetchWithTimeout(calculateUrl, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({id: userId}),
+      body: JSON.stringify(calculateRequest),
     });
-    await fetchWithTimeout(`${API}member/get_user_data`, {
+    const calculatePayload = await parseSuccessfulResponse(
+      calculateResponse,
+      'getUserDashboardStatic',
+    );
+    console.log('[Assessment dashboard] Calculate response:', {
+      httpStatus: calculateResponse.status,
+      status: calculatePayload?.status,
+      message: calculatePayload?.message,
+      responseFields: Object.keys(calculatePayload || {}).sort(),
+      body: calculatePayload,
+    });
+
+    const storeUrl = `${API}member/get_user_data`;
+    const storeRequest = {...calculatePayload, id: userId};
+    console.log('[Assessment dashboard] Store request:', {
+      endpoint: storeUrl,
+      method: 'POST',
+      bodyFields: Object.keys(storeRequest).sort(),
+      body: storeRequest,
+    });
+    const storeResponse = await fetchWithTimeout(storeUrl, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({id: userId}),
+      // get_user_data persists the calculated dashboard fields. Supplying only
+      // the customer ID leaves the previous calculated record in place.
+      body: JSON.stringify(storeRequest),
     });
+    const storePayload = await parseSuccessfulResponse(storeResponse, 'get_user_data');
+    console.log('[Assessment dashboard] Store response:', {
+      httpStatus: storeResponse.status,
+      status: storePayload?.status,
+      message: storePayload?.message,
+      responseFields: Object.keys(storePayload || {}).sort(),
+      body: storePayload,
+    });
+
+    console.log('Assessment dashboard calculate/store completed for user:', userId);
+    return true;
   } catch (error) {
     // Recording is already safely uploaded. Dashboard refresh can retry separately.
     console.warn('Assessment dashboard refresh failed:', error);
+    return false;
   }
 }
 
 async function uploadPendingAssessments(params) {
-  if (params.isConnected === false) return {eyes: 0, tenMeter: 0};
+  console.log('[Assessment upload][flow-v2] Checking pending assessment files:', {
+    isConnected: params.isConnected,
+    hasUserId: Boolean(params.userId),
+  });
+
+  if (params.isConnected === false) {
+    console.log('[Assessment upload] Skipping upload/calculate/store: device is offline.');
+    return {eyes: 0, tenMeter: 0};
+  }
 
   const eyes = await uploadDirectory({
     directory: EYES_CACHE_DIRECTORY,
@@ -152,9 +268,26 @@ async function uploadPendingAssessments(params) {
     params,
   });
 
-  if (tenMeter > 0) await refreshDashboard(params.userId);
-  return {eyes, tenMeter};
+  const hasFreshAssessmentUpload = eyes > 0 || tenMeter > 0;
+  console.log('[Assessment upload] Completed pending-file upload:', {
+    eyes,
+    tenMeter,
+    hasFreshAssessmentUpload,
+  });
+
+  const dashboardRefreshed = hasFreshAssessmentUpload
+    ? await refreshAssessmentDashboard(params.userId)
+    : false;
+
+  if (!hasFreshAssessmentUpload) {
+    console.log('[Assessment upload] Skipping Calculate/Store: no new Assessment file was uploaded.');
+  }
+  return {eyes, tenMeter, dashboardRefreshed};
 }
+
+// The calculation/store pair is shared by Assessment and Pressure Map after
+// their raw recording has been accepted by addjson.
+export const refreshUserDashboard = refreshAssessmentDashboard;
 
 export function enqueueAssessmentUploads(params = {}) {
   const nextUpload = assessmentUploadQueue

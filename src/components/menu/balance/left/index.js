@@ -24,12 +24,13 @@ import {connect} from 'react-redux';
 import HeaderFix from '../../../common/HeaderFix';
 import NotificationsState from '../../../shared/Notification';
 import Text from '../../../common/TextFix';
-import ButtonFix from '../../../common/ButtonFix';
+import RecordStopButton from '../../../common/RecordStopButton';
 import RadarChartFix from '../../../common/RadarChartFix';
 import CardStatusFix from '../../../common/CardStatusFix';
 import AlertFix from '../../../common/AlertsFix';
 import ScoreFix from '../../../common/ScoreFix';
 import API from '../../../../config/Api';
+import {refreshUserDashboard} from '../../../../services/assessmentUploadApi';
 
 import {
   FileManager,
@@ -450,23 +451,7 @@ class index extends Component {
             console.log(`Clear : ${r.path}`);
             await RNFS.unlink(r.path);
 
-            const dashboardRaw = await fetch(`${API}member/getUserDashboardStatic`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: this.props.user.id_customer }),
-            });
-            const dashboardData = JSON.parse(await dashboardRaw.text());
-
-            const userDataRaw = await fetch(`${API}member/get_user_data`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                id: this.props.user.id_customer
-              }),
-            });
-            const userData = JSON.parse(await userDataRaw.text());
-
-            console.log(userData, 'responseFromAPU');
+            await refreshUserDashboard(this.props.user.id_customer);
           }
         } catch (e) {
           console.error(`Error processing file ${r.path}:`, e);
@@ -604,9 +589,7 @@ class index extends Component {
 
             {/* Record button - Moved Higher with Less Gap */}
             <View style={styles.recordButtonContainer}>
-              <ButtonFix
-                  action={true}
-                  rounded={true}
+              <RecordStopButton
                   title={this.state.textAction}
                   onPress={() => this.actionRecording()}
               />
