@@ -102,8 +102,8 @@ export default class RadarChartForDashboard extends React.Component {
   render() {
     return (
       <Svg
-        width={chartSize}
-        height={chartSize}
+        width={this.props.size || chartSize}
+        height={this.props.size || chartSize}
         viewBox={`0 0 ${chartSize} ${chartSize}`}>
         <G
           transform={`translate(${this.state.middleOfChart}, ${this.state.middleOfChart})`}>
@@ -131,11 +131,12 @@ export default class RadarChartForDashboard extends React.Component {
 
         {this.props.positionValue && this.props.positionValue.length > 0 && this.props.positionValue.map((data,index)=> (
           <Circle
+          key={`pos-${index}`}
           cx={data.x_key}
           cy={data.y_key}
           r="1.8"
           stroke="red"
-          stroke-width="10"
+          strokeWidth="0"
           fill="red"
         />
         ))}

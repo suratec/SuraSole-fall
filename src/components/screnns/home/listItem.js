@@ -20,6 +20,7 @@ import {
 } from '../../common/NativeBaseShim';
 import Lang from '../../../assets/language/screen/lang_home';
 import {getLocalizedText} from '../../../assets/language/langUtils';
+import {getLayout} from '../../../utils/responsive';
 import UI from '../../../config/styles/CommonStyles';
 import Text from '../../common/TextFix';
 import {connect} from 'react-redux';
@@ -35,6 +36,7 @@ class listItem extends Component {
   };
 
   render() {
+    const L = this.props.layout || getLayout();
     return (
       <View
         style={[
@@ -57,6 +59,7 @@ class listItem extends Component {
             marginHorizontal: 5,
           }}>
           <Items
+            layout={L}
             text={getLocalizedText(this.props.lang, Lang.addDeviceButton)}
             source={require('../../../assets/image/menu/add.png')}
             onPress={() => {
@@ -66,6 +69,7 @@ class listItem extends Component {
             }}
           />
           <Items
+            layout={L}
             text={getLocalizedText(this.props.lang, Lang.dashboard)}
             source={require('../../../assets/image/dashboard.png')}
             onPress={() => {
@@ -75,6 +79,7 @@ class listItem extends Component {
             }}
           />
           <Items
+            layout={L}
             text={getLocalizedText(this.props.lang, Lang.pressureMapButton)}
             source={require('../../../assets/image/menu/pressure.png')}
             onPress={() => {
@@ -102,6 +107,7 @@ class listItem extends Component {
             marginHorizontal: 5,
           }}>
           <Items
+            layout={L}
             text={getLocalizedText(this.props.lang, Lang.assessmentTests)}
             source={require('../../../assets/image/menu/assessment_icon.png')}
             onPress={() => {
@@ -111,6 +117,7 @@ class listItem extends Component {
             }}
           />
           <Items
+            layout={L}
             text={getLocalizedText(this.props.lang, Lang.gaitAnalysisButton)}
             source={require('../../../assets/image/menu/gail.png')}
             onPress={() => {
@@ -126,6 +133,7 @@ class listItem extends Component {
             }}
           />
           <Items
+            layout={L}
             text={getLocalizedText(this.props.lang, Lang.exerciseTraining)}
             source={require('../../../assets/image/menu/training.png')}
             onPress={() => {
@@ -147,6 +155,7 @@ class listItem extends Component {
             marginHorizontal: 5,
           }}>
           <Items
+            layout={L}
             text={getLocalizedText(this.props.lang, Lang.footsBalanceButton)}
             source={require('../../../assets/image/menu/balance.png')}
             onPress={() => {
@@ -168,6 +177,7 @@ class listItem extends Component {
             }}
           />
           <Items
+            layout={L}
             text={getLocalizedText(this.props.lang, Lang.shoeRecommend)}
             source={require('../../../assets/image/menu/shoe_icon.png')}
             onPress={() => {
@@ -179,7 +189,7 @@ class listItem extends Component {
           <View
             style={{
               borderWidth: 0,
-              height: 150,
+              height: L.isTablet ? Math.min(L.s(150), 210) : 150,
               width: '30%',
               marginHorizontal: 5,
               borderRadius: 6,

@@ -448,9 +448,7 @@ class index extends Component {
             text: 'OK',
             onPress: () => {
               this.props.navigation.navigate('Device', {
-                name: this.props.lang
-                  ? LangHome.addDeviceButton.thai
-                  : LangHome.addDeviceButton.eng,
+                name: getLocalizedText(this.props.lang, LangHome.addDeviceButton),
               });
             },
           },

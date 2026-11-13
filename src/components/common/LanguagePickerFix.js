@@ -107,7 +107,9 @@ class LanguagePickerFix extends Component {
             modalTitle,
             isCircular = false,
             showFlag = false,
-            showText = true
+            showText = true,
+            circleSize,
+            flagSize,
         } = this.props;
 
         const { langPickerVisible } = this.state;
@@ -119,7 +121,10 @@ class LanguagePickerFix extends Component {
 
         // Dynamic button style based on isCircular prop
         const dynamicButtonStyle = isCircular
-            ? styles.circularButton
+            ? [
+                styles.circularButton,
+                circleSize && { width: circleSize, height: circleSize, borderRadius: circleSize / 2 },
+            ]
             : [
                 styles.languageButton,
                 buttonStyle,
@@ -142,7 +147,7 @@ class LanguagePickerFix extends Component {
                     <View style={styles.buttonContent} pointerEvents="none">
                         {/* Show flag if requested */}
                         {showFlag && (
-                            <Text style={isCircular ? styles.flagTextCircular : styles.flagText}>
+                            <Text style={isCircular ? [styles.flagTextCircular, flagSize && { fontSize: flagSize }] : styles.flagText}>
                                 {currentFlag}
                             </Text>
                         )}

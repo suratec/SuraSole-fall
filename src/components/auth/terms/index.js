@@ -25,6 +25,7 @@ import {RichEditor} from 'react-native-pell-rich-editor';
 const {height: D_HEIGHT, width: D_WIDTH} = Dimensions.get('window');
 import styles from './styles';
 import Color from 'color';
+import {getLocalizedText} from '../../../assets/language/langUtils';
 class Terms extends Component {
   state = {
     lang: 0,
@@ -43,24 +44,20 @@ class Terms extends Component {
           style={{height: '100%'}}>
           <View style={styles.header}>
             <Text style={styles.textTitle}>
-              {this.props.lang ? Lang.title.thai : Lang.title.eng}
+              {getLocalizedText(this.props.lang, Lang.title)}
             </Text>
           </View>
           <View style={styles.centerView}>
             <View style={styles.pageTitleView}>
               <Text type={'bold'} style={styles.textPageTitle}>
-                {this.props.lang ? Lang.pageTitle.thai : Lang.pageTitle.eng}
+                {getLocalizedText(this.props.lang, Lang.pageTitle)}
               </Text>
             </View>
             <View style={styles.pageWarning}>
               <Text style={styles.textNotiBold}>
-                {this.props.lang
-                  ? Lang.notiWarningBold.thai
-                  : Lang.notiWarningBold.eng}
+                {getLocalizedText(this.props.lang, Lang.notiWarningBold)}
                 <Text style={styles.textNoti}>
-                  {this.props.lang
-                    ? Lang.notiWarningText.thai
-                    : Lang.notiWarningText.eng}
+                  {getLocalizedText(this.props.lang, Lang.notiWarningText)}
                 </Text>
               </Text>
             </View>

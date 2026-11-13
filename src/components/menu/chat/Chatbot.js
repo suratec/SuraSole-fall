@@ -259,7 +259,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
     const sendMessageToAPI = async (body, request = {}) => {
         setIsTyping(true);
         try {
-            const endpoint = request.endpoint || 'https://app.surasole.com/api/voice-chat/';
+            const endpoint = request.endpoint || 'https://app.surasole.com/api/fall/voice-chat/';
 
             const res = await fetch(endpoint, {
                 method: 'POST',
@@ -321,7 +321,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
                 user_id: auth.userId,
             }),
             {
-                endpoint: 'https://app.surasole.com/api/chat/',
+                endpoint: 'https://app.surasole.com/api/fall/chat/',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${auth.token}`,

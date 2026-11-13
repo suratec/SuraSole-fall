@@ -11,6 +11,7 @@ import Lang from '../../../assets/language/auth/lang_register';
 import messaging from '@react-native-firebase/messaging';
 
 import { connect } from 'react-redux';
+import {getLocalizedText} from '../../../assets/language/langUtils';
 
 class Register extends Component {
   actionSignln = (username, password) => {
@@ -131,22 +132,14 @@ class Register extends Component {
               if (res.status != 'สำเร็จ') {
                 //error
                 AlertFix.alertBasic(
-                  this.props.lang
-                    ? Lang.alertErrorTitle.thai
-                    : Lang.alertErrorTitle.eng,
-                  this.props.lang
-                    ? Lang.alertErrorBody.thai
-                    : Lang.alertErrorBody.eng,
+                  getLocalizedText(this.props.lang, Lang.alertErrorTitle),
+                  getLocalizedText(this.props.lang, Lang.alertErrorBody),
                 );
               } else {
                 //sucsss !
                 AlertFix.alertBasic(
-                  this.props.lang
-                    ? Lang.alertSuccessTitle.thai
-                    : Lang.alertSuccessTitle.eng,
-                  this.props.lang
-                    ? Lang.alertSuccessBody.thai
-                    : Lang.alertSuccessBody.eng,
+                  getLocalizedText(this.props.lang, Lang.alertSuccessTitle),
+                  getLocalizedText(this.props.lang, Lang.alertSuccessBody),
                 );
                 this.actionSignln(register.user.toLowerCase(), register.pass);
               }
@@ -159,11 +152,11 @@ class Register extends Component {
           // this.props.navigation.goBack();
         } else {
           // password not equal
-          alert(this.props.lang ? Lang.alertBody1.thai : Lang.alertBody1.eng);
+          alert(getLocalizedText(this.props.lang, Lang.alertBody1));
         }
       } else {
         // not input form
-        alert(this.props.lang ? Lang.alertBody2.thai : Lang.alertBody2.eng);
+        alert(getLocalizedText(this.props.lang, Lang.alertBody2));
       }
     } else {
       AlertFix.alertBasic(null, 'กรุณาเลือกหมวดการใช้งานแอพ ​!');
@@ -187,64 +180,54 @@ class Register extends Component {
           <View style={{ padding: 15 }}>
             <CardRegister
               labelTitle={
-                this.props.lang ? Lang.titleName.thai : Lang.titleName.eng
+                getLocalizedText(this.props.lang, Lang.titleName)
               }
               labelBack={
-                this.props.lang ? Lang.labelBack.thai : Lang.labelBack.eng
+                getLocalizedText(this.props.lang, Lang.labelBack)
               }
               labelUsername={
-                this.props.lang
-                  ? Lang.fieldUsername.thai
-                  : Lang.fieldUsername.eng
+                getLocalizedText(this.props.lang, Lang.fieldUsername)
               }
               inputUsername={txt => {
                 register.user = txt;
               }}
               labelEmail={
-                this.props.lang ? Lang.fieldEmail.thai : Lang.fieldEmail.eng
+                getLocalizedText(this.props.lang, Lang.fieldEmail)
               }
               inputEmail={txt => {
                 register.email = txt;
               }}
               labelPassword={
-                this.props.lang
-                  ? Lang.fieldPassword.thai
-                  : Lang.fieldPassword.eng
+                getLocalizedText(this.props.lang, Lang.fieldPassword)
               }
               inputPassword={txt => {
                 register.pass = txt;
               }}
               labelCmPassword={
-                this.props.lang
-                  ? Lang.fieldConfirmPassword.thai
-                  : Lang.fieldConfirmPassword.eng
+                getLocalizedText(this.props.lang, Lang.fieldConfirmPassword)
               }
               inputConfirmPassword={txt => {
                 register.cm_pass = txt;
               }}
               titleDropdown={
-                this.props.lang
-                  ? Lang.fieldDropdownfix.thai
-                  : Lang.fieldDropdownfix.eng
+                getLocalizedText(this.props.lang, Lang.fieldDropdownfix)
               }
               itemsDropdown={itemsModeApp}
               onValueChangeDropdown={value => {
                 type = value;
               }}
               placeholderDropdown={{
-                label: this.props.lang
-                  ? Lang.fieldDropdownfixfield.thai
-                  : Lang.fieldDropdownfixfield.eng,
+                label: getLocalizedText(this.props.lang, Lang.fieldDropdownfixfield),
                 value: null,
               }}
               labelBtn={
-                this.props.lang ? Lang.titleBtn.thai : Lang.titleBtn.eng
+                getLocalizedText(this.props.lang, Lang.titleBtn)
               }
               labelMale={
-                this.props.lang ? Lang.radioMale.thai : Lang.radioMale.eng
+                getLocalizedText(this.props.lang, Lang.radioMale)
               }
               labelFemale={
-                this.props.lang ? Lang.radioFemale.thai : Lang.radioFemale.eng
+                getLocalizedText(this.props.lang, Lang.radioFemale)
               }
               //
               onPressRadio={value => {

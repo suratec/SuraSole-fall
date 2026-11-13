@@ -2,20 +2,23 @@
 
 import React, {Component} from 'react';
 import {TouchableOpacity, Text as RNText, View, Image} from 'react-native';
+import {getLayout} from '../../../utils/responsive';
 import UI from '../../../config/styles/CommonStyles';
 import Text from '../../common/TextFix';
 import {Thumbnail} from '../../common/NativeBaseShim';
 
 export class item extends Component {
   render() {
+    const L = this.props.layout || getLayout();
     return (
       <TouchableOpacity
         onPress={this.props.onPress}
         style={{
           borderWidth: 1,
           borderColor: '#eee',
-          height: 150,
+          height: L.isTablet ? Math.min(L.s(150), 210) : 150,
           width: '30%',
+          paddingHorizontal: 6,
           marginHorizontal: 5,
           borderRadius: 6,
           marginVertical: 5,
@@ -27,8 +30,8 @@ export class item extends Component {
             backgroundColor: UI.color_Gradient[0],
             tintColor: 'white',
           }}
-          width={60}
-          height={60}
+          width={L.isTablet ? Math.min(L.s(60), 88) : 60}
+          height={L.isTablet ? Math.min(L.s(60), 88) : 60}
           source={this.props.source}
         />
         <RNText
@@ -36,9 +39,9 @@ export class item extends Component {
             textAlign: 'center',
             justifyContent: 'center',
             alignItems: 'center',
-            fontSize: 12,
+            fontSize: L.isTablet ? L.fs(14) : 12,
             color: '#000',
-            marginTop: 5,
+            marginTop: L.isTablet ? 12 : 5,
           }}>
           {this.props.text}
         </RNText>

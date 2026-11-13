@@ -10,6 +10,7 @@ import CardForget from './card_forget';
 import API from '../../../config/Api';
 
 import Lang from '../../../assets/language/auth/lang_forget';
+import {getLocalizedText} from '../../../assets/language/langUtils';
 
 class ForgetPass extends Component {
   state = {
@@ -33,22 +34,14 @@ class ForgetPass extends Component {
           if (res.status != 'OK') {
             //error
             AlertFix.alertBasic(
-              this.props.lang
-                ? Lang.alertErrorTitle.thai
-                : Lang.alertErrorTitle.eng,
-              this.props.lang
-                ? Lang.alertErrorBody1.thai
-                : Lang.alertErrorBody1.eng,
+              getLocalizedText(this.props.lang, Lang.alertErrorTitle),
+              getLocalizedText(this.props.lang, Lang.alertErrorBody1),
             );
           } else {
             //sucsss !
             AlertFix.alertBasic(
-              this.props.lang
-                ? Lang.alertSuccessTitle.thai
-                : Lang.alertSuccessTitle.eng,
-              this.props.lang
-                ? Lang.alertSuccessBody.thai
-                : Lang.alertSuccessBody.eng,
+              getLocalizedText(this.props.lang, Lang.alertSuccessTitle),
+              getLocalizedText(this.props.lang, Lang.alertSuccessBody),
             );
             this.props.navigation.navigate('SignIn');
           }
@@ -58,8 +51,8 @@ class ForgetPass extends Component {
         });
     } else {
       AlertFix.alertBasic(
-        this.props.lang ? Lang.alertErrorTitle.thai : Lang.alertErrorTitle.eng,
-        this.props.lang ? Lang.alertErrorBody2.thai : Lang.alertErrorBody2.eng,
+        getLocalizedText(this.props.lang, Lang.alertErrorTitle),
+        getLocalizedText(this.props.lang, Lang.alertErrorBody2),
       );
     }
   };
@@ -72,19 +65,19 @@ class ForgetPass extends Component {
         <View style={{padding: 15}}>
           <CardForget
             labelTitle={
-              this.props.lang ? Lang.titleName.thai : Lang.titleName.eng
+              getLocalizedText(this.props.lang, Lang.titleName)
             }
             labelEmail={
-              this.props.lang ? Lang.fieldEmail.thai : Lang.fieldEmail.eng
+              getLocalizedText(this.props.lang, Lang.fieldEmail)
             }
             inputEmail={txt => {
               this.setState({email: txt});
             }}
-            labelBtn={this.props.lang ? Lang.titleBtn.thai : Lang.titleBtn.eng}
+            labelBtn={getLocalizedText(this.props.lang, Lang.titleBtn)}
             onForget={() => this.actionResetEmail(this.state.email)}
             navigation={this.props.navigation}
             labelBack={
-              this.props.lang ? Lang.labelBack.thai : Lang.labelBack.eng
+              getLocalizedText(this.props.lang, Lang.labelBack)
             }
           />
         </View>

@@ -1,12 +1,12 @@
-const titleName = { thai : 'ลืมรหัสผ่าน' , eng : 'Forget Password' };
-const fieldEmail = { thai : 'อีเมลล์' , eng : 'Email' };
-const titleBtn  = { thai : 'เปลี่ยรหัสผ่านใหม่' , eng : 'Reset Password' };
-const labelBack = { thai : 'เข้าสู่ระบบ' , eng : 'or log in ?' };
-const alertErrorTitle = { thai: 'ผิดพลาด', eng: 'Error' };
-const alertSuccessTitle = { thai: 'สำเร็จ', eng: 'Success' };
-const alertErrorBody1 = { thai: 'ผิดพลาด กรุณากรอกอีเมลล์', eng: 'Error please enter email' };
-const alertErrorBody2 = { thai: 'กรุณากรอก email', eng: 'Plase enter email' };
-const alertSuccessBody = { thai: 'เปลี่ยนรหัสผ่านเรียบร้อย กรุณาตรวจสอบ', eng: 'Reset Password has sent, please check' };
+const titleName = { thai: 'ลืมรหัสผ่าน', eng: 'Forgot Password', japanese: 'パスワードをお忘れの方' };
+const fieldEmail = { thai: 'อีเมล', eng: 'Email', japanese: 'メールアドレス' };
+const titleBtn = { thai: 'รีเซ็ตรหัสผ่าน', eng: 'Reset Password', japanese: 'パスワードをリセット' };
+const labelBack = { thai: 'กลับไปเข้าสู่ระบบ', eng: 'or log in ?', japanese: 'ログインに戻る' };
+const alertErrorTitle = { thai: 'ผิดพลาด', eng: 'Error', japanese: 'エラー' };
+const alertSuccessTitle = { thai: 'สำเร็จ', eng: 'Success', japanese: '成功' };
+const alertErrorBody1 = { thai: 'ผิดพลาด กรุณากรอกอีเมล', eng: 'Error, please enter your email', japanese: 'エラー：メールアドレスを入力してください' };
+const alertErrorBody2 = { thai: 'กรุณากรอกอีเมล', eng: 'Please enter your email', japanese: 'メールアドレスを入力してください' };
+const alertSuccessBody = { thai: 'ส่งลิงก์รีเซ็ตรหัสผ่านแล้ว กรุณาตรวจสอบอีเมลของคุณ', eng: 'A password reset link has been sent, please check your email', japanese: 'パスワードリセット用のリンクを送信しました。メールをご確認ください' };
 
 export default {
     titleName,

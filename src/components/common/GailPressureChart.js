@@ -1,3 +1,4 @@
+import {getLayout} from '../../utils/responsive';
 import React, {Component} from 'react';
 import {Path} from 'react-native-svg';
 import {StyleSheet, Text, View} from 'react-native';
@@ -200,25 +201,27 @@ class GailPressureChart extends Component {
   }
 
   renderFootChart(label, prefix) {
+    const L = getLayout();
     return (
       <View>
         <Text
           style={{
             marginLeft: 10,
             marginTop: 10,
+            fontSize: L.fs(14),
             color: this.props.footTextColor,
           }}>
           {' '}
           {label}{' '}
         </Text>
-        <View style={{height: 200, flexDirection: 'row', margin: 20}}>
+        <View style={{height: L.isTablet ? Math.round(L.height * 0.28) : 200, flexDirection: 'row', margin: 20}}>
           <YAxis
             contentInset={{top: 10, bottom: 10}}
             style={{padding: 10}}
             data={[0, 100, 200, 300, 400, 500, 600, 700]}
             svg={{
               fill: 'grey',
-              fontSize: 10,
+              fontSize: L.isTablet ? 13 : 10,
               padding: 20,
             }}
             numberOfTicks={5}
@@ -248,7 +251,7 @@ class GailPressureChart extends Component {
 
     return (
       <View style={{alignItems: 'center'}}>
-        <Text style={{fontSize: 10}}>
+        <Text style={{fontSize: getLayout().isTablet ? 14 : 10}}>
           {legendItems.map((item, index) => (
             <Text key={item.color} style={{color: item.color}}>
               {index > 0 ? '    ' : ''}

@@ -12,6 +12,7 @@ import {
 import HeaderFix from '../../common/HeaderFix';
 import MultiSelectCheckbox from '../../MultiSelectCheckbox';
 import { useSelector } from 'react-redux';
+import { useLayout } from '../../../utils/responsive';
 import langAssessment from '../../../assets/language/menu/lang_assessmentTests';
 import {getLocalizedText} from '../../../assets/language/langUtils';
 
@@ -19,6 +20,7 @@ import {getLocalizedText} from '../../../assets/language/langUtils';
 const FallRiskScreen = ({ navigation }) => {
     const [select, setSelect] = useState('yes');
     const [selectedOptions, setSelectedOptions] = useState([]);
+    const L = useLayout();
     const user = useSelector(state => state?.user);
     const lang = useSelector(state => state?.lang);
     const localizedTitle = getLocalizedText(lang, langAssessment.fallRiskScreening);
@@ -87,16 +89,19 @@ const FallRiskScreen = ({ navigation }) => {
             />
 
             <ScrollView
-                contentContainerStyle={{ flexGrow: 1, padding: 20 }}
+                contentContainerStyle={[
+                    { flexGrow: 1, padding: 20 },
+                    L.isTablet && { maxWidth: Math.min(L.contentWidth, 680), width: '100%', alignSelf: 'center', paddingTop: 40 },
+                ]}
                 showsVerticalScrollIndicator={false}
             >
-            <Text style={[styles.text, { marginTop: '10%', textAlign: 'center' }]}>
+            <Text style={[styles.text, { marginTop: L.isTablet ? 40 : '10%', textAlign: 'center', fontSize: L.fs(20) }]}>
                 {getLocalizedText(lang, langAssessment.fallPast12Months)}
             </Text>
 
             <View style={styles.buttonRow}>
                 <TouchableOpacity
-                    style={[styles.optionBtn, select === 'yes' && styles.optionSelected]}
+                    style={[styles.optionBtn, L.isTablet && styles.optionBtnTablet, select === 'yes' && styles.optionSelected]}
                     onPress={() => setSelect('yes')}
                 >
                     <Text
@@ -106,7 +111,7 @@ const FallRiskScreen = ({ navigation }) => {
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.optionBtn, select === 'no' && styles.optionSelected]}
+                    style={[styles.optionBtn, L.isTablet && styles.optionBtnTablet, select === 'no' && styles.optionSelected]}
                     onPress={() => setSelect('no')}
                 >
                     <Text
@@ -119,7 +124,7 @@ const FallRiskScreen = ({ navigation }) => {
 
             {select === 'yes' && (
                 <>
-                    <Text style={[styles.text, { marginTop: '10%', textAlign: 'center' }]}>
+                    <Text style={[styles.text, { marginTop: L.isTablet ? 48 : '10%', textAlign: 'center', fontSize: L.fs(20) }]}>
                         {getLocalizedText(lang, langAssessment.assessFallSeverity)}
                     </Text>
                     <MultiSelectCheckbox
@@ -132,13 +137,13 @@ const FallRiskScreen = ({ navigation }) => {
 
                 <View style={{ alignItems: 'center', marginTop: 40, marginBottom: 60 }}>
                 <TouchableOpacity
-                    style={styles.submitBtn}
+                    style={[styles.submitBtn, L.isTablet && { paddingVertical: 16, borderRadius: 28 }]}
                     onPress={() => {
                         if (select === 'no') setSelectedOptions([]);
                         onSubmit();
                     }}
                 >
-                    <Text style={styles.submitText}>{getLocalizedText(lang, langAssessment.submit)}</Text>
+                    <Text style={[styles.submitText, { fontSize: L.fs(18) }]}>{getLocalizedText(lang, langAssessment.submit)}</Text>
                 </TouchableOpacity>
             </View>
             </ScrollView>
@@ -175,6 +180,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#fff',
+    },
+    optionBtnTablet: {
+        width: 180,
+        height: 68,
+        borderRadius: 34,
     },
     optionSelected: {
         backgroundColor: '#00A2A2',

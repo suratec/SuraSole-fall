@@ -4,6 +4,8 @@ import Items from './item';
 import Lang from '../../../assets/language/screen/lang_home';
 import HeaderFix from '../../common/HeaderFix';
 import { connect } from 'react-redux';
+import { getLayout } from '../../../utils/responsive';
+import {getLocalizedText} from '../../../assets/language/langUtils';
 
 class index extends Component {
   componentDidMount() {
@@ -11,6 +13,7 @@ class index extends Component {
   }
 
   render() {
+    const L = getLayout();
     return (
       <View style={{ flex: 1, backgroundColor: 'white' }}>
 
@@ -24,31 +27,31 @@ class index extends Component {
         <View
           style={{
             padding: 10,
+            paddingTop: L.isTablet ? 24 : 10,
             flexDirection: 'column',
             alignItems: 'center',
+            ...L.column,
           }}>
           <Items
+            layout={L}
             text={'SURASOLES Lite (5)'}
             source={require('../../../assets/image/product/surasole-lite.png')}
             onPress={() => {
               this.props.productID(1);
               this.props.navigation.navigate('Device', {
-                name: this.props.lang
-                  ? Lang.addDeviceButton.thai
-                  : Lang.addDeviceButton.eng,
+                name: getLocalizedText(this.props.lang, Lang.addDeviceButton),
               });
             }}
           />
           <Items
+            layout={L}
             text={'SURASOLES Pro (8)'}
             source={require('../../../assets/image/product/surasole-pro.png')}
             onPress={() => {
               this.props.productID(2);
               this.props.sensorType(true);
               this.props.navigation.navigate('Device', {
-                name: this.props.lang
-                  ? Lang.addDeviceButton.thai
-                  : Lang.addDeviceButton.eng,
+                name: getLocalizedText(this.props.lang, Lang.addDeviceButton),
               });
             }}
           />

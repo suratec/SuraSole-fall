@@ -256,7 +256,7 @@ class index extends Component {
   startScan() {
     if (!this.state.scanning) {
       this.setState({peripherals: new Map()});
-      BleManager.scan([], 5, true)
+      BleManager.scan([], 30, true)
         .then(() => {
           console.log('Scanning...');
           this.setState({scanning: true, bleList: []});

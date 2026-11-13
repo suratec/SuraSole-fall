@@ -2,6 +2,7 @@ import React, { PureComponent } from 'react';
 import { View, ActivityIndicator, StatusBar, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isTokenExpired, performLogout } from '../../utils/authFetch';
 
 const EXIT_FLAG = 'doctor_left_on_patientlist';
 
@@ -31,8 +32,24 @@ class AuthLoading extends PureComponent {
         return;
       }
 
-      // 2️⃣ Normal path: token present → App, otherwise → Auth
-      this.props.navigation.navigate(this.props.token ? 'App' : 'Auth');
+      // 2️⃣ Check token + JWT expiry
+      const { token } = this.props;
+
+      if (!token) {
+        this.props.navigation.navigate('Auth');
+        return;
+      }
+
+      if (isTokenExpired(token)) {
+        // Token has expired — clear everything and force re-login
+        console.log('[AuthLoading] JWT expired — clearing session');
+        await performLogout({ store: null, navigation: this.props.navigation });
+        this.props.resetUser();
+        return;
+      }
+
+      // 3️⃣ Token is valid → go to App
+      this.props.navigation.navigate('App');
     } catch (e) {
       // fallback: go to Sign-In if anything goes wrong
       console.log('AuthLoading bootstrap error', e);
@@ -58,4 +75,9 @@ const mapStateToProps = state => ({
   token: state.token,        // <- token is what really matters
 });
 
-export default connect(mapStateToProps)(AuthLoading);
+const mapDispatchToProps = dispatch => ({
+  resetUser: () => dispatch({ type: 'RESET_USERINFO' }),
+});
+
+export default connect(mapStateToProps, mapDispatchToProps)(AuthLoading);
+

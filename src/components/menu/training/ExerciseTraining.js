@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from
 import HeaderFix from '../../common/HeaderFix';
 import UI from '../../../config/styles/CommonStyles';
 import { connect } from 'react-redux';
+import { getLayout } from '../../../utils/responsive';
 
 const { width } = Dimensions.get('window');
 import langTraining from '../../../assets/language/menu/lang_training';
@@ -14,6 +15,11 @@ class ExerciseTraining extends Component {
     };
 
     render() {
+        const L = getLayout();
+        const cardSize = L.isTablet
+            ? { width: Math.min(L.contentWidth, 720), height: 130 }
+            : null;
+        const textSize = { fontSize: L.fs(20) };
 
         return (
             <View style={styles.container}>
@@ -24,27 +30,27 @@ class ExerciseTraining extends Component {
                     }}
                     title={getLocalizedText(this.props.lang, langTraining.title)}
                 />
-                <ScrollView contentContainerStyle={styles.scrollContainer}>
+                <ScrollView contentContainerStyle={[styles.scrollContainer, L.isTablet && { paddingVertical: 40 }]}>
                     <TouchableOpacity
-                        style={[styles.card, { backgroundColor: '#d2f6fb' }]}
+                        style={[styles.card, cardSize, { backgroundColor: '#d2f6fb' }]}
                         onPress={() => this.handleNavigate('LowRiskExercise')}>
-                        <Text style={[styles.cardText, { color: '#007b8a' }]}>
+                        <Text style={[styles.cardText, textSize, { color: '#007b8a' }]}>
                             {getLocalizedText(this.props.lang, langTraining.lowRiskProgramCard)}
                         </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.card, { backgroundColor: '#fef8cb' }]}
+                        style={[styles.card, cardSize, { backgroundColor: '#fef8cb' }]}
                         onPress={() => this.handleNavigate('ModerateRiskExercise')}>
-                        <Text style={[styles.cardText, { color: '#027b57' }]}>
+                        <Text style={[styles.cardText, textSize, { color: '#027b57' }]}>
                             {getLocalizedText(this.props.lang, langTraining.moderateRiskProgramCard)}
                         </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.card, { backgroundColor: '#fff' }]}
+                        style={[styles.card, cardSize, { backgroundColor: '#fff' }]}
                         onPress={() => this.handleNavigate('ExerciseWorkOut')}>
-                        <Text style={[styles.cardText, { color: '#00a4cc' }]}>
+                        <Text style={[styles.cardText, textSize, { color: '#00a4cc' }]}>
                             {getLocalizedText(this.props.lang, langTraining.exerciseWorkOut)}
                         </Text>
                     </TouchableOpacity>

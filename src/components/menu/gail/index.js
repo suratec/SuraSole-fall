@@ -352,7 +352,7 @@ class index extends Component {
       if (!this.state.isConnected) {
         console.log('WiFi is not connected');
         files.forEach(r => console.log(r.path));
-        ToastAndroid.show(this.props.lang ? Lang.alert.thai : Lang.alert.eng, ToastAndroid.SHORT);
+        ToastAndroid.show(getLocalizedText(this.props.lang, Lang.alert), ToastAndroid.SHORT);
         return;
       }
 
@@ -407,7 +407,7 @@ class index extends Component {
       console.log('Error reading directory:', e);
     }
 
-    ToastAndroid.show(this.props.lang ? Lang.alert.thai : Lang.alert.eng, ToastAndroid.SHORT);
+    ToastAndroid.show(getLocalizedText(this.props.lang, Lang.alert), ToastAndroid.SHORT);
   }
 
   actionUpdate = data => {

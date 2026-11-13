@@ -20,7 +20,7 @@ const error = {
 const formSubmitSuccess = {eng: 'Form Submitted Successfully', thai: 'ส่งแบบฟอร์มสำเร็จแล้ว', japanese: 'フォームが正常に送信されました'}
 const formSubmitFail = {eng: 'Something went wrong.', thai: 'มีบางอย่างผิดพลาด', japanese: '何か問題が発生しました。'}
 const submissionFailed = {eng: 'Submission Failed', thai: 'การส่งล้มเหลว', japanese: '送信に失敗しました'}
-const fallPast12Months = {eng: 'FALL PAST 12 MONTHS?', thai: 'ภายใน 12 เดือนที่ผ่านมา เคยหกล้มหรือไม่', japanese: '12 か月を過ぎても落ちませんか?'}
+const fallPast12Months = {eng: 'FALL PAST 12 MONTHS?', thai: 'ภายใน 12 เดือนที่ผ่านมา เคยหกล้มหรือไม่', japanese: '過去12か月以内に転倒しましたか？'}
 const Yes = {eng: 'YES', thai: 'ใช่', japanese: 'はい'}
 const No = {eng: 'NO', thai: 'ไม่ใช่', japanese: 'いいえ'}
 const submit = {eng: 'Submit', thai: 'ส่ง', japanese: '提出する'}
@@ -33,7 +33,7 @@ const injury = { eng: 'Injury', thai: 'การบาดเจ็บ', japanese
 const fallLastYear = { eng: '≥ 2 falls last year', thai: '≥ 2 ครั้งในปีที่แล้ว', japanese: '昨年の転倒 ≥ 2 回' };
 const frailty = { eng: 'Frailty', thai: 'ความอ่อนแอ', japanese: '虚弱' };
 const lyingOnFloor = { eng: 'Lying on the floor/\nunable to get up', thai: 'นอนบนพื้น/\nไม่สามารถลุกขึ้นได้', japanese: '床に横たわる/\n起き上がれない' };
-const lossOfConsciousness = { eng: 'Loss of consciousness/suspected syncope', thai: 'หมดสติ/อาจเป็นลม', japanese: '意識喪失/疑似失神' };
+const lossOfConsciousness = { eng: 'Loss of consciousness/suspected syncope', thai: 'หมดสติ/อาจเป็นลม', japanese: '意識喪失/失神の疑い' };
 
 
 const standOpenEyes = {
@@ -51,7 +51,7 @@ const standEyesClosed = {
 const standText = {
     eng: 'Stand upright for 20 seconds.',
     thai: 'ยืนตรง 20 วินาที',
-    japanese: 'まっすぐ立って20秒'
+    japanese: '20秒間まっすぐ立ってください'
 };
 
 const noteText = {
@@ -62,13 +62,13 @@ const noteText = {
 
 const balanceInstructionOpen = {
     eng: 'Stand up straight with your eyes open and try to keep your balance.',
-    thai: 'ยืนตรงตากับตาที่เปิดและพยายามรักษาสมดุล',
+    thai: 'ยืนตรง ลืมตา และพยายามรักษาสมดุล',
     japanese: '目を開けてまっすぐ立ち、バランスを保ってください。'
 };
 
 const balanceInstructionClosed = {
     eng: 'Stand up straight with your eyes closed and try to keep your balance.',
-    thai: 'ยืนตรงตาปิดและพยายามรักษาสมดุล',
+    thai: 'ยืนตรง หลับตา และพยายามรักษาสมดุล',
     japanese: '目を閉じてまっすぐ立ち、バランスを保ってください。'
 };
 
@@ -85,7 +85,7 @@ const stopText = {
 };
 
 const finish = {
-    eng: 'finish',
+    eng: 'Finish',
     thai: 'เสร็จสิ้น',
     japanese: '終了',
 };
@@ -99,7 +99,7 @@ const testComplete = {
 const walking = {
     eng: 'Walking',
     thai: 'การเดิน',
-    japanese: '歩く',
+    japanese: '歩行',
 };
 
 const walkStraight = {
@@ -109,7 +109,7 @@ const walkStraight = {
 };
 
 const bluetoothAlert = {
-    eng: 'Please Check Your Bluetooth Connect',
+    eng: 'Please check your Bluetooth connection',
     thai: 'กรุณาตรวจสอบการเชื่อมต่อบลูทูธ',
     japanese: 'Bluetooth接続を確認してください'
 }

@@ -81,8 +81,8 @@ android {
         applicationId "com.surasole.fallrisk"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 16
-        versionName "13"
+        versionCode 19
+        versionName "15"
         multiDexEnabled true
 
         ndk {

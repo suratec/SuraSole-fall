@@ -46,6 +46,7 @@ import Lang from '../../../assets/language/menu/lang_record';
 import LangHome from '../../../assets/language/screen/lang_home';
 import TrainingLang from '../../../assets/language/menu/lang_training';
 import {hasTrainingVibration, toTrainingKilo} from '../../../utils/trainingSensorUtils';
+import {getLocalizedText} from '../../../assets/language/langUtils';
 
 var RNFS = require('react-native-fs');
 
@@ -264,19 +265,13 @@ class index extends Component {
     if (value >= weight * 0.8) {
       shouldVibrate = true;
       status = 'bad';
-      lang
-        ? (statusTxt = TrainingLang.highPressure.thai)
-        : (statusTxt = TrainingLang.highPressure.thai);
+      statusTxt = getLocalizedText(lang, TrainingLang.highPressure);
     } else if (value >= weight * 0.6) {
       status = 'medium';
-      lang
-        ? (statusTxt = TrainingLang.mediumPressure.thai)
-        : (statusTxt = TrainingLang.mediumPressure.thai);
+      statusTxt = getLocalizedText(lang, TrainingLang.mediumPressure);
     } else {
       status = 'good';
-      lang
-        ? (statusTxt = TrainingLang.lowPressure.thai)
-        : (statusTxt = TrainingLang.lowPressure.thai);
+      statusTxt = getLocalizedText(lang, TrainingLang.lowPressure);
     }
     return {shouldVibrate, status, statusTxt};
   };
@@ -488,9 +483,7 @@ class index extends Component {
           text: 'OK',
           onPress: () => {
             this.props.navigation.navigate('Device', {
-              name: this.props.lang
-                ? LangHome.addDeviceButton.thai
-                : LangHome.addDeviceButton.eng,
+              name: getLocalizedText(this.props.lang, LangHome.addDeviceButton),
             });
           },
         },
@@ -572,7 +565,7 @@ class index extends Component {
       if (!this.state.isConnected) {
         console.log('WiFi is not connected');
         files.forEach(r => console.log(r.path));
-        ToastAndroid.show(this.props.lang ? Lang.alert.thai : Lang.alert.eng, ToastAndroid.SHORT);
+        ToastAndroid.show(getLocalizedText(this.props.lang, Lang.alert), ToastAndroid.SHORT);
         return;
       }
 
@@ -627,7 +620,7 @@ class index extends Component {
       console.log('Error reading directory:', e);
     }
 
-    ToastAndroid.show(this.props.lang ? Lang.alert.thai : Lang.alert.eng, ToastAndroid.SHORT);
+    ToastAndroid.show(getLocalizedText(this.props.lang, Lang.alert), ToastAndroid.SHORT);
   }
 
   actionDashboard = () => {
@@ -666,21 +659,21 @@ class index extends Component {
         console.log(res);
         if (res.status === 'สำเร็จ') {
           AlertFix.alertBasic(
-            this.props.lang ? Lang.successTitle.thai : Lang.successTitle.eng,
-            this.props.lang ? Lang.successBody.thai : Lang.successBody.eng,
+            getLocalizedText(this.props.lang, Lang.successTitle),
+            getLocalizedText(this.props.lang, Lang.successBody),
           );
           deleteFile(this.fileStamp_n);
         } else {
           AlertFix.alertBasic(
-            this.props.lang ? Lang.errorTitle.thai : Lang.errorTitle.eng,
-            this.props.lang ? Lang.errorBody1.thai : Lang.errorBody1.eng,
+            getLocalizedText(this.props.lang, Lang.errorTitle),
+            getLocalizedText(this.props.lang, Lang.errorBody1),
           );
         }
       })
       .catch(error => {
         AlertFix.alertBasic(
-          this.props.lang ? Lang.errorTitle.thai : Lang.errorTitle.eng,
-          this.props.lang ? Lang.errorBody2.thai : Lang.errorBody2.eng,
+          getLocalizedText(this.props.lang, Lang.errorTitle),
+          getLocalizedText(this.props.lang, Lang.errorBody2),
         );
       });
 
@@ -810,9 +803,7 @@ class index extends Component {
             <View style={styles.container}>
               <Text
                 style={[styles.label, this.state.isFocus2 && {color: 'blue'}]}>
-                {this.props.lang
-                  ? TrainingLang.titleText.thai
-                  : TrainingLang.titleText.eng}
+                {getLocalizedText(this.props.lang, TrainingLang.titleText)}
               </Text>
               <Dropdown
                 style={[
@@ -861,9 +852,7 @@ class index extends Component {
 
             {/* <DropdownFix
               title={
-                this.props.lang
-                  ? TrainingLang.titleText.thai
-                  : TrainingLang.titleText.eng
+                getLocalizedText(this.props.lang, TrainingLang.titleText)
               }
               placeholderDropdown={{
                 label: '',

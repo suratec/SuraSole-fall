@@ -1,27 +1,27 @@
-const logoutAlert = { eng: 'Logout', japanese: 'ログアウト' }
+const logoutAlert = { eng: 'Logout', thai: 'ออกจากระบบ', japanese: 'ログアウト' }
 const cannotEditAlert = { eng: 'unable to edit profile', thai: 'ไม่สามารถแก้ไขโปรไฟล์ได้', japanese: 'プロフィールを編集できません' }
-const successTitleEditAlert = { eng: 'Sucess', thai: 'การทำรายการสำเร็จ', japanese: '成功' }
-const successTitleContentAlert = { eng: 'Edit profile success', thai: 'แก้ไขโปรไฟล์สำเร็จ', japanese: 'プロファイルの編集が成功しました' }
+const successTitleEditAlert = { eng: 'Success', thai: 'การทำรายการสำเร็จ', japanese: '成功' }
+const successTitleContentAlert = { eng: 'Edit profile success', thai: 'แก้ไขโปรไฟล์สำเร็จ', japanese: 'プロフィールを更新しました' }
 const alertSuccessTitle = { eng: 'Success', thai: 'สำเร็จ', japanese: '成功' };
 const alertErrorTitle = { eng: 'Error', thai: 'ผิดพลาด', japanese: 'エラー' };
 const fullNamelabel = { eng: 'Full Name', thai: 'ชื่อ - นามสกุล', japanese: 'フルネーム' }
-const firstNamelabel = { eng: 'First Name', thai: 'ชื่อจริง', japanese: 'ファーストネーム' }
+const firstNamelabel = { eng: 'First Name', thai: 'ชื่อจริง', japanese: '名' }
 const genderlabel = { eng: 'Gender', thai: 'เพศ', japanese: '性別' }
-const LastNamelabel = { eng: 'Last Name', thai: 'นามสกุล', japanese: '苗字' }
+const LastNamelabel = { eng: 'Last Name', thai: 'นามสกุล', japanese: '姓' }
 const Emaillabel = { eng: 'Email Address', thai: 'ที่อยู่อีเมล', japanese: '電子メールアドレス' }
-const weightLabel = { eng: 'Weight (Kg.)', thai: 'น้ำหนัก ( กก. )', japanese: '重量（kg）' }
-const heigthLabel = { eng: 'Height (Cm.)', thai: 'ส่วนสูง ( ซม. )', japanese: '高さ（センチメートル）' }
+const weightLabel = { eng: 'Weight (Kg.)', thai: 'น้ำหนัก ( กก. )', japanese: '体重（kg）' }
+const heigthLabel = { eng: 'Height (Cm.)', thai: 'ส่วนสูง ( ซม. )', japanese: '身長（cm）' }
 const ageLabel = { eng: 'Age (Yr)', thai: 'อายุ', japanese: '年齢（年）' }
 const gripStrengthLabel = { eng: 'Grip Strength (Kg.)', thai: 'แรงบีบมือ (กก.)', japanese: '握力（kg）' }
 const langTitle = { eng: 'Change Language', thai: 'เปลี่ยนภาษา', japanese: '言語を変更する' }
-const emergencyLabel = { eng: 'Contact No.', thai: 'เลขที่สัญญา', japanese: 'お問い合わせ番号' }
+const emergencyLabel = { eng: 'Emergency Contact No.', thai: 'เบอร์ติดต่อฉุกเฉิน', japanese: '緊急連絡先' }
 const NotificationLabel = { eng: 'Notification Alarm', thai: 'ตั้งค่าการสั่นแจ้งเตือน', japanese: '通知アラーム' }
 const editProfile = { eng: 'Edit Profile', thai: 'แก้ไขโปรไฟล์', japanese: 'プロフィールの編集' }
 const updateLabel = { eng: 'Update', thai: 'อัปเดต', japanese: 'アップデート' }
 const noteLabel = { eng: 'Notes', thai: 'บันทึก', japanese: 'ノート' }
-const male = { eng: 'Male', thai: 'ชาย', japanese: '男' }
+const male = { eng: 'Male', thai: 'ชาย', japanese: '男性' }
 const female = { eng: 'Female', thai: 'หญิง', japanese: '女性' }
-const other = { eng: 'Other', thai: 'อื่น', japanese: '他の' }
+const other = { eng: 'Other', thai: 'อื่น', japanese: 'その他' }
 const langSwitch = {
     eng: '🇬🇧 English',
     thai: '🇹🇭 ภาษาไทย ',
@@ -31,7 +31,7 @@ const langSwitch = {
 // Medical Notes translations
 const medicalNotesTitle = { eng: 'Medical Notes', thai: 'บันทึกทางการแพทย์', japanese: '医療記録' }
 const medicalCondition = { eng: 'Medical condition', thai: 'ภาวะทางการแพทย์', japanese: '病状' }
-const stroke = { eng: 'Stroke', thai: 'อัมพาต', japanese: '脳卒中' }
+const stroke = { eng: 'Stroke', thai: 'โรคหลอดเลือดสมอง', japanese: '脳卒中' }
 const diabetes = { eng: 'Diabetes', thai: 'เบาหวาน', japanese: '糖尿病' }
 const hypertension = { eng: 'Hypertension', thai: 'ความดันโลหิตสูง', japanese: '高血圧' }
 const dyslipidemia = { eng: 'Dyslipidemia', thai: 'ไขมันในเลือดผิดปกติ', japanese: '脂質異常症' }
@@ -55,7 +55,7 @@ const otherWalkingAids = { eng: 'Other walking aids', thai: 'อุปกรณ�
 const injuries = { eng: 'Injuries', thai: 'การบาดเจ็บ', japanese: '怪我' }
 const ankle = { eng: 'Ankle', thai: 'ข้อเท้า', japanese: '足首' }
 const knee = { eng: 'Knee', thai: 'เข่า', japanese: '膝' }
-const hip = { eng: 'Hip', thai: 'สะโพก', japanese: '腰' }
+const hip = { eng: 'Hip', thai: 'สะโพก', japanese: '股関節' }
 const leftSide = { eng: 'Left', thai: 'ซ้าย', japanese: '左' }
 const rightSide = { eng: 'Right', thai: 'ขวา', japanese: '右' }
 

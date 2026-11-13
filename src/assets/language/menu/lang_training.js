@@ -42,7 +42,7 @@ const dashboardButton = {
 
 const highPressure = {
     eng: 'High pressure',
-    thai: 'มีแรงกดมีค่าสูง',
+    thai: 'แรงกดมีค่าสูง',
     japanese: '高圧力'
 };
 
@@ -164,7 +164,7 @@ const monday = {
         title: {
             eng: 'Warm-Up',
             thai: 'วอร์มอัพ',
-            japanese: '準備し始める'
+            japanese: 'ウォームアップ'
         },
         slowWalk: {
             eng: 'Slow Walk (2 min): Walk around your home at relaxed pace',
@@ -240,12 +240,12 @@ const wednesday = {
         },
         woodChops: {
             eng: 'Standing Wood Chops: Hold hands together, swing from shoulder to opposite hip',
-            thai: 'ท่าตัดไม้: ประสานมือ วิงจากไหล่ไปยังสะโพกตรงข้าม',
+            thai: 'ท่าตัดไม้: ประสานมือ เหวี่ยงจากไหล่ไปยังสะโพกตรงข้าม',
             japanese: '立位でのウッドチョップ：手を組み、肩から反対側の腰へスイング'
         },
         wallPlank: {
             eng: 'Wall Plank: Place forearms on wall, step back, keep body straight (15s hold × 3)',
-            thai: 'แพลงค์ผนัง: วางแขนที่ผนัง ถอยหลัง รักษาตัวตรง (กั้น 15 วิ × 3)',
+            thai: 'แพลงค์ผนัง: วางแขนที่ผนัง ถอยหลัง รักษาตัวตรง (ค้าง 15 วิ × 3)',
             japanese: 'ウォールプランク：前腕を壁に置き、後ろに下がり、体を真っ直ぐ保つ（15秒×3）'
         }
     }
@@ -275,27 +275,27 @@ const friday = {
         },
         rockTheBoat: {
             eng: 'Rock the Boat: Stand with feet apart, shift weight and lift one foot (15 sec)',
-            thai: 'เขย่าเรือ: ยืนเท้าห่าง เลื่อนน้ำหนักและยกเท้าข้างหนึ่ง (15 วิ)',
+            thai: 'โยกเรือ: ยืนเท้าห่าง เลื่อนน้ำหนักและยกเท้าข้างหนึ่ง (15 วิ)',
             japanese: 'ロック・ザ・ボート：足を広げて立ち、重心を移動して片足を上げる（15秒）'
         },
         backLegRaises: {
             eng: 'Back Leg Raises: Stand behind chair, lift one leg straight back, hold 1 sec',
-            thai: 'ยกขาหลัง: ยืนหลังเก้าอี้ ยกขาข้างหนึ่งตรงไปข้างหลัง กั้น 1 วิ',
+            thai: 'ยกขาหลัง: ยืนหลังเก้าอี้ ยกขาข้างหนึ่งตรงไปข้างหลัง ค้าง 1 วิ',
             japanese: 'バックレッグレイズ：椅子の後ろに立ち、片足を真っ直ぐ後ろに上げ、1秒保持'
         },
         sideLegRaises: {
             eng: 'Side Leg Raises: Lift one leg out to the side, hold 1 sec, lower slowly',
-            thai: 'ยกขาข้าง: ยกขาข้างหนึ่งออกไปด้านข้าง กั้น 1 วิ ลงช้าๆ',
+            thai: 'ยกขาข้าง: ยกขาข้างหนึ่งออกไปด้านข้าง ค้าง 1 วิ ลงช้าๆ',
             japanese: 'サイドレッグレイズ：片足を横に上げ、1秒保持、ゆっくり下ろす'
         },
         toeLifts: {
             eng: 'Tiptoe Lifts: Stand tall, rise onto toes, hold 1 sec, lower slowly',
-            thai: 'ยกนิ้วเท้า: ยืนตัวตรง ยกขึ้นบนนิ้วเท้า กั้น 1 วิ ลงช้าๆ',
+            thai: 'ยกนิ้วเท้า: ยืนตัวตรง ยกขึ้นบนนิ้วเท้า ค้าง 1 วิ ลงช้าๆ',
             japanese: 'つま先立ち：真っ直ぐ立ち、つま先で立ち上がり、1秒保持、ゆっくり下ろす'
         },
         wallPushUps: {
             eng: 'Wall Push-Ups: Stand arm\'s length from wall, push toward wall, then back slowly',
-            thai: 'отжимания ผนัง: ยืนห่างผนังเท่าความยาวแขน ดันเข้าหาผนัง แล้วผลักกลับช้าๆ',
+            thai: 'ดันผนัง: ยืนห่างผนังเท่าความยาวแขน ดันเข้าหาผนัง แล้วผลักกลับช้าๆ',
             japanese: 'ウォールプッシュアップ：壁から腕の長さ分離れて立ち、壁に向かって押し、ゆっくり戻す'
         }
     }
@@ -329,7 +329,7 @@ const exercises = {
         },
         "Seated Forward Roll-ups": {
             eng: 'Seated Forward Roll-Ups',
-            thai: 'ท่ารอบตัวขณะนั่ง',
+            thai: 'ท่าม้วนตัวไปข้างหน้าขณะนั่ง',
             japanese: 'シーテッドフォワードロールアップ',
         },
         "Wood Chops": {
@@ -354,7 +354,7 @@ const exercises = {
         },
         "Rock the Boat": {
             eng: 'Rock the Boat',
-            thai: 'ท่าคลื่นขา',
+            thai: 'ท่าโยกเรือ',
             japanese: 'ボートを揺らす',
         },
         "Back Leg Raises": {
@@ -364,7 +364,7 @@ const exercises = {
         },
         "Side Leg Raise": {
             eng: 'Side Leg Raise',
-            thai: 'ยกข้าง',
+            thai: 'ยกขาด้านข้าง',
             japanese: 'サイドレッグレイズ',
         },
         "Toe Lifts": {
@@ -448,7 +448,7 @@ const wednesdayModerate = {
         },
         seatedDeadBug: {
             eng: 'Sit back straight on a sturdy chair. Lift right arm + left leg together. Hold for 3 sec',
-            thai: 'นั่งตัวตรงบนเก้าอี้มั่นคง ยกแขนขวา + ขาซ้ายพร้อมกัน กั้น 3 วิ',
+            thai: 'นั่งตัวตรงบนเก้าอี้มั่นคง ยกแขนขวา + ขาซ้ายพร้อมกัน ค้าง 3 วิ',
             japanese: '頑丈な椅子に真っ直ぐ座る。右腕+左脚を同時に上げ、3秒保持'
         },
         seatedSideBends: {
@@ -463,12 +463,12 @@ const wednesdayModerate = {
         },
         woodChops: {
             eng: 'Hold a bottle with both hands. Swing from above one shoulder down to opposite hip',
-            thai: 'ถือขวดด้วยมือทั้งสอง วิงจากเหนือไหล่ข้างหนึ่งลงไปยังสะโพกตรงข้าม',
+            thai: 'ถือขวดด้วยมือทั้งสอง เหวี่ยงจากเหนือไหล่ข้างหนึ่งลงไปยังสะโพกตรงข้าม',
             japanese: '両手でボトルを持つ。片方の肩の上から反対側の腰に向かってスイング'
         },
         wallPlank: {
             eng: 'Place forearms on wall, step back slightly. Keep body straight. Hold for 10 seconds',
-            thai: 'วางแขนที่ผนัง ถอยหลังเล็กน้อย รักษาตัวตรง กั้น 10 วิ',
+            thai: 'วางแขนที่ผนัง ถอยหลังเล็กน้อย รักษาตัวตรง ค้าง 10 วิ',
             japanese: '前腕を壁に置き、少し後ろに下がる。体をまっすぐ保ち、10秒間保持'
         }
     }
@@ -494,27 +494,27 @@ const fridayModerate = {
         },
         oneLegStand: {
             eng: 'Hold a sturdy chair. Lift one foot and balance. Hold for 10 sec. Switch legs',
-            thai: 'จับเก้าอี้มั่นคง ยกเท้าข้างหนึ่งและทรงตัว กั้น 10 วิ เปลี่ยนขา',
+            thai: 'จับเก้าอี้มั่นคง ยกเท้าข้างหนึ่งและทรงตัว ค้าง 10 วิ เปลี่ยนขา',
             japanese: '頑丈な椅子を持つ。片足を上げてバランスを取る。10秒保持。脚を変える'
         },
         rockTheBoat: {
             eng: 'Stand tall. Shift weight to one leg and lift the other. Hold for a few seconds',
-            thai: 'ยืนตัวตรง เลื่อนน้ำหนักไปขาข้างหนึ่งและยกอีกข้าง กั้นสักครู่',
+            thai: 'ยืนตัวตรง เลื่อนน้ำหนักไปขาข้างหนึ่งและยกอีกข้าง ค้างสักครู่',
             japanese: '真っ直ぐ立つ。重心を片足に移し、もう片方を上げる。数秒間保持'
         },
         backLegRaises: {
             eng: 'Stand behind a chair. Lift one leg straight behind. Hold 1 sec. Lower slowly',
-            thai: 'ยืนหลังเก้าอี้ ยกขาข้างหนึ่งตรงไปข้างหลัง กั้น 1 วิ ลงช้าๆ',
+            thai: 'ยืนหลังเก้าอี้ ยกขาข้างหนึ่งตรงไปข้างหลัง ค้าง 1 วิ ลงช้าๆ',
             japanese: '椅子の後ろに立つ。片足を真っ直ぐ後ろに上げる。1秒保持。ゆっくり下ろす'
         },
         sideLegRaises: {
             eng: 'Lift one leg out to the side. Keep back straight. Hold 1 sec. Lower slowly',
-            thai: 'ยกขาข้างหนึ่งออกไปด้านข้าง รักษาหลังตรง กั้น 1 วิ ลงช้าๆ',
+            thai: 'ยกขาข้างหนึ่งออกไปด้านข้าง รักษาหลังตรง ค้าง 1 วิ ลงช้าๆ',
             japanese: '片足を横に上げる。背中をまっすぐ保つ。1秒保持。ゆっくり下ろす'
         },
         tiptoeLifts: {
             eng: 'Stand tall, raise up on toes, hold 1 sec, then lower slowly',
-            thai: 'ยืนตัวตรง ยกขึ้นบนนิ้วเท้า กั้น 1 วิ แล้วลงช้าๆ',
+            thai: 'ยืนตัวตรง ยกขึ้นบนนิ้วเท้า ค้าง 1 วิ แล้วลงช้าๆ',
             japanese: '真っ直ぐ立ち、つま先立ちになり、1秒保持、ゆっくり下ろす'
         },
         wallPushUps: {

@@ -10,6 +10,7 @@ import CardDailydata from './card_dailydata'
 import AlertFix from '../../common/AlertsFix'
 
 import Lang from '../../../assets/language/menu/lang_dailydata';
+import {getLocalizedText} from '../../../assets/language/langUtils';
 
 
 class index extends Component {
@@ -52,25 +53,25 @@ class index extends Component {
                     console.log(res)
                     if (res.status == 'บันทึกข้อมูลสำเร็จ' || res.status == 'บันทึกข้อมูลสำเร็จการแพทย์') {
                         //sucsss !
-                        AlertFix.alertBasic(this.props.lang ? Lang.alertSuccessTitle.thai : Lang.alertSuccessTitle.eng,
-                            this.props.lang ? Lang.alertSuccessBody.thai : Lang.alertSuccessBody.eng)
+                        AlertFix.alertBasic(getLocalizedText(this.props.lang, Lang.alertSuccessTitle),
+                            getLocalizedText(this.props.lang, Lang.alertSuccessBody))
                     } else {
                         //error
-                        AlertFix.alertBasic(this.props.lang ? Lang.alertErrorTitle.thai : Lang.alertErrorTitle.eng,
-                            this.props.lang ? Lang.alertErrorBody1.thai : Lang.alertErrorBody1.eng);
+                        AlertFix.alertBasic(getLocalizedText(this.props.lang, Lang.alertErrorTitle),
+                            getLocalizedText(this.props.lang, Lang.alertErrorBody1));
                     }
 
                     this.props.navigation.goBack()
                 })
                 .catch(error => {
-                    AlertFix.alertBasic(this.props.lang ? Lang.alertErrorTitle.thai : Lang.alertErrorTitle.eng,
-                        this.props.lang ? Lang.alertErrorBody2.thai : Lang.alertErrorBody2.eng);
+                    AlertFix.alertBasic(getLocalizedText(this.props.lang, Lang.alertErrorTitle),
+                        getLocalizedText(this.props.lang, Lang.alertErrorBody2));
                 });
 
 
         } else {
-            AlertFix.alertBasic(this.props.lang ? Lang.alertErrorTitle.thai : Lang.alertErrorTitle.eng, 
-                this.props.lang ? Lang.alertErrorBody3.thai : Lang.alertErrorBody3.eng)
+            AlertFix.alertBasic(getLocalizedText(this.props.lang, Lang.alertErrorTitle), 
+                getLocalizedText(this.props.lang, Lang.alertErrorBody3))
         }
     }
 
@@ -106,20 +107,20 @@ class index extends Component {
                 <View style={{ padding: 10 }}>
 
                     <CardDailydata
-                        labelCapillaty={this.props.lang ? Lang.labelCapillary.thai : Lang.labelCapillary.eng}
+                        labelCapillaty={getLocalizedText(this.props.lang, Lang.labelCapillary)}
                         inputCapillaty={(txt) => { this.validateNumber('blood', txt) }}
                         capillatyValue={this.state.blood}
 
-                        labelBreakfast={this.props.lang ? Lang.labelBreakfast.thai : Lang.labelBreakfast.eng}
+                        labelBreakfast={getLocalizedText(this.props.lang, Lang.labelBreakfast)}
                         inputBreakfast={(txt) => { this.setState({ breakfast: txt }) }}
 
-                        labelLunch={this.props.lang ? Lang.labelLunch.thai : Lang.labelLunch.eng}
+                        labelLunch={getLocalizedText(this.props.lang, Lang.labelLunch)}
                         inputLunch={(txt) => { this.setState({ lunch: txt }) }}
 
-                        labelDinner={this.props.lang ? Lang.labelDinnner.thai : Lang.labelDinnner.eng}
+                        labelDinner={getLocalizedText(this.props.lang, Lang.labelDinnner)}
                         inputDinner={(txt) => { this.setState({ dinner: txt }) }}
 
-                        labelSleep={this.props.lang ? Lang.labelSleep.thai : Lang.labelSleep.eng}
+                        labelSleep={getLocalizedText(this.props.lang, Lang.labelSleep)}
                         inputSleep={(txt) => { this.validateNumber('sleep', txt) }}
                         sleepValue={this.state.sleep}
 

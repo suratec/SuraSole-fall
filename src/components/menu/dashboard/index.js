@@ -28,6 +28,7 @@ import { result } from 'lodash';
 import LinearGradient from 'react-native-linear-gradient';
 import RadarChart from '../../common/RadarChartFix';
 import RadarChartForDashboard from '../../common/RadarChartForDashboard';
+import {getLayout} from '../../../utils/responsive';
 import Swiper from 'react-native-swiper';                          // 🔹 carousel
 import exerciseImg     from '../../../assets/image/dashboard/exercise.png';
 import stanceStandImg  from '../../../assets/image/dashboard/stanceStand.png';
@@ -392,13 +393,12 @@ class index extends Component {
 
             if (res.message === 'User Details Successfully') {
                 const user_details = res.user_details;
-                const dashboardUpdatedAt = user_details?.updated_at || user_details?.created_at
+                // Fix: wrap condition in parens to avoid operator precedence bug
+                const dashboardUpdatedAt = (user_details?.updated_at || user_details?.created_at)
                     ? moment(user_details?.updated_at || user_details?.created_at)
                         .format('DD/MM/YYYY HH:mm:ss')
                     : '';
 
-                // `updated_at` is the time the aggregate dashboard row was stored,
-                // not necessarily the time the patient performed the recording.
                 // Prefer a recording/session timestamp whenever the API provides it.
                 const sessionDataTimeCandidates = [
                     user_details?.playback_time ||
@@ -427,19 +427,22 @@ class index extends Component {
                     });
                     this.setState({ currentDateTime: serverDateTime, dashboardUpdatedAt });
                 } else {
-                    // created_at / updated_at are the time get_user_data stored the
-                    // aggregate row. They must never be presented as the recording time.
-                    console.warn('[Dashboard] No recording time was returned by an accessible API.', {
+                    // No dedicated recording timestamp — fall back to updated_at/created_at
+                    // so the user always sees a date rather than '—'
+                    console.warn('[Dashboard] No session time found; falling back to updated_at/created_at.', {
+                        dashboardUpdatedAt,
                         created_at: user_details?.created_at,
                         updated_at: user_details?.updated_at,
-                        timestamp: user_details?.timestamp,
                     });
-                    this.setState({ currentDateTime: '', dashboardUpdatedAt });
+                    this.setState({ currentDateTime: dashboardUpdatedAt, dashboardUpdatedAt });
                 }
 
-                // Original data processing
-                const xPos = JSON.parse(user_details.cop_x);
-                const yPos = JSON.parse(user_details.cop_y);
+                // Safe-guarded: cop_x / cop_y may be null or non-array from server
+                let xPos, yPos;
+                try { xPos = JSON.parse(user_details.cop_x); } catch (_) { xPos = null; }
+                try { yPos = JSON.parse(user_details.cop_y); } catch (_) { yPos = null; }
+                if (!Array.isArray(xPos)) { xPos = []; }
+                if (!Array.isArray(yPos)) { yPos = []; }
                 const positionValue = xPos.map((x, index) => ({
                     x_key: x,
                     y_key: yPos[index],
@@ -635,6 +638,10 @@ class index extends Component {
 
   render() {
 
+      const L = getLayout();
+      // Fixed-px foot map / radar get scaled up on tablets instead of floating in empty space
+      const footScale = L.isTablet ? Math.min(L.scale, 1.5) : 1;
+      const radarSize = L.isTablet ? Math.round(100 * Math.min(L.scale, 1.7)) : 100;
       const healthData   = this.state.healthData ?? {};
       const dataType     = parseInt(healthData.data_type, 10);   // '1' | '2'  ➜  1 | 2
       const fallRisk     = parseInt(healthData.fall_risk, 10);   // '0'–'3' → number
@@ -792,13 +799,11 @@ class index extends Component {
                         title={getLocalizedText(this.props.lang, LangDashboard.dashboard)}
                     />
                     <ScrollView contentContainerStyle={{ paddingBottom: 50, flexGrow: 1 }} bounces={false}>
-                  <View style={{ paddingTop: 8 }}>
-                      <Text style={{ fontSize: 16, textAlign: 'right', marginRight: 10, color:'#005C51', fontWeight: 'bold' }}>
+                  <View style={[{ paddingTop: L.isTablet ? 16 : 8 }, L.column]}>
+                      <Text style={{ fontSize: L.fs(16), textAlign: 'right', marginRight: 10, marginBottom: L.isTablet ? 8 : 0, color:'#005C51', fontWeight: 'bold' }}>
                           {this.state.currentDateTime
                               ? `Recorded: ${this.state.currentDateTime}`
-                              : this.state.dashboardUpdatedAt
-                                  ? this.state.dashboardUpdatedAt
-                                  : '—'}
+                              : '—'}
                       </Text>
 
                       {dataType === 2 && (
@@ -984,7 +989,7 @@ class index extends Component {
                         <Text
                             style={{
                               textAlign: 'center',
-                              fontSize: 18,
+                              fontSize: L.fs(18),
                               color: '#00A2A2',
                             }}>
                             {getLocalizedText(this.props.lang, LangDashboard.peakPressureSummary)}
@@ -997,6 +1002,7 @@ class index extends Component {
                               alignItems: 'center',
                               padding: 20,
                               width: '100%',
+                              minHeight: L.isTablet ? Math.round(250 * footScale) + 20 : undefined,
                             }}>
                           <View
                               style={{
@@ -1010,8 +1016,8 @@ class index extends Component {
                                 colors={['#FF1100', '#FBD500', '#FAFF00', '#1EB650']}
                                 style={{
                                   borderRadius:11,
-                                  height: 187,
-                                  width: 24,
+                                  height: Math.round(187 * footScale),
+                                  width: L.isTablet ? 30 : 24,
                                   alignItems: 'center',
                                 }}
                             />
@@ -1026,7 +1032,7 @@ class index extends Component {
                               <Text
                                   style={{
                                     textAlign: 'center',
-                                    fontSize: 17,
+                                    fontSize: L.fs(17),
                                     color: '#00A2A2',
                                   }}>
                                   {getLocalizedText(this.props.lang, LangDashboard.high)}
@@ -1034,7 +1040,7 @@ class index extends Component {
                               <Text
                                   style={{
                                     textAlign: 'center',
-                                    fontSize: 17,
+                                    fontSize: L.fs(17),
                                     color: '#00A2A2',
                                   }}>
                                   {getLocalizedText(this.props.lang, LangDashboard.low)}
@@ -1045,8 +1051,10 @@ class index extends Component {
                               style={{
                                 // width: '70%',
                                 position: 'absolute',
-                                right: -10,
+                                // scale() grows around the centre, so shift left by the extra half-width
+                                right: L.isTablet ? 10 + Math.round((footScale - 1) * 125) : -10,
                                 padding: 5,
+                                transform: [{ scale: footScale }],
                               }}>
                             <Image
                                 source={require('../../../assets/image/foot_dashboard.png')}
@@ -1723,8 +1731,8 @@ class index extends Component {
                                                     width: '100%',
                                                 }}>
                                                 {/* ---------- Left column: Radar + labels ---------- */}
-                                                <View style={{ width: '40%' }}>
-                                                    <Text style={{ fontSize: 18, color: '#00A2A2' }}>
+                                                <View style={{ width: '38%' }}>
+                                                    <Text style={{ fontSize: L.fs(18), color: '#00A2A2' }}>
                                                         {getLocalizedText(this.props.lang, LangDashboard.footBalance)}
                                                     </Text>
 
@@ -1732,6 +1740,7 @@ class index extends Component {
                                                         {this.state.focus ? (
                                                             <RadarChartForDashboard
                                                                 positionValue={this.state.positionValue}
+                                                                size={radarSize}
                                                             />
                                                         ) : (
                                                             <View />
@@ -1744,15 +1753,15 @@ class index extends Component {
                                                             justifyContent: 'space-between',
                                                             alignItems: 'center',
                                                         }}>
-                                                        <Text style={{ fontSize: 15, color: '#00A2A2' }}>{getLocalizedText(this.props.lang, LangDashboard.left)}</Text>
-                                                        <Text style={{ fontSize: 15, color: '#00A2A2' }}>{getLocalizedText(this.props.lang, LangDashboard.right)}</Text>
+                                                        <Text style={{ fontSize: L.fs(15), color: '#00A2A2' }}>{getLocalizedText(this.props.lang, LangDashboard.left)}</Text>
+                                                        <Text style={{ fontSize: L.fs(15), color: '#00A2A2' }}>{getLocalizedText(this.props.lang, LangDashboard.right)}</Text>
                                                     </View>
                                                 </View>
 
                                                 {/* ---------- Right column: sway / velocity cards ---------- */}
                                                 <View
                                                     style={{
-                                                        width: '65%',
+                                                        width: '60%',
                                                         paddingHorizontal: 5,
                                                         paddingVertical: 5,
                                                     }}>
@@ -1778,12 +1787,12 @@ class index extends Component {
                                                                     justifyContent: 'center',
                                                                     alignItems: 'center',
                                                                 }}>
-                                                                <Text style={{ fontSize: 15, color: '#00A2A2' }}>
+                                                                <Text style={{ fontSize: L.fs(15), color: '#00A2A2' }}>
                                                                     {getLocalizedText(this.props.lang, LangDashboard.pathSway)}
                                                                 </Text>
                                                                 <Text
                                                                     style={{
-                                                                        fontSize: 15,
+                                                                        fontSize: L.fs(15),
                                                                         color: '#00A2A2',
                                                                         fontWeight: 'bold',
                                                                     }}>
@@ -1802,12 +1811,12 @@ class index extends Component {
                                                                         justifyContent: 'center',
                                                                         alignItems: 'center',
                                                                     }}>
-                                                                    <Text style={{ fontSize: 15, color: '#00A2A2' }}>
+                                                                    <Text style={{ fontSize: L.fs(15), color: '#00A2A2' }}>
                                                                         {getLocalizedText(this.props.lang, LangDashboard.mlSway)}
                                                                     </Text>
                                                                     <Text
                                                                         style={{
-                                                                            fontSize: 15,
+                                                                            fontSize: L.fs(15),
                                                                             color: '#00A2A2',
                                                                             fontWeight: 'bold',
                                                                         }}>
@@ -1820,12 +1829,12 @@ class index extends Component {
                                                                         justifyContent: 'center',
                                                                         alignItems: 'center',
                                                                     }}>
-                                                                    <Text style={{ fontSize: 15, color: '#00A2A2' }}>
+                                                                    <Text style={{ fontSize: L.fs(15), color: '#00A2A2' }}>
                                                                         {getLocalizedText(this.props.lang, LangDashboard.apSway)}
                                                                     </Text>
                                                                     <Text
                                                                         style={{
-                                                                            fontSize: 15,
+                                                                            fontSize: L.fs(15),
                                                                             color: '#00A2A2',
                                                                             fontWeight: 'bold',
                                                                         }}>
@@ -1868,7 +1877,7 @@ class index extends Component {
                                                                     }}>
                                                                     <Text
                                                                         style={{
-                                                                            fontSize: 15,
+                                                                            fontSize: L.fs(15),
                                                                             color: '#00A2A2',
                                                                             textAlign: 'center',
                                                                         }}>
@@ -1876,23 +1885,12 @@ class index extends Component {
                                                                     </Text>
                                                                     <Text
                                                                         style={{
-                                                                            fontSize: 15,
+                                                                            fontSize: L.fs(15),
                                                                             textAlign: 'center',
                                                                             color: '#00A2A2',
                                                                             fontWeight: 'bold',
                                                                         }}>
-                                                                        {this.state.healthData.ellipse_area + '\n'} cm
-                                                                    </Text>
-                                                                    <Text
-                                                                        style={{
-                                                                            position: 'absolute',
-                                                                            fontSize: 10,
-                                                                            top: 37,
-                                                                            left: 52,
-                                                                            color: '#00A2A2',
-                                                                            fontWeight: 'bold',
-                                                                        }}>
-                                                                        ²
+                                                                        {this.state.healthData.ellipse_area + '\n'} cm²
                                                                     </Text>
                                                                 </View>
 
@@ -1905,7 +1903,7 @@ class index extends Component {
                                                                     }}>
                                                                     <Text
                                                                         style={{
-                                                                            fontSize: 15,
+                                                                            fontSize: L.fs(15),
                                                                             color: '#00A2A2',
                                                                             textAlign: 'center',
                                                                         }}>
@@ -1914,7 +1912,7 @@ class index extends Component {
                                                                     <Text
                                                                         style={{
                                                                             textAlign: 'center',
-                                                                            fontSize: 15,
+                                                                            fontSize: L.fs(15),
                                                                             color: '#00A2A2',
                                                                             fontWeight: 'bold',
                                                                         }}>
@@ -1966,17 +1964,17 @@ class index extends Component {
                           }}
                           showsVerticalScrollIndicator={false}
                       >
-                      <View style={{ flexGrow: 1, width: '100%', alignItems: 'center' }}>
+                      <View style={[{ flexGrow: 1, alignItems: 'center' }, L.column]}>
 
                           <View
                               style={{
-                                  width: 200,
-                                  height: 200,
-                                  borderRadius: 100,
+                                  width: L.isTablet ? Math.min(L.s(200), 300) : 200,
+                                  height: L.isTablet ? Math.min(L.s(200), 300) : 200,
+                                  borderRadius: L.isTablet ? Math.min(L.s(200), 300) / 2 : 100,
                                   overflow: 'hidden',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  marginTop: 60,
+                                  marginTop: L.isTablet ? 80 : 60,
                               }}
                           >
                               <Image
@@ -1986,13 +1984,13 @@ class index extends Component {
                           </View>
 
                           {/* paragraph */}
-                          <View style={{ width: '96%', backgroundColor: '#fff', borderRadius: 16, padding: 18, marginTop: 20, marginBottom: 10, elevation: 2 }}>
+                          <View style={{ width: '96%', backgroundColor: '#fff', borderRadius: 16, padding: L.isTablet ? 26 : 18, marginTop: L.isTablet ? 32 : 20, marginBottom: 10, elevation: 2 }}>
                           <Text
                               style={{
                                   // marginTop: 24,
                                   fontFamily: 'BaiJamjuree-Medium',
-                                  fontSize: 14,
-                                  lineHeight: 14 * 1.53,
+                                  fontSize: L.fs(14),
+                                  lineHeight: L.fs(14) * 1.53,
                                   textAlign: 'left',
                                   color: '#333',
                                   flexShrink: 1,
@@ -2009,9 +2007,9 @@ class index extends Component {
                           <TouchableOpacity
                               activeOpacity={0.8}
                               style={{
-                                  width: 250,
-                                  height: 45,
-                                  borderRadius: 25,
+                                  width: L.isTablet ? 360 : 250,
+                                  height: L.isTablet ? 56 : 45,
+                                  borderRadius: L.isTablet ? 28 : 25,
                                   backgroundColor: '#00A2A2',
                                   justifyContent: 'center',
                                   alignItems: 'center',
@@ -2022,8 +2020,8 @@ class index extends Component {
                               <Text
                                   style={{
                                       fontFamily: 'BaiJamjuree-Bold', // 700 weight
-                                      fontSize: 18,
-                                      lineHeight: 18,                 // 100 % of font size
+                                      fontSize: L.fs(18),
+                                      lineHeight: L.fs(18) + 2,
                                       letterSpacing: -0.3,            // ≈ −1 % of 30 px
                                       color: '#FFFFFF',
                                       textAlign: 'center',

@@ -413,7 +413,7 @@ class index extends React.PureComponent {
     });
 
     if (result.uploaded > 0 || result.deleted > 0) {
-      ToastAndroid.show(this.props.lang ? Lang.alert.thai : Lang.alert.eng, ToastAndroid.SHORT);
+      ToastAndroid.show(getLocalizedText(this.props.lang, Lang.alert), ToastAndroid.SHORT);
     } else if (result.failed > 0) {
       ToastAndroid.show('Something went wrong. Please Try again!!!', ToastAndroid.SHORT);
     }

@@ -1,3 +1,4 @@
+import {getLocalizedText} from '../../assets/language/langUtils';
 // // 7.11.62
 
 // import React, {Component} from 'react';
@@ -175,7 +176,7 @@
       if (!this.state.isConnected) {
         console.log('WiFi is not connected');
         files.forEach(r => console.log(r.path));
-        alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+        alert(getLocalizedText(this.props.lang, Lang.alert));
         return;
       }
 
@@ -246,7 +247,7 @@
       console.log('Error reading directory:', e);
     }
 
-    alert(this.props.lang ? Lang.alert.thai : Lang.alert.eng);
+    alert(getLocalizedText(this.props.lang, Lang.alert));
   }
 */
 

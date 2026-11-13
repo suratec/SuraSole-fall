@@ -66,7 +66,7 @@ const mediumBalance = {
 
 const badBalance = {
     thai: 'สูญเสียการทรงตัว ระวังล้ม!',
-    eng: 'Lost balance, beware failing!',
+    eng: 'Lost balance, beware of falling!',
     japanese: 'バランスを失いました。転倒注意！'
 }
 
@@ -83,7 +83,7 @@ const rightFootBalance = {
 }
 
 const bluetoothAlert = {
-    eng: 'Please Check Your Bluetooth Connect',
+    eng: 'Please check your Bluetooth connection',
     thai: 'กรุณาตรวจสอบการเชื่อมต่อบลูทูธ',
     japanese: 'Bluetooth接続を確認してください'
 }
@@ -122,7 +122,7 @@ const dynamic = {
 const staticMode = {
     eng: 'Static',
     thai: 'สแตติก',
-    japanese: 'สタティック'
+    japanese: 'スタティック'
 }
 
 const timeInZone = {

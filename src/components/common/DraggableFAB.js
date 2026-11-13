@@ -24,7 +24,8 @@ export default function DraggableFAB({ navigation }) {
     const pan = useRef(
         new Animated.ValueXY({
             x: SCREEN_WIDTH - FAB_SIZE - MARGIN,                // start pinned to right
-            y: SCREEN_HEIGHT / 2 - FAB_SIZE / 2,                 // start vertically centered
+            // start near the bottom-right so it doesn't sit over the middle of content (esp. on tablets)
+            y: SCREEN_HEIGHT - FAB_SIZE - 140,
         })
     ).current;
 

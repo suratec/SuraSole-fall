@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Image, Dimensions } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ModalPortal } from 'react-native-modals';
@@ -84,6 +84,30 @@ const MedicalNotesScreen = (props) => {
     return <MedicalNotes {...props} token={token} user={user} lang={lang} />;
 };
 
+// 2. Token Watcher — auto-navigate to Auth when Redux token becomes null
+//    This fires after the global fetch interceptor dispatches RESET_USERINFO on 401
+const TokenWatcher = ({ navigationRef }) => {
+    const token = useSelector(state => state?.token);
+    const prevTokenRef = useRef(token);
+
+    useEffect(() => {
+        const wasLoggedIn = prevTokenRef.current !== null;
+        const isNowLoggedOut = token === null;
+
+        if (wasLoggedIn && isNowLoggedOut && navigationRef.isReady()) {
+            console.log('[TokenWatcher] Token cleared — redirecting to Auth');
+            navigationRef.reset({
+                index: 0,
+                routes: [{ name: 'Auth' }],
+            });
+        }
+
+        prevTokenRef.current = token;
+    }, [token, navigationRef]);
+
+    return null; // renders nothing
+};
+
 const styles = StyleSheet.create({
     screenContainer: {
         flex: 1,
@@ -152,22 +176,28 @@ const AppStack = () => (
 );
 
 // 4. Root Navigation
-export default () => (
-    <SafeAreaProvider>
-        <Provider store={store}>
-            <PersistGate persistor={persister} loading={null}>
-                <SafeAreaView style={styles.appSafeArea} edges={['bottom']}>
-                    <NavigationContainer>
-                        <ModalPortal />
-                        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="AuthLoading">
-                            <Stack.Screen name="AuthLoading" component={AuthLoadingScreen} />
-                            <Stack.Screen name="Auth" component={AuthStack} />
-                            <Stack.Screen name="App" component={AppStack} />
-                            <Stack.Screen name="Loading" component={LoadingScreen} />
-                        </Stack.Navigator>
-                    </NavigationContainer>
-                </SafeAreaView>
-            </PersistGate>
-        </Provider>
-    </SafeAreaProvider>
-);
+export default () => {
+    const navigationRef = useNavigationContainerRef();
+
+    return (
+        <SafeAreaProvider>
+            <Provider store={store}>
+                <PersistGate persistor={persister} loading={null}>
+                    <SafeAreaView style={styles.appSafeArea} edges={['bottom']}>
+                        <NavigationContainer ref={navigationRef}>
+                            <ModalPortal />
+                            {/* Watches Redux token — auto-logout on 401 */}
+                            <TokenWatcher navigationRef={navigationRef} />
+                            <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="AuthLoading">
+                                <Stack.Screen name="AuthLoading" component={AuthLoadingScreen} />
+                                <Stack.Screen name="Auth" component={AuthStack} />
+                                <Stack.Screen name="App" component={AppStack} />
+                                <Stack.Screen name="Loading" component={LoadingScreen} />
+                            </Stack.Navigator>
+                        </NavigationContainer>
+                    </SafeAreaView>
+                </PersistGate>
+            </Provider>
+        </SafeAreaProvider>
+    );
+};

@@ -21,6 +21,7 @@ import {
 // import {NavigationEvents} from 'react-navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ToastAndroid } from 'react-native'; // Replaced simple-toast
+import { getLayout } from '../../../utils/responsive';
 import UI from '../../../config/styles/CommonStyles';
 import Text from '../../common/TextFix';
 import ListItem from './listItem';
@@ -403,7 +404,24 @@ class index extends Component {
 
     // Use the smaller dimension for consistent profile image size in both orientations
     const smallerDimension = Math.min(safeWidth, safeHeight);
-    const screenWidth = Math.round(smallerDimension) * 0.25;
+    const L = getLayout({ width: safeWidth, height: safeHeight });
+    const topBtnSize = L.isTablet ? 46 : 38;
+    // Language + logout share the exact same circle; content ~half the circle
+    const topBtnStyle = {
+      borderWidth: 1.2,
+      borderColor: '#fff',
+      borderRadius: topBtnSize / 2,
+      width: topBtnSize,
+      height: topBtnSize,
+      justifyContent: 'center',
+      alignItems: 'center',
+      overflow: 'hidden',
+    };
+    const topIconSize = Math.round(topBtnSize * 0.48);
+    // Avatar: 25% of short side on phones, capped on tablets so it doesn't dominate
+    const screenWidth = L.isTablet
+      ? Math.min(Math.round(smallerDimension * 0.22), 190)
+      : Math.round(smallerDimension) * 0.25;
 
     let img = 'user.png';
     if (this.props.user) {
@@ -422,67 +440,6 @@ class index extends Component {
       <View style={{ backgroundColor: 'white', flex: 1 }}>
         {this.popup()}
 
-        <View
-          style={{
-            position: 'absolute',
-            left: 15,
-            top: Platform.OS === 'ios' ? 70 : 50,
-            borderWidth: 1.2,
-            borderColor: '#fff',
-            padding: 2,
-            borderRadius: 20,
-            width: 38,
-            height: 38,
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 9999,
-          }}
-          pointerEvents="box-none"
-        >
-          <LanguagePickerFix
-            langSwitch={Lang.langSwitch}
-            onLanguageChange={(index) => {
-              console.log('Language changed to:', index);
-            }}
-            isCircular={true}
-            showFlag={true}
-            showText={false}
-            style={{
-              position: 'absolute',
-            }}
-          />
-        </View>
-
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={{
-            position: 'absolute',
-            right: 15,
-            top: Platform.OS === 'ios' ? 70 : 50,
-            borderWidth: 1.2,
-            borderColor: '#fff',
-            padding: 2,
-            borderRadius: 20,
-            width: 38,
-            height: 38,
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 9999,
-          }}
-          onPress={() => {
-            this.checkExitOrLogout();
-          }}
-        >
-          <Image
-            style={{ width: 22, height: 22, tintColor: '#fff' }}
-            source={
-              this.props.impersonating
-                ? require('../../../assets/image/menu/exit.png')
-                : require('../../../assets/image/icons/logout.png')
-            }
-          />
-        </TouchableOpacity>
-
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
@@ -492,10 +449,57 @@ class index extends Component {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.oval}>
+            {/* Top bar: language + logout are part of the header flow (no hard-pinned absolute coords) */}
+            <View
+              style={{
+                width: '100%',
+                maxWidth: L.isTablet ? L.contentWidth + 48 : undefined,
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: L.isTablet ? 28 : 15,
+                marginTop: 20,
+                height: topBtnSize,
+                marginBottom: -topBtnSize,
+                zIndex: 10,
+              }}
+            >
+              <View style={topBtnStyle} pointerEvents="box-none">
+                <LanguagePickerFix
+                  langSwitch={Lang.langSwitch}
+                  onLanguageChange={(index) => {
+                    console.log('Language changed to:', index);
+                  }}
+                  isCircular={true}
+                  showFlag={true}
+                  showText={false}
+                  circleSize={topBtnSize - 4}
+                  flagSize={Math.round(topBtnSize * 0.55)}
+                />
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={topBtnStyle}
+                onPress={() => {
+                  this.checkExitOrLogout();
+                }}
+              >
+                <Image
+                  style={{ width: topIconSize, height: topIconSize, tintColor: '#fff', resizeMode: 'contain' }}
+                  source={
+                    this.props.impersonating
+                      ? require('../../../assets/image/menu/exit.png')
+                      : require('../../../assets/image/icons/logout.png')
+                  }
+                />
+              </TouchableOpacity>
+            </View>
             {this.props.user && (
               <View
                 style={{
-                  marginTop: 30, // Move profile picture and name further down
+                  marginTop: 10, // top bar (marginTop 20, overlapped) keeps avatar where it was
                   alignContent: 'center',
                   justifyContent: 'center',
                   textAlign: 'center',
@@ -520,8 +524,8 @@ class index extends Component {
                   <Image
                     onPress={() => this.actionProfile()}
                     style={{
-                      width: 30,
-                      height: 35,
+                      width: L.s(30),
+                      height: L.s(35),
                       position: 'absolute',
                       top: -10,
                       right: -5,
@@ -530,18 +534,22 @@ class index extends Component {
                   />
                 </TouchableOpacity>
                 <Text
-                  styles={{ color: 'white', height: 30, marginTop: 10, fontSize: 20 }}
+                  styles={{ color: 'white', minHeight: 30, marginTop: 10, fontSize: L.fs(20) }}
                   type={'bold'}>
                   {this.props.user.fname} {this.props.user.lname}
                 </Text>
-                <Text styles={{ color: 'white', fontWeight: '700', height: 40, fontSize: 15 }}>
+                <Text styles={{ color: 'white', fontWeight: '700', minHeight: 40, fontSize: L.fs(15) }}>
                   {this.props.user.email}
                 </Text>
               </View>
             )}
           </View>
 
-          <ListItem style={{ marginTop: 10 }} navigation={this.props.navigation} />
+          <ListItem
+            style={[{ marginTop: L.isTablet ? 24 : 10 }, L.column]}
+            layout={L}
+            navigation={this.props.navigation}
+          />
         </ScrollView>
 
       </View>

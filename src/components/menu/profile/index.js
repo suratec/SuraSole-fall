@@ -100,7 +100,10 @@ class index extends Component {
       emergency_contract: '150 ถ.ศรีธานี', // set ไว้รู้จะใส่อะไร
     };
 
-    fetch(`${API}/updata-profile`, {
+    console.log('--- actionUpdate payload ---');
+    console.log(JSON.stringify(body, null, 2));
+
+    fetch(`${API}updata-profile`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -111,6 +114,7 @@ class index extends Component {
         .then(res => res.json())
         .then(res => {
           this.setState({loading: false});
+          console.log('--- actionUpdate response ---');
           console.log(res);
 
           if (res.message == 'บันทึกไม่สำเร็จ') {
@@ -285,22 +289,25 @@ class index extends Component {
       type: mimeType || 'image/jpeg',
     });
 
-    console.log('Uploading cropped image...');
+    console.log('--- uploadProfileImage payload ---');
+    console.log('URL:', `${API}profile`);
+    console.log('FormData:', data);
 
     try {
-      const res = await fetch(`${API}/profile`, {
+      const res = await fetch(`${API}profile`, {
         method: 'POST',
         body: data,
       });
 
       const responseText = await res.text();
+      console.log('--- uploadProfileImage raw response ---', responseText);
       let json = {};
       try {
         json = JSON.parse(responseText);
       } catch (parseError) {
         console.log('Server returned non-JSON response:', responseText);
       }
-      console.log('Upload Response:', json);
+      console.log('--- uploadProfileImage parsed JSON ---', json);
 
       const responseSummary = `${json.status || ''} ${json.message || ''} ${responseText}`.toLowerCase();
       const explicitlyFailed =
