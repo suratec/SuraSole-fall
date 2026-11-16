@@ -21,6 +21,7 @@ import HeaderFix from '../../common/HeaderFix';
 import shoeLang from '../../../assets/language/menu/lang_shoe';
 import { getLocalizedText } from '../../../assets/language/langUtils';
 import cartApi from '../../../services/cartApi';
+import { scaleFonts } from '../../../utils/responsive';
 
 const UK_SIZES = ['5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -423,7 +424,7 @@ const CartScreen = ({ navigation, lang, user }) => {
     );
 };
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create(scaleFonts({
     container: { flex: 1, backgroundColor: '#eafcff' },
 
     tableHeader: {
@@ -549,6 +550,10 @@ const styles = StyleSheet.create({
     },
     popupBox: { backgroundColor: '#00c3cc', padding: 30, borderRadius: 20 },
     popupText: { fontSize: 20, color: '#fff', fontWeight: 'bold' },
-});
+}, {
+    // Tablet only: bigger quantity buttons and product thumbnails.
+    qtyBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 6 },
+    image: { width: 80, height: 80 },
+}));
 
 export default connect((state) => ({ lang: state.lang, user: state.user }))(CartScreen);

@@ -2,6 +2,9 @@
  * @format
  */
 
+// Must stay the first import: it patches Text before any screen loads
+import './src/config/fontScaling';
+
 import 'react-native-gesture-handler';
 import {View, Text, TextInput} from 'react-native';
 

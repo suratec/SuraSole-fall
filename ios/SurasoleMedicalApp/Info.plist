@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>th.co.SuraSoleMedical</string>
+	<string>SuraSole Fall Risk</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -22,28 +22,8 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>We need access to your calendar to provide event scheduling features.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>We need access to your contacts to help you connect with your friends and colleagues.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We need access to your photo library to allow you to upload photos.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We need access to your microphone for voice recording features.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Camera usage description</string>
-	<key>NSAppleMusicUsageDescription</key>
-	<string>We need access to your Apple Music library to provide music playback features.</string>
-	<key>NSMotionUsageDescription</key>
-	<string>We need access to your motion data to track your physical activities.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>We need access to speech recognition to provide voice command features.</string>
-	<key>NSSiriUsageDescription</key>
-	<string>We need access to Siri to provide voice command features.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We need access to your location to provide location-based services.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need access to your location to provide personalized recommendations and services based on your current location.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
@@ -58,11 +38,21 @@
 		</dict>
 	</dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>To connect with device</string>
+	<string>SuraSole Fall Risk uses Bluetooth to connect to your SuraSole smart insoles and read pressure data during balance and walking tests.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>We use Bluetooth to connect to devices</string>
+	<string>SuraSole Fall Risk uses Bluetooth to connect to your SuraSole smart insoles.</string>
 	<key>NSBluetoothServices</key>
 	<array/>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera takes your profile photo and photos of your feet for foot assessment.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Location access is used to find nearby SuraSole insoles over Bluetooth.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The microphone records voice messages you send to the chatbot.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a photo from your library to use as your profile picture or foot photo.</string>
+	<key>RCTNewArchEnabled</key>
+	<true/>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Pushster-Regular.ttf</string>
@@ -84,12 +74,9 @@
 		<string>SimpleLineIcons.ttf</string>
 		<string>Zocial.ttf</string>
 	</array>
-
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>
-		<string>bluetooth-peripheral</string>
-		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
@@ -98,6 +85,8 @@
 	<array>
 		<string>armv7</string>
 	</array>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

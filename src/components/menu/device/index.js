@@ -23,7 +23,15 @@ import UI from '../../../config/styles/CommonStyles';
 import {connect} from 'react-redux';
 import Lang from '../../../assets/language/menu/lang_device';
 import {getLocalizedText} from '../../../assets/language/langUtils';
-import RNAndroidLocationEnabler from 'react-native-android-location-enabler';
+// Android-only native module: importing it on iOS crashes at startup
+// (TurboModuleRegistry.getEnforcing('AndroidLocationEnabler')), so load it lazily on Android.
+const RNAndroidLocationEnabler = (() => {
+  if (Platform.OS !== 'android') {
+    return null;
+  }
+  const mod = require('react-native-android-location-enabler');
+  return mod && mod.promptForEnableLocationIfNeeded ? mod : mod && mod.default;
+})();
 import RNPermissions, {PERMISSIONS} from 'react-native-permissions';
 import RefreshComponent from '../../common/RefreshComponent';
 
@@ -103,7 +111,7 @@ class index extends Component {
           this.enableBLE();
           console.log('status', status);
           RNPermissions.requestMultiple([
-            RNPermissions.PERMISSIONS.IOS.BLUETOOTH_PERIPHERAL,
+            RNPermissions.PERMISSIONS.IOS.BLUETOOTH,
           ]).then(result => {
             if (result) {
               this.enableBLE();

@@ -41,3 +41,27 @@ export function useLayout() {
   const win = useWindowDimensions();
   return getLayout(win);
 }
+
+// Tablet-only: scale text and vertical touch padding in a StyleSheet definition.
+// Phones get the definition back unchanged, so phone layouts stay exactly as designed.
+// Use at module level: const styles = StyleSheet.create(scaleFonts({...})).
+// The iPad build is portrait-only (UIRequiresFullScreen), so computing once is safe.
+const SCALED_KEYS = ['fontSize', 'lineHeight', 'paddingVertical', 'minHeight'];
+
+// tabletOverrides: extra per-style values merged in on tablets only.
+export function scaleFonts(defs, tabletOverrides = {}, L = getLayout()) {
+  if (!L.isTablet) {
+    return defs;
+  }
+  const out = {};
+  Object.keys(defs).forEach(name => {
+    const style = {...defs[name]};
+    SCALED_KEYS.forEach(key => {
+      if (typeof style[key] === 'number') {
+        style[key] = Math.round(style[key] * L.fontScale);
+      }
+    });
+    out[name] = {...style, ...(tabletOverrides[name] || {})};
+  });
+  return out;
+}

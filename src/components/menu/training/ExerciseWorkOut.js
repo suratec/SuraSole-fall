@@ -15,6 +15,7 @@ import UI from '../../../config/styles/CommonStyles';
 import { useSelector } from 'react-redux';
 import langTraining from '../../../assets/language/menu/lang_training';
 import { getLocalizedText } from '../../../assets/language/langUtils';
+import {scaleFonts, getLayout} from '../../../utils/responsive';
 
 const { width } = Dimensions.get('window');
 
@@ -312,7 +313,7 @@ export default function ExerciseWorkOut({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create(scaleFonts({
   container: {
     alignItems: 'center',
     padding: 16,
@@ -325,7 +326,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     marginVertical: 6,
-    width: width * 0.9,
+    width: getLayout().isTablet ? Math.min(width * 0.9, 640) : width * 0.9,
     backgroundColor: '#fff',
   },
   buttonText: {
@@ -370,4 +371,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-});
+}));

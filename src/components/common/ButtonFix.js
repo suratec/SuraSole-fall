@@ -25,10 +25,13 @@ export default class ButtonFix extends Component {
               ]}
               onPress={this.props.onPress}>
               <Text
-                style={{
-                  textAlign: 'center',
-                  color: this.props.textCl ? UI.textBlack : UI.textWhite,
-                }}>
+                style={[
+                  {
+                    textAlign: 'center',
+                    color: this.props.textCl ? UI.textBlack : UI.textWhite,
+                  },
+                  this.props.textStyle,
+                ]}>
                 {this.props.title}
               </Text>
             </Button>
@@ -45,10 +48,13 @@ export default class ButtonFix extends Component {
               ]}
               onPress={this.props.onPress}>
               <Text
-                style={{
-                  textAlign: 'center',
-                  color: this.props.textCl ? UI.textBlack : UI.textWhite,
-                }}>
+                style={[
+                  {
+                    textAlign: 'center',
+                    color: this.props.textCl ? UI.textBlack : UI.textWhite,
+                  },
+                  this.props.textStyle,
+                ]}>
                 {this.props.title}
               </Text>
             </Button>

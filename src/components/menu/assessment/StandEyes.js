@@ -27,6 +27,7 @@ import UI from '../../../config/styles/CommonStyles';
 import langAssessment from '../../../assets/language/menu/lang_assessmentTests';
 import {getLocalizedText} from '../../../assets/language/langUtils';
 import RecordStopButton from '../../common/RecordStopButton';
+import {getLayout} from '../../../utils/responsive';
 import Lang_pressuremap from "../../../assets/language/menu/lang_pressuremap";
 import {
     EYES_CACHE_DIRECTORY,
@@ -1156,6 +1157,12 @@ class StandEyes extends Component {
     render() {
         this.canVibration(this.state.shouldVibrate, this.state.switch);
 
+        // Tablet: centred content column, larger illustration and text. Phone unchanged.
+        const L = getLayout();
+        const tabletColumn = L.isTablet ? [L.column, { paddingHorizontal: 24 }] : undefined;
+        const tabletImageRow = L.isTablet ? { justifyContent: 'center' } : null;
+        const tabletImage = L.isTablet ? { width: Math.round(278 * 1.4), height: Math.round(339 * 1.4), resizeMode: 'contain' } : undefined;
+        const tabletText = L.isTablet ? { fontSize: L.fs(20) } : null;
         return (
             <ScrollView
                 style={{ flex: 1, backgroundColor: '#fff' }}
@@ -1172,6 +1179,7 @@ class StandEyes extends Component {
                     <Text style={styles.timerText}>{this.state.countDownTimer}</Text>
                 )}
                 <View
+                    style={tabletColumn}
                     styles={{
                         flex: 1,
 
@@ -1180,12 +1188,12 @@ class StandEyes extends Component {
                         justifyContent: 'center',
                     }}>
                     <View
-                        style={{
+                        style={[{
                             width: '80%',
                             alignSelf: 'center',
                             flexDirection: 'row',
                             marginTop: '10%',
-                        }}>
+                        }, tabletImageRow]}>
                         <Image
                             source={
                                 this.props.type == 'open'
@@ -1193,15 +1201,16 @@ class StandEyes extends Component {
                                     : require('../../../assets/image/static/close.png')
                             }
                             styles={{width: 400, height: 80}}
+                            style={tabletImage}
                         />
                     </View>
 
-                    <Text style={[styles.text, {marginTop: '5%'}]}>
+                    <Text style={[styles.text, {marginTop: '5%'}, tabletText]}>
                         {this.getLocalizedText(langAssessment.standText)}
                     </Text>
 
-                    <Text style={[styles.text, {marginTop: '8%'}]}>{this.getLocalizedText(langAssessment.noteText)}</Text>
-                    <Text style={styles.text}>
+                    <Text style={[styles.text, {marginTop: '8%'}, tabletText]}>{this.getLocalizedText(langAssessment.noteText)}</Text>
+                    <Text style={[styles.text, tabletText]}>
                         {this.getBalanceInstruction()}
                     </Text>
 

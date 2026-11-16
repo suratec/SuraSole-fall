@@ -6,6 +6,7 @@ import { useIsFocused } from '@react-navigation/native';
 import HeaderFix from '../../common/HeaderFix'; // <-- adjust path if needed
 import orderLang from '../../../assets/language/menu/lang_orders'; // <-- adjust path if needed
 import ROOT_API from '../../../config/Api';
+import {scaleFonts, getLayout} from '../../../utils/responsive';
 
 function OrdersScreen({ navigation, lang, user }) {
     const isFocused = useIsFocused();
@@ -150,7 +151,7 @@ export default connect(
     state => ({ lang: state.lang, user: state.user })
 )(OrdersScreen);
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create(scaleFonts({
     container: { flex: 1, backgroundColor: '#f0faff' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     listContainer: { padding: 10 },
@@ -180,4 +181,4 @@ const styles = StyleSheet.create({
     orderItems: {},
     itemsHeader: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 5 },
     itemText: { fontSize: 14, color: '#555', marginLeft: 10 },
-});
+}));

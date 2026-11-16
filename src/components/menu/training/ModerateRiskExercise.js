@@ -4,6 +4,7 @@ import HeaderFix from '../../common/HeaderFix';
 import { useSelector } from 'react-redux';
 import langTraining from '../../../assets/language/menu/lang_training';
 import { getLocalizedText } from "../../../assets/language/langUtils";
+import {scaleFonts, getLayout} from '../../../utils/responsive';
 
 const { width, height } = Dimensions.get('window');
 
@@ -326,7 +327,7 @@ export default function ModerateRiskExercise({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create(scaleFonts({
     container: {
         flex: 1,
         backgroundColor: '#ffffff',
@@ -448,4 +449,4 @@ const styles = StyleSheet.create({
         color: '#6c757d',
         fontStyle: 'italic',
     },
-});
+}));

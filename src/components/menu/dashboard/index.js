@@ -9,6 +9,7 @@ import {
   Image,
   Dimensions,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { connect } from 'react-redux';
 import NetInfo from '@react-native-community/netinfo';
@@ -25,7 +26,43 @@ import moment from 'moment';
 
 import API from '../../../config/Api';
 import { result } from 'lodash';
-import LinearGradient from 'react-native-linear-gradient';
+import RNLinearGradient from 'react-native-linear-gradient';
+
+// iOS (new architecture): react-native-linear-gradient 2.x runs through the legacy
+// interop layer, and a gradient that has children draws them (and any gradient
+// nested inside) at the wrong position, so cards and the High/Low bar overlap.
+// On iOS a gradient WITH children becomes a plain View filled with the average of
+// its colours (cards use padding: 1 + a white inner View, so this keeps a 1px
+// frame); a gradient without children (legend bar, dividers) stays a real
+// gradient. Android is unchanged.
+const averageColor = colors => {
+  const rgb = colors.map(c => {
+    const h = c.replace('#', '');
+    return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+  });
+  const avg = [0, 1, 2].map(i =>
+    Math.round(rgb.reduce((sum, c) => sum + c[i], 0) / rgb.length),
+  );
+  return '#' + avg.map(v => v.toString(16).padStart(2, '0')).join('');
+};
+const LinearGradient =
+  Platform.OS === 'ios'
+    ? ({ children, colors, start, end, locations, style, ...rest }) =>
+        children == null ? (
+          <RNLinearGradient
+            colors={colors}
+            start={start}
+            end={end}
+            locations={locations}
+            style={style}
+            {...rest}
+          />
+        ) : (
+          <View style={[{ backgroundColor: averageColor(colors) }, style]} {...rest}>
+            {children}
+          </View>
+        )
+    : RNLinearGradient;
 import RadarChart from '../../common/RadarChartFix';
 import RadarChartForDashboard from '../../common/RadarChartForDashboard';
 import {getLayout} from '../../../utils/responsive';

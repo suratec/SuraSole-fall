@@ -14,6 +14,7 @@ import { ToastAndroid } from 'react-native'; // Replaced simple-toast
 import langChatbot from '../../../assets/language/menu/lang_chatbot';
 import {getLocalizedText} from '../../../assets/language/langUtils';
 import RNFS from 'react-native-fs';
+import {scaleFonts, getLayout} from '../../../utils/responsive';
 
 const { width } = Dimensions.get('window');
 const audioRecorderPlayer = new AudioRecorderPlayer();
@@ -610,7 +611,7 @@ function Chatbot({ navigation, user, token, lang, impersonating, patient_token }
 }
 
 // ✅ Updated styles - removed global stop and red border, added better pause icon
-const styles = StyleSheet.create({
+const styles = StyleSheet.create(scaleFonts({
     container: { flex: 1, backgroundColor: '#E6FCFB' },
     chatContainer: {
         flex: 1,
@@ -643,7 +644,7 @@ const styles = StyleSheet.create({
         borderRadius: 1,
     },
     messageBubble: {
-        maxWidth: '85%',
+        maxWidth: getLayout().isTablet ? '70%' : '85%',
         marginBottom: 12,
         padding: 10,
         borderRadius: 12,
@@ -754,7 +755,7 @@ const styles = StyleSheet.create({
         marginLeft: 6,
         borderRadius: 24,
     },
-});
+}));
 
 const mapStateToProps = state => ({
     user: state.user,

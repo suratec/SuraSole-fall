@@ -22,6 +22,7 @@ import LanguagePickerFix from '../../common/LanguagePickerFix';
 import {getLocalizedText} from '../../../assets/language/langUtils';
 
 import {connect} from 'react-redux';
+import {scaleFonts} from '../../../utils/responsive';
 
 const buildApiUrl = path =>
   `${API.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
@@ -307,7 +308,7 @@ class SignIn extends Component {
   }
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create(scaleFonts({
   gradient: {flex: 1},
   container: {
     flexGrow: 1,
@@ -466,7 +467,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
   },
-});
+}, {
+  // Tablet only: keep the sign-in card at a readable width, centred.
+  card: {width: '100%', maxWidth: 560, alignSelf: 'center', padding: 32},
+  logo: {width: 160, height: 160, borderRadius: 22},
+}));
 
 const mapDispatchToProps = dispatch => ({
   addUser: user => dispatch({type: 'ADD_USERINFO', payload: user}),

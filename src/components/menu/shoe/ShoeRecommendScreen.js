@@ -20,13 +20,21 @@ import shoeLang from '../../../assets/language/menu/lang_shoe';
 import { getLocalizedText } from '../../../assets/language/langUtils';
 import orderLang from '../../../assets/language/menu/lang_orders';
 import ROOT_API from '../../../config/Api';
+import { getLayout } from '../../../utils/responsive';
 
 export default connect(state => ({ lang: state.lang }))(function ShoeRecommendScreen({ navigation, lang }) {
     const route = useRoute();
     const { width } = useWindowDimensions();
     const ITEM_MARGIN = 10;
-    const NUM_COLUMNS = Math.max(3, Math.floor(width / 140));
-    const ITEM_WIDTH = (width - ITEM_MARGIN * (NUM_COLUMNS + 1)) / NUM_COLUMNS;
+    const L = getLayout({ width, height: 1000 });
+    // Tablet: 4 columns sized to fit exactly (list padding 8 + item margin 6 each side),
+    // with larger images/text. Phone keeps the original sizing.
+    const NUM_COLUMNS = L.isTablet ? 4 : Math.max(3, Math.floor(width / 140));
+    const ITEM_WIDTH = L.isTablet
+        ? Math.floor((width - 8 * 2 - 6 * 2 * NUM_COLUMNS) / NUM_COLUMNS)
+        : (width - ITEM_MARGIN * (NUM_COLUMNS + 1)) / NUM_COLUMNS;
+    const tabletImage = L.isTablet ? { width: 110, height: 110 } : null;
+    const tabletText = L.isTablet ? { fontSize: L.fs(12) } : null;
 
     const [shoes, setShoes] = useState([]);
     const [filteredShoes, setFilteredShoes] = useState([]);
@@ -150,15 +158,15 @@ export default connect(state => ({ lang: state.lang }))(function ShoeRecommendSc
                 activeOpacity={0.8}
             >
                 {!!item?.image_url && (
-                    <Image source={{ uri: item.image_url }} style={styles.image} resizeMode="contain" />
+                    <Image source={{ uri: item.image_url }} style={[styles.image, tabletImage]} resizeMode="contain" />
                 )}
                 {selected && (
                     <View style={styles.check}>
                         <Text style={styles.checkText}>✓</Text>
                     </View>
                 )}
-                <Text style={styles.name}>{item?.product_name ?? '-'}</Text>
-                <Text style={styles.price}>฿{item?.price ?? '-'}</Text>
+                <Text style={[styles.name, tabletText]}>{item?.product_name ?? '-'}</Text>
+                <Text style={[styles.price, tabletText]}>฿{item?.price ?? '-'}</Text>
             </TouchableOpacity>
         );
     };
